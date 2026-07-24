@@ -67,7 +67,7 @@ FONT_DIRS = [
     "/Library/Fonts",
     "/Library/Application Support/Adobe/*/*/Fonts",
 ]
-FONT_PATTERNS = ("SourceSans*.otf", "SourceSerif*.otf", "SourceCode*.otf")
+FONT_PATTERNS = ("SourceSansPro-*.otf", "SourceSerifPro-*.otf", "SourceCodePro-*.otf")
 
 SANS_FAMILIES = ["Source Sans 3", "Source Sans Pro"]
 SERIF_FAMILIES = ["Source Serif 4", "Source Serif Pro"]
@@ -141,7 +141,7 @@ def semibold(size: float):
     from matplotlib import font_manager as fm
     for root in FONT_DIRS:
         for base in glob.glob(root):
-            hits = glob.glob(str(Path(base) / "SourceSans*Semibold.otf"))
+            hits = glob.glob(str(Path(base) / "SourceSansPro-Semibold.otf"))
             if hits:
                 return fm.FontProperties(fname=sorted(hits)[0], size=size)
     return fm.FontProperties(family=SANS_FAMILIES, size=size, weight="semibold")

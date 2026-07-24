@@ -429,7 +429,7 @@ successor~\cite{videophy2024,videophy2_2025}, which we treat as separate transfe
 targets rather than as the annotation source here.
 
 \subsection{Human annotation schema}
-Each human flaw is a localized record with six fields. The annotator gives a
+Each human flaw is a localized record with six fields (\cref{fig:benchanatomy}). The annotator gives a
 \textbf{severity} and a \textbf{confidence}, each on a five-point scale; a
 \textbf{time span}, as a start and end frame index bounding the interval in which
 the flaw is visible; a \textbf{box track} locating it in the frame, recorded as
@@ -516,7 +516,8 @@ continuity-focused stratum of 29 clips and 85 flaws is carried inside the core s
 measurements remain comparable to earlier work on the same clips, and it is exempt from
 replacement. Every clip that enters the core is verified end to end---downloaded and
 decoded---before the core is written, and the selection, the strata, and any
-replacements are stored with the set. \Cref{tab:datastats} summarizes the counts. We are explicit that the evaluation set is the 606-clip /
+replacements are stored with the set. \Cref{tab:datastats} summarizes the counts, and \cref{fig:benchcomp} shows the same derivation as a
+sequence of steps. We are explicit that the evaluation set is the 606-clip /
 1{,}107-flaw derivative (with a frozen 150-clip / 306-flaw core), not the full
 1{,}500-clip corpus; conflating the two would overstate the evaluation. We are also explicit that the 150-clip / 306-flaw core
 is used as an \emph{optimization set}: system and prompt decisions are repeatedly
@@ -560,6 +561,7 @@ pool. The training pool excludes every clip in the frozen evaluation sets.}
 \end{table}
 
 \subsection{Recall-oriented evaluation and a held-out training pool}
+Two properties of the core shape how a detector must behave (\cref{fig:benchdist}).
 Because every clip in the pool carries at least one flaw and there are no clean
 clips, the benchmark measures \emph{recall}---did the critic find the human
 flaws---and cannot on its own measure precision or false-alarm rate; a
@@ -590,7 +592,7 @@ never trained on.
 The critic takes a prompt and a video and returns one of three answers---plausible,
 implausible, or abstain---together with the trace that produced it: the claims it
 checked, what each tool measured, and the rule that combined those measurements. The
-method has four stages. A served vision-language model reads the prompt only, splits
+method has four stages (\cref{fig:criticpipe}). A served vision-language model reads the prompt only, splits
 it into small separately checkable claims, and writes down, for each claim, which
 measurements would settle it. Those requested measurements are type-checked as a
 program before anything runs. Each surviving measurement is then executed by a frozen
@@ -604,7 +606,7 @@ answer and would let photorealism stand in for prompt satisfaction. The learned 
 are the reasoner and the specialists; everything that combines evidence is
 deterministic and inspectable.
 
-\begin{figure}[t]
+\begin{figure}[tp]
   \centering
   \input{figs/fig_critic_pipeline}
   \caption{The critic. A reasoner turns the prompt into checkable claims and
@@ -895,14 +897,15 @@ supported; otherwise the claim is left unresolved}. Negation is applied at this
 composition step rather than pushed into the measurement layer, so the measurement
 rules never have to reason about negated queries.
 
-Composition is what lets one sentence be checked in more than one way. A claim that
+Composition is what lets one sentence be checked in more than one way
+(\cref{fig:planexample}). A claim that
 a ball triggers a cascade of a thousand mousetraps yields both a judgment that the
 cascade occurs \emph{and} a count check against the number. Under the composition
 rule, a measured count below the stated number is by itself sufficient to
 contradict the claim even when the occurrence part is supported---a claim carrying
 only an occurrence check cannot express that.
 
-\begin{figure}[t]
+\begin{figure}[tp]
   \centering
   \input{figs/fig_plan_example}
   \caption{One claim, two measurements. A numeral in the claim adds a counting
