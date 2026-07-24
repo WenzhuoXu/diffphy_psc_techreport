@@ -54,8 +54,8 @@
     cfdet/.style   = {cfbox, draw=adobeink, fill=white},
     % --- accent 1: the deterministic check that precedes every tool call ---
     cfgate/.style  = {cfbox, draw=adobered, fill=white},
-    % --- accent 2: the critic's verdict ------------------------------------
-    cfout/.style   = {cfbox, draw=adobered, fill=adobered!5},
+    % --- the critic's verdict (drawn like any deterministic box) -----------
+    cfout/.style   = {cfbox, draw=adobeink, fill=white},
     % --- what enters the critic --------------------------------------------
     cfdata/.style  = {cfbox, draw=adobegray, fill=white, inner sep=4pt,
                       dash pattern=on 2pt off 1.6pt},
@@ -126,7 +126,7 @@
   \coordinate (fanB) at ($(compose.south)+(0,-0.40)$);
   \node[cfout, text width=5.6cm, anchor=north west]
     (verdict) at ($(compose.south west)+(0,-0.80)$)
-    {{\color{adobered}\textbf{Verdict}}\\[1.5pt]
+    {{\textbf{Verdict}}\\[1.5pt]
      \cfsub{each claim supported, contradicted or\\ unknown; the whole clip
      plausible,\\ implausible, or abstained on}};
   \node[cfdet, text width=7.0cm, anchor=north east]
@@ -171,11 +171,8 @@
   \node[cfsw, draw=adobered, fill=white, right=9pt of lbB] (swC) {};
   \node[cfnote, right=3pt of swC] (lbC) {deterministic, before any tool};
 
-  \node[cfsw, draw=adobered, fill=adobered!5, right=9pt of lbC] (swD) {};
-  \node[cfnote, right=3pt of swD] (lbD) {the verdict};
-
   \node[cfsw, draw=adobegray, fill=white, dash pattern=on 2pt off 1.6pt,
-        right=9pt of lbD] (swE) {};
+        right=9pt of lbC] (swE) {};
   \node[cfnote, right=3pt of swE] (lbE) {input};
 
 \end{tikzpicture}

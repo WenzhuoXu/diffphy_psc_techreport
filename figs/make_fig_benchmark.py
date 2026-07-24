@@ -355,7 +355,8 @@ def pick_anatomy(D: dict, item_id: str = ANATOMY_ITEM) -> dict:
         start_frame=s,
         end_frame=t,
         start_s=s / clip["fps"],
-        end_s=(t + 1) / clip["fps"],
+        end_s=t / clip["fps"],          # label the last flagged frame itself
+        end_s_excl=(t + 1) / clip["fps"],  # inclusive end, kept for the length
         span_s=(t - s + 1) / clip["fps"],
         n_boxed_keyframes=len(key_frames),
         key_frames=key_frames,
@@ -415,7 +416,7 @@ def fig_composition(stages: list[dict], side: dict) -> None:
 
     max_v = {"clips": max(s["clips"] for s in stages), "flaws": max(s["flaws"] for s in stages)}
     # light-to-dark ramp: the set gets smaller and more closely examined
-    shades = ["#DCDCDC", "#B8B8B8", "#8C8C8C", INK]
+    shades = ["#F5F5F5", "#E5E5E5", GRAY, INK]
 
     for x0, key, cap in ((COL1_X, "clips", "video clips"), (COL2_X, "flaws", "human-marked flaws")):
         fig.text(x0, TOP, cap, fontproperties=_semibold(8.8), color=GRAY, va="baseline")
