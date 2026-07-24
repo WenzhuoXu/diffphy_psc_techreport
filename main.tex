@@ -867,6 +867,103 @@ in the routed configuration (\cref{sec:planner-gaps}).}
 \label{tab:planops}
 \end{table}
 
+\subsubsection{How a plan is constructed}\label{sec:plan-construction}
+Whatever surface the planner writes, the plan the executor consumes is a small set
+of linked tables: the things the prompt talks about, the separate occurrences of
+the events it asserts, the measurements to be made, the typed checks over those
+measurements, and the claim each check answers. When the planner writes one line
+per claim, the deterministic translator assembles those tables as it goes, giving
+one identifier to each distinct mention it encounters and reusing it thereafter.
+When the tables are written directly, that consistency has to be arranged
+explicitly, and the construction proceeds in two passes over the prompt
+(\cref{fig:graphconstruct}). The reason is reference, not length.
+
+\paragraph{Name the things once, then decide what to measure.} The first pass reads
+the whole prompt and does nothing but name. It lists every distinct object or actor
+the claims mention and every separate occurrence of an asserted event, fixes an
+identifier for each, and records which participants each occurrence involves.
+Mentions the prompt itself distinguishes---a first and a second animal of the same
+kind---receive different identifiers, and an event asserted twice receives one entry
+per occurrence rather than one entry for the event type. The pass is required to
+return nothing else: no measurements and no checks. Only then does a second pass
+decide, claim by claim, what would have to be measured, and it does so against that
+finished list, which it may refer to but not extend.
+
+The split exists to keep references stable. If each part of a long prompt chose its
+own names while also choosing its own measurements, two parts would name the same
+object differently, or give one name to two different objects, and a check written
+in one part could not be composed with a check written in another---an ordering
+check, for instance, is only meaningful if both events it orders are the events the
+rest of the plan is talking about. Fixing the names first makes them shared
+vocabulary: the second pass points at a name and cannot quietly mint a competing
+one for something already named.
+
+\paragraph{Claims are handled in small groups.} The claims are then taken a few at a
+time---four by default---in the order they appear in the prompt. A group is shown
+the whole prompt and the whole list of names, but only its own claims, and returns
+only the measurements, the checks and the claim-to-check bindings for those claims.
+Because groups are written independently, their internal identifiers would collide
+once the groups are put together, so the identifiers are made group-local
+mechanically rather than by request: every measurement and check a group produced is
+renumbered under that group's own label and the references inside the group are
+rewritten to match. A collision is therefore impossible even if a group ignores the
+instruction to label its own output. Two things are deliberately not the planner's to
+choose: the claim identifiers and the claim wording are the ones the claim list
+already fixed, and a group that leaves one of its claims without a check yields a
+complaint naming that claim rather than a plan quietly missing it.
+
+\paragraph{The assembled plan is checked as a whole, not group by group.} Validation
+runs once, on the assembled plan. This is not a matter of convenience. Most of what
+needs checking is a reference from one part of the plan to another: whether a check
+points at a measurement that exists, whether a claim points at a check that exists,
+whether an event occurrence is bound to a participant that was actually named. A
+group inspected on its own cannot be checked for any of it, so group-by-group
+checking would accept every group and still admit an incoherent plan. Alongside
+those references the whole-plan
+check enforces the same typing described in \cref{sec:compiler}: each kind of check
+must be fed measurements of the kinds that can settle it, relations must come from
+the fixed vocabularies, a stated quantity must be present, and a directed-motion
+check must carry a target. Each complaint the check produces is then traced back to
+the group whose identifiers it mentions.
+
+\paragraph{Recovery is bounded, and it never supplies the answer.} A group whose
+output drew a complaint is asked again, and is shown three things: its own previous
+output, the complaints against it, and a restatement of the format---the permitted
+measurement operations, the permitted kinds of check, the labelling convention for
+identifiers, and the requirement to cover every claim it was given. It is not told
+which measurement the claim should get, which relation is the right one, or what to
+conclude. That line matters: the choice of what to measure is the part of the system
+under study, so correcting it automatically would replace the behaviour being
+measured with the corrector's behaviour and would hide the planning failures that
+should be counted. Teaching the format is not the same as supplying the decision, and
+only the former is done.
+
+Recovery is bounded in both directions. The naming pass and each claim group are
+allowed a small fixed number of attempts. A group still failing after them is not
+dropped and is not left unresolved: its claims are handed to the general verifier one
+at a time, and each of those verifications is charged to the plan's cost exactly like
+any other call. If the naming pass itself never produces a usable list, there is no
+shared vocabulary to write measurements against, and every claim of that prompt takes
+the same per-claim route. After any such degradation the remaining plan is rebuilt
+and re-checked, and if it still fails, its claims degrade the same way rather than an
+unchecked plan being passed on to execution.
+
+\paragraph{What this buys and what it costs.} What it buys is structural: names are
+agreed before anything is measured, so checks written for different parts of a long
+prompt refer to the same objects and events and can be composed; a failure is
+localised to a group and is either repaired or charged rather than silently shrinking
+the plan; and no plan reaches execution without passing a check over its complete
+set of cross-references. What it costs is also concrete. Construction takes several
+model calls rather than one---one for naming, one per group of claims, plus the
+bounded re-asks---and the naming pass is a single point of dependence for the whole
+prompt. A group sees only its own claims, so anything that has to cross between
+groups must travel through the shared list of names rather than through another
+claim's wording. And every claim that degrades to per-claim verification is a claim
+whose plan was not used, which is why the accounting keeps those separate rather than
+folding them into the plan's measurements. Whether this construction procedure helps
+a verdict, or costs less than any alternative, is not established here; the
+comparison that would settle it is the one specified in \cref{sec:eval}.
+
 \subsubsection{Validating a plan before it runs}
 Because the plan is code, it can be checked mechanically before any tool is
 invoked. Each line is parsed; a line that does not parse, or that is not of the
@@ -914,6 +1011,23 @@ only an occurrence check cannot express that.
   the annotator's record shown at the foot are real; what the critic returns on
   this clip is not reported here.}
   \label{fig:planexample}
+\end{figure}
+
+\begin{figure}[tp]
+  \centering
+  \input{figs/fig_graph_construction}
+  \caption{How a plan is constructed. One pass names everything the prompt talks
+  about---the objects and actors, and each separate occurrence of an asserted
+  event---and nothing else; the claims are then handled a few at a time against
+  that fixed list, so that different parts of a long prompt refer to the same
+  things. Each group's identifiers are renumbered under its own label so groups
+  cannot collide when assembled, and the assembled plan is checked as a whole,
+  because what needs checking is mostly cross-reference. A group that fails is
+  asked again with its own complaints and a restatement of the format, never with
+  the answer; a group that still fails hands its claims to the general verifier one
+  at a time, charged to the plan's cost. Shaded boxes are learned components;
+  outlined boxes are deterministic.}
+  \label{fig:graphconstruct}
 \end{figure}
 
 \subsubsection{Routing by what the claim says}
