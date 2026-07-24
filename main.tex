@@ -528,13 +528,36 @@ and any measurement obtained from a sparsely sampled input is excluded. A re-run
 counts only if it uses the dense path on the unchanged frozen target with BF16
 tools at pinned revisions.
 
-\paragraph{Comparisons to pre-specify.} Before execution we freeze the
-configurations, deterministic settings, specialist registry, planner prompt, and
-comparison rules. Two comparisons are of interest and will be reported
-separately: the routed critic against a simpler baseline that verifies each claim
-independently with a single general vision-language call; and, as an internal
-ablation, shared versus unshared execution of the same validated plan. We report
-none of these here; the protocol is pre-registered only.
+\paragraph{The pre-registered comparison.} We evaluate the orchestration design
+with a paired, four-cell nested ablation on the 150-clip optimization set. The
+cells successively separate three possible sources of an observed difference:
+(i) the \emph{wording of the verification question}---whether a claim is true of
+the video, versus whether the described content ever appears; (ii) the
+\emph{decomposition} of the prompt into typed claims; and (iii) the \emph{execution
+structure} itself---shared measurements, routing to capabilities, composition
+across measurements, and conflict resolution. The first two structured cells keep
+independent per-claim execution, so the final comparison isolates the contribution
+of the plan-based execution rather than crediting question-wording or decomposition
+gains to it.
+
+Because tools differ substantially in cost---a detector call, a tracker call, and a
+full vision-language judgment are not one unit each---we record model and tool
+calls, processed frames, and GPU-seconds rather than treating every invocation as
+equivalent. Systems are compared at their natural budgets and through reciprocal
+budget curves: the plan-based system is capped at the per-claim baseline's budget,
+and the per-claim baseline is extended to the plan-based system's natural budget,
+under a priority policy fixed in advance. Allegations not matched to a human flaw
+count as \emph{review burden} in the frozen-benchmark scoring, not as false
+positives; any separate adjudication of them is reported only as a
+benchmark-incompleteness diagnostic and does not expand the frozen labels or change
+the frozen-benchmark score. Uncertainty is estimated by resampling whole clips,
+because flaws within a clip are dependent.
+
+No comparative results are reported here. The final report will disclose that this
+set was inspected and used during optimization, that the question-wording-controlled
+baseline was introduced after treatment outputs had been observed, and that no
+retroactive held-out split exists within these 150 clips; a claim of generalization
+therefore requires evaluation on a new frozen set.
 
 % =====================================================================
 \section{Related Work}\label{sec:related}
