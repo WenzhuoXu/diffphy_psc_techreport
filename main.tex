@@ -451,35 +451,189 @@ over evidence a tool has already localized, under the same asymmetric gate. We
 name them explicitly rather than imply a pipeline that is more symbolic than it
 is.
 
-\subsection{Auditable orchestration: a typed execution layer}\label{sec:compiler}
+\subsection{Compiling claims into an executable measurement plan}\label{sec:compiler}
 Routing could be a flat claim-to-tool table. To make the orchestration
-inspectable, we instead compile each prompt into a typed \emph{verification
-plan}---entities, event occurrences, observations (a tool operation plus its
-measurement contract), typed predicates, and claims---and type-check the plan
-before any tool runs. The validator rejects ill-typed plans loudly (for example,
-an existence check that reads an event clause rather than an entity noun, or a
-temporal check lacking two event localizations) and re-prompts the reasoner.
-Measurements that are described by an identical contract are executed once and
-shared; sharing uses an exact-key match only, so a whole-clip measurement and a
-sub-interval measurement are never conflated. Temporal relations are directional
-and tolerance-scaled: ``$A$ before $B$'' requires a resolvable gap and returns
-\unknownv{} when the windows overlap within tolerance, following a subset of
-Allen's interval algebra~\cite{allen1983intervals}.
+inspectable, we instead compile each prompt into a \emph{verification plan}: a
+small, checkable program that names the measurements the claims require. The plan
+is validated before any tool runs, equivalent measurements are executed once, and
+the resulting evidence is combined by fixed rules. This subsection describes how a
+plan is written, checked, routed, and shared. It concerns \emph{plan construction
+only}: nothing here tests video verdicts, flaw coverage, or false accusations, and
+nothing here bears on whether plan-based execution outperforms independent
+per-claim verification (\cref{sec:eval}).
 
-\paragraph{Two execution configurations, stated plainly.} The system exposes two
-configurations, and we keep them distinct. In the \emph{routed} configuration,
-each claim is dispatched to its dedicated specialist (\cref{tab:arms}) and the
-object, count, kinematics, action, and relation tools run as executable stages
-(the audio backend is wired but not yet exercised here). In the
-\emph{typed-plan} configuration, the
-compiler and its typed predicates run, but the live value source used so far is
-the served reasoner over densely sampled frames, with cached and controlled
-values; wiring the typed-plan layer to dispatch the full specialist registry
-directly is integration work in progress, not an existing capability. Statements
-about running the named specialists refer to the routed configuration; statements
-about typed plans, validation, and reuse refer to the typed-plan layer. Global
-plan selection among alternative tool recipes and a value-of-information loop that
-spawns follow-up measurements are designed but \proposed{}, not built.
+\subsubsection{A restricted language for measurement plans}
+Each claim is represented by \textbf{one line of code} in a small, typed
+language---the code-as-plan idea used in visual programming
+systems~\cite{vipergpt2023,visprog2023}, here narrowed to a verification
+vocabulary. For claim $c_N$ the planner writes \code{check(cN, <expr>)}, where the
+expression is a single call or several joined by \code{and}. The reasoner does not
+see the video at this stage; it is writing down \emph{what would have to be
+measured}, not answering. Representing the plan this way avoids cross-referenced
+identifiers spread across several generated tables and allows the plan to be
+checked mechanically before execution---planner-format fragility being a reported
+difficulty in tool-controller systems~\cite{hugginggpt2023}. \Cref{tab:planops}
+lists the callable operations and the check each becomes.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{6pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}p{4.9cm} p{5.2cm} p{3.0cm}@{}}
+\toprule
+\textbf{Operation} & \textbf{Meaning} & \textbf{Becomes} \\
+\midrule
+\code{judge("assertion")} & a dense-frame pass over the clip decides the assertion & event occurrence \\
+\code{exists("object")} & the object is visible at some point & existence \\
+\code{eq(count("phrase"), N)} & exactly $N$ are visible & count \\
+\code{before(window(A), window(B))} & $A$ ends before $B$ & temporal order \\
+\code{during(window(A), window(B))} & $A$ falls within $B$ & temporal containment \\
+\code{rel("A||B", relation)} & spatial relation between two segmented objects & spatial \\
+\code{traj("phrase", relation, target)} & tracked motion of an object & trajectory \\
+\code{sound("description")} & the described sound is asserted & occurrence\textsuperscript{$\dagger$} \\
+\bottomrule
+\end{tabular}
+\caption{The planner's measurement vocabulary. \code{count} and \code{window} are
+structural and legal only inside \code{eq}, \code{before}, or \code{during}.
+Relations are drawn from fixed vocabularies (for example \emph{behind},
+\emph{in front of}, \emph{above}, \emph{contained in} for space; \emph{moves
+toward}, \emph{rises then falls}, \emph{accelerates} for motion), and the three
+directed motion relations require an explicit target.
+\textsuperscript{$\dagger$}The plan-based path has no dedicated sound-event
+check: \code{sound} is routed to the general verifier, so on this path it does not
+constitute an audio measurement. The audio specialists of \cref{tab:arms} are used
+in the routed configuration (\cref{sec:planner-gaps}).}
+\label{tab:planops}
+\end{table}
+
+\subsubsection{Validating a plan before it runs}
+Because the plan is code, it can be checked mechanically before any tool is
+invoked. Each line is parsed; a line that does not parse, or that is not of the
+form \code{check(cN, \dots)}, is rejected rather than guessed at. Only calls from
+the vocabulary in \cref{tab:planops} are permitted, and each is checked for arity
+and argument shape---a count must wrap a \code{count} term, a spatial relation must
+name two objects and a relation from the fixed vocabulary, a directed motion
+relation must carry a target. Logical negation is accepted only directly around the
+three assertion-style operations, because a negated measurement would require
+uncertainty handling the downstream rules do not provide.
+
+Failures are handled at two granularities, and neither is silent. If an entire line
+is unusable, the claim falls back to direct verification by the general verifier, and
+that fallback is \emph{charged}---counted in the plan's cost like any other call, so
+that fallback never looks free. If a single term is unusable---an invented relation,
+a directed motion without a target---only that term degrades to a generalist
+judgment; the substitution is recorded and explicitly counted as \emph{not} a
+measurement, so that a plan cannot inflate its measurement rate by mislabeling
+salvaged terms. Every plan carries this accounting with it: how many calls, which
+claims fell back, which terms were salvaged.
+
+\subsubsection{Several checks per claim, and negation}
+A claim rarely reduces to a single test. Because an expression may join several
+calls, each conjunct becomes its own sub-claim with its own measurement, and the
+claim's outcome is composed from theirs by a fixed rule: \textbf{if any part is
+contradicted the claim is contradicted; if every part is supported the claim is
+supported; otherwise the claim is left unresolved}. Negation is applied at this
+composition step rather than pushed into the measurement layer, so the measurement
+rules never have to reason about negated queries.
+
+Composition is what lets one sentence be checked in more than one way. A claim that
+a ball triggers a cascade of a thousand mousetraps yields both a judgment that the
+cascade occurs \emph{and} a count check against the number. Under the composition
+rule, a measured count below the stated number is by itself sufficient to
+contradict the claim even when the occurrence part is supported---a claim carrying
+only an occurrence check cannot express that.
+
+\subsubsection{Routing by what the claim says}
+Which measurement a claim receives is decided by its content rather than by a
+blanket rule. A numeral introduces a count check alongside the occurrence
+judgment; spatial prepositions introduce a spatial relation; directed or shaped
+motion introduces a trajectory check; ordering words introduce a temporal
+relation; a described sound introduces the audio operation. Anything else---and
+anything the planner is unsure about---is sent to the general verifier. That
+fallback guarantees the claim remains executable; it does not guarantee a correct
+verdict. Relations outside the fixed vocabularies are never invented; they fall
+back to a general judgment.
+
+Routing interacts with a property of the specialists that we treat as
+load-bearing: \textbf{a specialist's output is not by itself evidence that the
+queried thing exists}. Some specialist interfaces return their best candidate even
+when the query has no referent in the clip---a returned time window or bounding box
+can therefore reflect the query rather than the content. Existence and occurrence
+decisions are consequently assigned to the general verifier, which sees the frames
+densely, while the specialists supply the quantities, windows, masks, depths, and
+tracks it cannot produce. This assignment avoids treating a forced specialist
+output as proof of occurrence; it does not make absence judgments infallible.
+Composite claims combine the two: an ordering claim is first confirmed as two
+occurrences by the verifier, and only then ordered using the specialist's windows.
+
+\subsubsection{Executing equivalent measurements once}
+Sharing happens at two levels, and we keep them distinct. Within a plan, repeated
+references may share one internal description, so a prompt mentioning the same
+object in five claims does not describe it five times. At execution, two
+measurements collapse into a single tool call only when the complete measurement
+request is identical---the operation, the referent, the exact query, the output
+kind, and the time range---so a whole-clip measurement and a sub-interval
+measurement are never merged. This is exact-request reuse, equivalent to
+common-subexpression elimination in the database
+sense~\cite{sellis1988mqo,roy2000mqo}; no sharing across merely similar queries is
+performed. Whether this yields a net saving in practice is a question for the
+evaluation, not a claim made here. Temporal relations remain directional and
+tolerance-scaled, following a subset of Allen's interval
+algebra~\cite{allen1983intervals}.
+
+\subsubsection{What the planner does not change}
+The planner is deliberately the only part that changes: a deterministic translator
+translates its lines into exactly the plan representation the compiler already
+consumes, so the compiler, the sharing rules, the measurement contracts, the
+execution layer, and the division between measuring and judging are untouched. This
+separation is intended to keep the planner replaceable and to prevent a change of
+planning style from silently altering how evidence is interpreted.
+
+\subsubsection{Validation status and known gaps}\label{sec:planner-gaps}
+The planner has been checked \emph{at the planning stage only}: real model calls,
+no video, no tools. We define a claim as \emph{measurement-carrying} when its
+validated plan contains at least one non-generalist operation that survives
+validation without being salvaged or falling back; a claim combining a general
+judgment with a count counts once, and salvaged terms never count.
+
+On 233 claims drawn from 22 human-annotated clips, every claim produced a valid,
+type-correct, compilable plan---no fallbacks, no schema errors, no compile
+errors---at one to two model calls per clip. Measurement-carrying claims were
+27/233 (11.6\%), against 2.3\% for the earlier tabular format on the same claims: a
+roughly fivefold relative increase that nonetheless leaves a large majority of
+these claims resting on a general judgment, because these prompts are dominated by
+occurrence-style assertions. On two separate diagnostic sets chosen to be
+measurement-dense, the rate was 19/30 (63.3\%) on claims drawn from counting,
+spatial, and ordering flaws, and 10/10 on synthetic counting prompts. Those
+diagnostic sets probe the routing rules; they are not an estimate of coverage or
+verdict accuracy on the evaluation benchmark.
+
+We are explicit about what this does \emph{not} show. No video was processed, so it
+establishes that plans are valid, typed, compilable, and denser in measurements
+---\emph{not} that any verdict improves. Effects on flaw coverage, on false
+accusations, and on cost are \emph{unmeasured}; they are decided by the controlled
+end-to-end comparison of \cref{sec:eval}, which contrasts plan-based execution with
+independent per-claim verification under matched cost accounting. A comparison
+between planners alone would not answer that question.
+
+Known gaps: the spatial vocabulary has no ``on top of'' relation, so such claims
+degrade to a general judgment; the plan-based path has no dedicated sound-event
+check, so audio claims are not audio measurements on that path; negated
+measurements are unsupported by design; and outside the reported set, testing has
+exposed occasional out-of-vocabulary calls, which the validator converts into
+charged fallbacks rather than silently accepting.
+
+\paragraph{Where specialists actually run.} We distinguish two configurations. In
+the \emph{routed} configuration each claim is dispatched to its dedicated
+specialist (\cref{tab:arms}) and those tools run as executable stages. In the
+\emph{plan-based} configuration the compiler and its typed checks run against a
+tool server that exposes the same specialists; in the runs completed so far, that
+path resolved most checks through the dense-frame generalist, both because
+occurrence-style claims route there by design and because the earlier planner
+rarely requested measurements---the specific limitation the planner described here
+is intended to address. Global plan selection among alternative tool recipes, and a
+value-of-information loop that spawns follow-up measurements, remain \proposed{}.
 
 % =====================================================================
 \section{The Intended Refinement Loop}\label{sec:loop}
