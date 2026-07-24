@@ -373,6 +373,57 @@ checkpoint provides a pre-flight sanity gate and is not used for final clips.}
   \label{fig:gencases}
 \end{figure}
 
+\subsection{The scene set is not only balls}\label{sec:gen-breadth}
+The two cases above are single rigid bodies because those are the scenes whose
+trajectory can be checked against a closed-form path. The scene set itself is
+much wider: $1{,}314$ scenes across $66$ kinds, of which $652$ were watched and
+$591$ judged good. \cref{fig:scenebreadth} shows twelve of those kinds as real
+generated frames---cloth draping and crumpling, a flag in wind, a swinging rope
+and a hanging chain, grains pouring into a heap and draining through a funnel, a
+ball dropped into a pit of balls, a loaded boat, a cascade down a slope,
+toppling dominoes and a chaotic two-arm linkage. \cref{fig:scenepairs} shows
+three of them the same way \cref{fig:gencases} shows a ball: the simulated depth
+control above, the generated clip below, at matched timestamps.
+
+One limit should be read off these figures explicitly. Everything here comes out
+of the same rigid-body engine, so the deformables are that engine's
+particle-and-link primitives: cloth is a sheet of particles joined by springs, a
+rope or chain is a short row of linked segments, sand and marbles are many small
+solid bodies in contact, and floating is a buoyancy force on a solid body in a
+still fluid volume. None of it is a fluid solve, none of it is smoke, and none of
+it is a finite-element soft body. The scene captions name the primitive rather
+than the phenomenon for exactly this reason.
+
+\begin{figure}[p]
+  \centering
+  \includegraphics[width=\linewidth]{fig_scene_breadth.pdf}
+  \caption{Twelve of the $66$ scene kinds, one real generated frame each. The
+  frame shown is computed, not picked: for every clip the frame-to-frame change
+  is accumulated over the whole clip and the tile is the frame by which half of
+  that total change has happened, which lands mid-drape, mid-swing or mid-pour
+  rather than on the first frame. The second caption line names the physics
+  primitive, and every body count in it is the scene's own parameter. Each clip
+  shown carries a good verdict from the review pass; two candidate tiles were cut
+  after tracking their control renders showed the phenomenon their label would
+  have claimed does not occur in the clip.}
+  \label{fig:scenebreadth}
+\end{figure}
+
+\begin{figure}[p]
+  \centering
+  \includegraphics[width=\linewidth]{fig_scene_control_pairs.pdf}
+  \caption{Three deformable and granular scenes shown as \cref{fig:gencases}
+  shows a ball: the simulated depth control above, the generated clip below, at
+  matched timestamps. Columns are placed at equal steps of the clip's
+  accumulated change so no column falls in a static stretch. These three cases
+  are the ones whose depth control still shows its object in every column---in a
+  depth picture an object that settles onto the floor takes on the same grey as
+  the floor behind it and disappears from the control, so how much of each
+  control frame is distinguishable from its background is measured, and cases
+  whose control goes blank are not shown as pairs.}
+  \label{fig:scenepairs}
+\end{figure}
+
 \subsection{What it achieves, and how we validated it}\label{sec:gen-quality}
 Generation was validated \emph{qualitatively}: by visual inspection of the
 output clips and by a lightweight color-blob trajectory tracker that checks

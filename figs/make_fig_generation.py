@@ -431,7 +431,7 @@ def draw_block(L: Layout, y_top: float, case: dict, ch: float) -> float:
             x = col_x(c)
             ax = L.fig.add_axes(L.rect(x, y, cw, ch))
             show_frame(ax, frames[i])
-            if r == 0:
+            if r == 0 and case.get("cy") is not None:
                 # Measured height marker for the control frame: a hairline tick
                 # OUTSIDE the panel, flush against its left edge, at the ball's
                 # measured centre height. The frame pixels are never touched --
@@ -440,6 +440,9 @@ def draw_block(L: Layout, y_top: float, case: dict, ch: float) -> float:
                 # where it sits against the pale end of the depth gradient. It is
                 # the secondary grey, not the accent, because it is a scale mark
                 # rather than something to look at.
+                # A case may pass cy=None: some scenes (a sheet, a rope, a pour)
+                # have no single object whose height is a meaningful number, and a
+                # tick there would be an invented measurement, so it is omitted.
                 frac = case["cy"][i] / case["frame_h"]
                 L.hrule(x - TICK_LEN, x, y + frac * ch, GRAY)
 
