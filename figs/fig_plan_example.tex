@@ -1,0 +1,164 @@
+% =====================================================================
+% fig_plan_example.tex -- a worked example: one claim, one line of plan,
+% two measurements, one composition rule.
+%
+% \input-able into main.tex, which loads adobe-techreport.sty (hence the
+% adobered / adobeink / adobegray colours, and Source Code Pro for \ttfamily).
+%
+% REQUIRED IN THE MAIN PREAMBLE:
+%     \usepackage{tikz}
+%     \usetikzlibrary{arrows.meta,positioning,calc}
+% Both lines are required, and the libraries MUST be loaded in the preamble --
+% see the guard below for why a figure file cannot load them for itself.
+% Every style is declared inside the tikzpicture's own option list, so all
+% definitions are local to this picture: \input-ing this file twice, or
+% alongside its companion figure, cannot clash.
+%
+% PROVENANCE of everything quoted here. The claim sentence, the requested
+% number, the annotator's rationale, the flaw category and the severity are the
+% real record of one clip in the physics-focused evaluation set (a chain
+% reaction of mousetraps in a gymnasium). Reprint them with
+%     python3 /Users/wenzhuox/diffphy_psc/techreport/figs/fig_values.py
+% The plan line uses only operations from the report's table of planner
+% operations and mirrors the composition rule stated in the prose. Nothing here
+% is a critic output: the critic's verdict on this clip is not reported, and the
+% dashed strip at the bottom is labelled as the human annotation.
+%
+% Measured width when \input into the report is 407.9pt against a 469.8pt
+% \textwidth, so it fits unscaled -- do not add scale= or \resizebox. The build
+% script re-checks the width, re-checks that it is identical on a second
+% inclusion, and reprints every quoted value from the benchmark file:
+%     bash /Users/wenzhuox/diffphy_psc/techreport/figs/build_critic_figs.sh
+% =====================================================================
+% The three TikZ libraries must be loaded in the PREAMBLE, not here: a figure
+% environment forms a group, and TikZ defines a library's macros locally, so a
+% \usetikzlibrary issued inside a figure does not survive to the next one. This
+% guard turns a missing preamble line into a clear message instead of TikZ's
+% confusing "You need to say \usetikzlibrary{calc}" further down.
+\makeatletter
+\@ifundefined{tikz@library@calc@loaded}{%
+  \PackageError{fig_plan_example}{%
+    The preamble must contain\MessageBreak
+    \string\usetikzlibrary{arrows.meta,positioning,calc}%
+  }{Add that line after \string\usepackage{tikz}.}}{}
+\makeatother
+
+\begingroup
+\providecommand{\pfsub}[1]{{\scriptsize\color{adobegray}#1}}
+\providecommand{\pfop}[1]{{\color{adobered}#1}}
+
+\begin{tikzpicture}[
+    x=1cm, y=1cm,
+    pfbox/.style   = {rounded corners=2pt, line width=0.7pt, align=center,
+                      inner sep=5pt, font=\sffamily\footnotesize,
+                      text=adobeink},
+    % LEARNED component: light gray fill, as in the pipeline figure
+    pflearn/.style = {pfbox, draw=adobeink, fill=adobegray!12},
+    % DETERMINISTIC rule: white with an ink outline
+    pfdet/.style   = {pfbox, draw=adobeink, fill=white},
+    % the plan itself: mono, with the operation names accented
+    pfcode/.style  = {pfbox, draw=adobeink, fill=white,
+                      font=\ttfamily\footnotesize, inner sep=5pt},
+    % text we were given rather than anything the critic produced
+    pfdata/.style  = {pfbox, draw=adobegray, fill=white,
+                      dash pattern=on 2pt off 1.6pt},
+    pfline/.style  = {draw=adobeink, line width=0.7pt},
+    pfarr/.style   = {pfline, -{Straight Barb[length=3.6pt,width=3.8pt]}},
+    pfnote/.style  = {font=\sffamily\scriptsize, text=adobegray,
+                      inner sep=0pt, align=left},
+    pftag/.style   = {font=\sffamily\scriptsize\bfseries, text=adobeink,
+                      fill=white, inner xsep=5pt, inner ysep=2pt},
+  ]
+
+  % ---------------- 1. the claim, taken from a real prompt ---------------
+  \node[pfdata, text width=13.6cm, anchor=north] (claim) at (0,0)
+    {\textbf{One claim from the prompt}\\[2pt]
+     ``One ball is tossed in, triggering a cascade of 1,000 traps.''\\[2pt]
+     \pfsub{Two separable things are asserted: that the cascade happens at all,
+     and how many traps it involves.}};
+
+  % ---------------- 2. one line of plan ---------------------------------
+  \node[pfcode, text width=13.6cm, align=center, anchor=north] (code) at ($(claim.south)+(0,-0.72)$)
+    {check(c1, \pfop{judge}("the cascade occurs") \pfop{and}
+     \pfop{eq}(\pfop{count}("mousetrap"), 1000))};
+
+  % the note sits to the left of the vertical drop, so nothing is crossed
+  \node[pfnote, anchor=north west, text width=6.1cm]
+    (codenote) at ($(code.south west)+(0,-0.13)$)
+    {Written before a single frame is read.\\
+     The numeral is what adds the second test.};
+
+  % ---------------- 3. the two measurements it requests ------------------
+  \coordinate (fan) at ($(code.south)+(0,-0.92)$);
+
+  \node[pflearn, text width=6.2cm, anchor=north west]
+    (subA) at ($(claim.south west)+(0,-3.30)$)
+    {\textbf{Does the cascade occur?}\\[2pt]
+     \pfsub{Goes to the general verifier, which reads\\
+     the frames densely. Occurrence questions go\\
+     there because a specialist asked for something\\
+     absent may still hand back its best candidate.}\\[3pt]
+     \pfsub{Returns an occurrence decision.}};
+
+  \node[pflearn, text width=6.2cm, anchor=north east]
+    (subB) at ($(claim.south east)+(0,-3.30)$)
+    {\textbf{How many traps are there?}\\[2pt]
+     \pfsub{Goes to the counting specialist, which\\
+     returns the number of traps it can see and\\
+     nothing else --- no comparison against the\\
+     requested figure, and no verdict of its own.}\\[3pt]
+     \pfsub{Returns a count.}};
+
+  % ---------------- 4. the composition rule -----------------------------
+  \coordinate (merge) at ($(subA.south)+(0,-0.62)$);
+  \node[pfdet, text width=13.6cm, anchor=north]
+    (rule) at ($(0,0 |- merge)+(0,-0.42)$)
+    {\textbf{How the two outcomes compose}\\[3pt]
+     {\color{adobered}\textbf{any part contradicted $\rightarrow$ the claim is
+      contradicted}}\\[1.5pt]
+     \pfsub{every part supported $\rightarrow$ supported\quad\textbar\quad
+     anything else $\rightarrow$ unresolved}\\[3pt]
+     \pfsub{A count far below the requested number contradicts the claim on its
+     own, even when the cascade\\
+     plainly occurs. A claim carrying only an occurrence check could not say
+     that.}};
+
+  % ---------------- 5. the human record this claim comes from ------------
+  \node[pfdata, text width=13.6cm, anchor=north]
+    (human) at ($(rule.south)+(0,-0.55)$)
+    {\textbf{Why this claim is in the benchmark}\\[2pt]
+     \pfsub{An annotator marked exactly this prompt fragment, wrote that the
+     video shows 63 mousetraps rather than\\
+     the thousand requested, filed it under counting, and rated it 3 out of 5
+     for severity --- the only flaw on\\
+     that clip. What the critic returns on this clip is not reported here.}};
+
+  % ---------------- edges ------------------------------------------------
+  \draw[pfarr] (claim.south) -- (code.north);
+
+  \draw[pfline] (code.south) -- (fan);
+  \draw[pfline] (subA.north |- fan) -- (subB.north |- fan);
+  \draw[pfarr]  (subA.north |- fan) -- (subA.north);
+  \draw[pfarr]  (subB.north |- fan) -- (subB.north);
+
+  \draw[pfline] (subA.south) -- (subA.south |- merge);
+  \draw[pfline] (subB.south) -- (subB.south |- merge);
+  \draw[pfline] (subA.south |- merge) -- (subB.south |- merge);
+  \draw[pfarr]  (rule.north |- merge) -- (rule.north);
+
+  % labels drawn last, so the lines they sit on do not strike through them
+  \node[pftag] at (fan) {one claim, two measurements};
+  \node[pfnote, fill=white, inner xsep=3pt, anchor=east]
+    at ($(subA.south)!0.40!(subA.south |- merge)+(-0.08,0)$) {evidence only};
+  \node[pfnote, fill=white, inner xsep=3pt, anchor=west]
+    at ($(subB.south)!0.40!(subB.south |- merge)+(0.08,0)$) {evidence only};
+
+  % ---------------- inline legend ---------------------------------------
+  \node[pfnote, anchor=north west, text width=13.6cm] (leg)
+    at ($(human.south west)+(0,-0.40)$)
+    {Gray fill marks a learned component; a white box with an outline is a
+     deterministic rule; a dashed box is text we were handed rather than
+     anything the critic produced.};
+
+\end{tikzpicture}
+\endgroup

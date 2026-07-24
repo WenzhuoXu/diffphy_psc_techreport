@@ -1,0 +1,182 @@
+% =====================================================================
+% fig_critic_pipeline.tex -- dataflow of the auditable multi-tool critic.
+%
+% \input-able into main.tex, which loads adobe-techreport.sty (hence the
+% adobered / adobeink / adobegray colours and the Source font family).
+%
+% REQUIRED IN THE MAIN PREAMBLE:
+%     \usepackage{tikz}
+%     \usetikzlibrary{arrows.meta,positioning,calc}
+% Both lines are required, and the libraries MUST be loaded in the preamble --
+% see the guard below for why a figure file cannot load them for itself.
+% Every style is declared inside the tikzpicture's own option list, so all
+% definitions are local to this picture: \input-ing this file twice, or
+% alongside its companion figure, cannot clash.
+%
+% CONTENT follows the section "The Auditable Multi-Tool Critic": the overview,
+% the reasoner, the perception specialists, the evidence-only tool contract,
+% validation of a plan before any tool runs, and the three-valued semantics
+% with a deterministic roll-up. The figure is descriptive of the method only:
+% no accuracy, no coverage, no comparison between configurations, and no
+% quantity of any kind appears in it.
+%
+% Measured width when \input into the report is 409.6pt against a 469.8pt
+% \textwidth, so it fits unscaled -- do not add scale= or \resizebox. The build
+% script re-checks the width, and re-checks that the width is identical on a
+% second inclusion:
+%     bash /Users/wenzhuox/diffphy_psc/techreport/figs/build_critic_figs.sh
+% =====================================================================
+% The three TikZ libraries must be loaded in the PREAMBLE, not here: a figure
+% environment forms a group, and TikZ defines a library's macros locally, so a
+% \usetikzlibrary issued inside a figure does not survive to the next one. This
+% guard turns a missing preamble line into a clear message instead of TikZ's
+% confusing "You need to say \usetikzlibrary{calc}" further down.
+\makeatletter
+\@ifundefined{tikz@library@calc@loaded}{%
+  \PackageError{fig_critic_pipeline}{%
+    The preamble must contain\MessageBreak
+    \string\usetikzlibrary{arrows.meta,positioning,calc}%
+  }{Add that line after \string\usepackage{tikz}.}}{}
+\makeatother
+
+\begingroup
+\providecommand{\cfsub}[1]{{\scriptsize\color{adobegray}#1}}
+
+\begin{tikzpicture}[
+    x=1cm, y=1cm,
+    % --- shared box shape -------------------------------------------------
+    cfbox/.style   = {rounded corners=2pt, line width=0.7pt, align=center,
+                      inner sep=5pt, font=\sffamily\footnotesize,
+                      text=adobeink},
+    % --- LEARNED component: light gray fill --------------------------------
+    cflearn/.style = {cfbox, draw=adobeink, fill=adobegray!12},
+    % --- DETERMINISTIC component: white with an ink outline ----------------
+    cfdet/.style   = {cfbox, draw=adobeink, fill=white},
+    % --- accent 1: the deterministic check that precedes every tool call ---
+    cfgate/.style  = {cfbox, draw=adobered, fill=white},
+    % --- accent 2: the critic's verdict ------------------------------------
+    cfout/.style   = {cfbox, draw=adobered, fill=adobered!5},
+    % --- what enters the critic --------------------------------------------
+    cfdata/.style  = {cfbox, draw=adobegray, fill=white, inner sep=4pt,
+                      dash pattern=on 2pt off 1.6pt},
+    cfline/.style  = {draw=adobeink, line width=0.7pt},
+    cfarr/.style   = {cfline, -{Straight Barb[length=3.6pt,width=3.8pt]}},
+    cfnote/.style  = {font=\sffamily\scriptsize, text=adobegray,
+                      inner sep=0pt, align=left},
+    cfsw/.style    = {rounded corners=1.2pt, line width=0.7pt, inner sep=0pt,
+                      minimum width=11pt, minimum height=7.5pt},
+  ]
+
+  % Full-width rows sit on the x=0 axis; the two-column rows are anchored to
+  % the full-width box above them, so every left and right edge lines up.
+
+  % ---------------- reasoner (learned), fed by the prompt and the video ----
+  % This row plus its two input wings is the widest thing in the picture, so
+  % its width is what keeps the whole figure inside the report's text width.
+  \node[cflearn, text width=9.4cm, anchor=north] (reasoner) at (0,0)
+    {\textbf{Reasoner}\\[1.5pt]
+     \cfsub{breaks the prompt into small checkable claims and writes down,\\
+     for each claim, the measurements that would settle it ---\\
+     without looking at the video yet}};
+
+  \node[cfdata, text width=1.25cm, anchor=east]
+    (prompt) at ($(reasoner.west)+(-0.62,0.20)$) {\textbf{Prompt}};
+  \node[cfdata, text width=1.25cm, anchor=west]
+    (video)  at ($(reasoner.east)+( 0.62,0.20)$) {\textbf{Video}};
+
+  % ---------------- the check that precedes execution (accented) -----------
+  \node[cfgate, text width=13.6cm, anchor=north]
+    (gate) at ($(0,0)!1!(reasoner.south)+(0,-0.60)$)
+    {{\color{adobered}\textbf{Every plan is checked before any tool runs}}\\[1.5pt]
+     \cfsub{each line is parsed and type-checked; a line that cannot be used
+     falls back to a general judgment,\\ and that fallback is counted in the
+     plan's cost rather than treated as free}};
+
+  % ---------------- execution: two ways of looking at the video -----------
+  \coordinate (fanA) at ($(gate.south)+(0,-0.40)$);
+  \node[cflearn, text width=5.6cm, anchor=north west]
+    (verifier) at ($(gate.south west)+(0,-0.80)$)
+    {\textbf{General verifier}\\[1.5pt]
+     \cfsub{reads the frames densely and decides\\ whether a thing is there and
+     whether\\ an event happens}};
+  \node[cflearn, text width=7.0cm, anchor=north east]
+    (specialists) at ($(gate.south east)+(0,-0.80)$)
+    {\textbf{Perception specialists}\\[1.5pt]
+     \cfsub{one frozen model per measurement: detection,\\ counting, point
+     tracking, the time window of\\ an event, segmentation masks with depth}};
+
+  % ---------------- evidence-only contract (deterministic) ---------------
+  \coordinate (mergeA) at ($(verifier.south)+(0,-0.50)$);
+  \node[cfdet, text width=13.6cm, anchor=north west]
+    (evidence) at ($(verifier.north west |- mergeA)+(0,-0.40)$)
+    {\textbf{Evidence only}\\[1.5pt]
+     \cfsub{a call returns what it measured --- a box, a count, a track, a time
+     window, a depth --- tied to the\\ prompt fragment that asked for it, and
+     never whether the prompt was satisfied}};
+
+  % ---------------- deterministic composition ----------------------------
+  \node[cfdet, text width=13.6cm, anchor=north west]
+    (compose) at ($(evidence.south west)+(0,-0.40)$)
+    {\textbf{Deterministic composition}\\[1.5pt]
+     \cfsub{fixed rules combine the parts of a claim, then the claims into the
+     clip: anything contradicted makes\\ its parent contradicted, everything
+     supported makes it supported, and anything else is left unresolved}};
+
+  % ---------------- outputs ----------------------------------------------
+  \coordinate (fanB) at ($(compose.south)+(0,-0.40)$);
+  \node[cfout, text width=5.6cm, anchor=north west]
+    (verdict) at ($(compose.south west)+(0,-0.80)$)
+    {{\color{adobered}\textbf{Verdict}}\\[1.5pt]
+     \cfsub{each claim supported, contradicted or\\ unknown; the whole clip
+     plausible,\\ implausible, or abstained on}};
+  \node[cfdet, text width=7.0cm, anchor=north east]
+    (trace) at ($(compose.south east)+(0,-0.80)$)
+    {\textbf{Audit trace}\\[1.5pt]
+     \cfsub{the claims checked, the evidence each call\\ returned, which claims
+     fell back to a general\\ judgment, and the rule that combined them}};
+
+  % ---------------- edges ------------------------------------------------
+  \draw[cfarr] (prompt.east) -- (reasoner.west);
+  \draw[cfarr] (video.west)  -- (reasoner.east);
+  \draw[cfarr] (reasoner.south) -- (reasoner.south |- gate.north);
+
+  \draw[cfline] (gate.south) -- (fanA);
+  \draw[cfline] (verifier.north |- fanA) -- (specialists.north |- fanA);
+  \draw[cfarr]  (verifier.north |- fanA) -- (verifier.north);
+  \draw[cfarr]  (specialists.north |- fanA) -- (specialists.north);
+
+  % both branches drop to one horizontal line, which then feeds the evidence box
+  \draw[cfline] (verifier.south)    -- (verifier.south    |- mergeA);
+  \draw[cfline] (specialists.south) -- (specialists.south |- mergeA);
+  \draw[cfline] (verifier.south |- mergeA) -- (specialists.south |- mergeA);
+  \draw[cfarr]  (evidence.north |- mergeA) -- (evidence.north);
+
+  \draw[cfarr] (evidence.south) -- (evidence.south |- compose.north);
+
+  \draw[cfline] (compose.south) -- (fanB);
+  \draw[cfline] (verdict.north |- fanB) -- (trace.north |- fanB);
+  \draw[cfarr]  (verdict.north |- fanB) -- (verdict.north);
+  \draw[cfarr]  (trace.north   |- fanB) -- (trace.north);
+
+  % ---------------- inline legend ----------------------------------------
+  % Deliberately terse: this row is the widest thing in the picture, and the
+  % whole picture must stay inside the report's text width.
+  \node[cfsw, draw=adobeink, fill=adobegray!12, anchor=north west]
+    (swA) at ($(verdict.south west)+(0,-0.50)$) {};
+  \node[cfnote, right=3pt of swA] (lbA) {learned};
+
+  \node[cfsw, draw=adobeink, fill=white, right=9pt of lbA] (swB) {};
+  \node[cfnote, right=3pt of swB] (lbB) {deterministic};
+
+  \node[cfsw, draw=adobered, fill=white, right=9pt of lbB] (swC) {};
+  \node[cfnote, right=3pt of swC] (lbC) {deterministic, before any tool};
+
+  \node[cfsw, draw=adobered, fill=adobered!5, right=9pt of lbC] (swD) {};
+  \node[cfnote, right=3pt of swD] (lbD) {the verdict};
+
+  \node[cfsw, draw=adobegray, fill=white, dash pattern=on 2pt off 1.6pt,
+        right=9pt of lbD] (swE) {};
+  \node[cfnote, right=3pt of swE] (lbE) {input};
+
+\end{tikzpicture}
+\endgroup

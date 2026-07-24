@@ -12,3 +12,7 @@ pi_*.consultlog
 *_brief*.md
 *_review*.md
 guardrails.md
+
+figs/*.png
+figs/visual_review*
+figs/methods_prose_patch.md

@@ -30,6 +30,11 @@ and an auditable multi-tool critic}
 \newcommand{\abstain}{\textsf{abstain}}
 \newcommand{\TODO}[1]{\textcolor{adobered}{\textbf{[TODO: #1]}}}
 
+% figures are built by figs/make_fig_generation.py (and siblings)
+\graphicspath{{figs/}}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
+
 \begin{document}
 \makeadobetitle
 
@@ -83,7 +88,7 @@ control branch of a Wan~2.2-VACE video-diffusion backbone, so that scene geometr
 and motion are driven by the simulation while the text prompt supplies
 appearance. Second, a \textbf{human-annotated flaw benchmark}: 1{,}500
 AI-generated clips carry human misalignment annotations---each with a severity,
-a time span, per-frame bounding boxes, the violated prompt fragment, and a
+a time span, a box track over the flagged interval, the violated prompt fragment, and a
 free-text rationale---from which we derive a frozen, physics-focused evaluation
 set. Third, an \textbf{auditable multi-tool critic}: a served vision-language
 reasoner decomposes a prompt into checkable claims, routes each to a frozen
@@ -162,28 +167,38 @@ faithfulness.
 \section{Physics-Guided Video Generation}\label{sec:generation}
 % =====================================================================
 
-\subsection{Overview}
+\subsection{Method summary}
 The generator answers a specific question: can a video-diffusion model be made
 to follow the \emph{geometry and motion} of a known physical scene, while a text
-prompt supplies only appearance? Our approach renders a physics simulation into
-a control video and feeds it to a diffusion backbone that accepts an explicit
-control channel, so structure comes from the simulation and texture from the
-prompt (\cref{fig:genpipe}). The pipeline is: a rigid-body simulation
-$\rightarrow$ a per-frame depth (or silhouette) render $\rightarrow$ generation
-through the backbone's native control branch.
+prompt supplies only appearance? The method is three steps. A rigid-body
+simulation is run once and, at each output frame, the simulator's own depth
+buffer and object-segmentation buffer are read, giving two pixel-aligned control
+videos: a grayscale depth field in which near surfaces are bright, and a binary
+silhouette of the moving bodies. One of those videos is handed to the video
+backbone through its native control branch, together with an all-white mask that
+declares the whole frame to be generated under the control's guidance, and a text
+prompt. Nothing about appearance is taken from the simulation: the prompt alone
+decides material, colour, lighting and setting, while the control video decides
+where surfaces are and how they move (\cref{fig:genpipe}). Validation of this
+pillar is qualitative throughout (\cref{sec:gen-quality}).
 
 \begin{figure}[t]
   \centering
-  \fbox{\parbox[c][3.4cm][c]{0.92\linewidth}{\centering \color{adobegray}
-  \textsf{Figure placeholder --- generation pipeline.}\\[3pt]
-  rigid-body simulation $\rightarrow$ depth / silhouette control video
-  $\rightarrow$ Wan-VACE control branch (control $=$ depth, mask $=$ all-white,
-  prompt $=$ appearance) $\rightarrow$ photorealistic clip.\\[3pt]
-  \emph{Structure from the simulation; appearance from the prompt. To be
-  rendered.}}}
-  \caption{Physics-guided generation. The control video carries scene geometry
-  and motion; the prompt carries appearance. \TODO{replace with real frames:
-  simulation, depth control, generated clip, side by side}}
+  \includegraphics[width=\linewidth]{fig_generation_pipeline.pdf}
+  \caption{Physics-guided generation, shown on real frames of one bouncing-ball
+  clip. \textbf{Top:} the depth control video rendered from the rigid-body
+  simulation, the only geometric input the backbone receives. \textbf{Bottom:}
+  the clip generated from it, where the text prompt supplies appearance alone.
+  Both rows are sampled at the same five timestamps of the same
+  $5.06$\,s, $16$\,fps, $848{\times}480$ clip; the timestamps are chosen by
+  tracking the ball and taking the turning points of its vertical path, so the
+  columns show the drop, the floor contact and the rebound rather than five
+  evenly spaced instants. Tracking the ball independently in
+  each row, the generated path follows the control's with a correlation of
+  $1.0000$ horizontally and $0.9997$ vertically over all $81$ frames, and a
+  median positional disagreement of $0.7$ pixels across the frame and $4.7$
+  pixels down. The tick beside each control frame marks the ball's measured
+  centre height; the frames themselves are unaltered.}
   \label{fig:genpipe}
 \end{figure}
 
@@ -192,34 +207,124 @@ The backbone is Wan~2.2-VACE-Fun-14B, a two-expert mixture-of-experts
 video-diffusion model with a native control branch, run through the
 \code{WanVACEPipeline} interface; because the two expert stacks exceed the memory
 of a single 80\,GB accelerator, the experts are CPU-offloaded during generation.
-Generation is conditioned by passing the
-pre-computed control video into the pipeline's control input and an all-white
-mask into its mask input---the instruction to ``generate the entire frame under
-the guidance of the control''---together with the text prompt for appearance and
-a single scalar \emph{conditioning scale} governing how strongly the control
-branch binds. Crucially, the backbone consumes a \emph{pre-computed} control
-video and does not re-estimate depth from an RGB source; the geometry is exactly
-the simulation's. This is a control-branch mechanism, not image-to-image
-denoising: it is neither an SDEdit-style noised re-synthesis~\cite{meng2022sdedit}
-of a rendered source nor a copy of source RGB, which is what distinguishes it
-from conditioning schemes that leak the source's synthetic appearance into the
-result.
+Generation takes four inputs: the pre-computed control video, a mask, the text
+prompt, and one scalar conditioning strength.
+
+The mask decides which parts of the frame are held fixed and which are
+synthesised. Dark mask regions mark content to be preserved as given; bright
+regions mark content to be generated under the guidance of the control. Inside
+the backbone, the mask splits the control video into a preserved part and a
+generated part, which are encoded separately and concatenated into the control
+latent stream. We pass an \emph{all-white} mask, so the preserved part is empty
+and every pixel of every frame is synthesised: the depth field is used purely as
+guidance and no region of it is copied through into the result. This is the
+mechanism that lets a grey depth render drive a photorealistic clip without
+tinting it grey.
+
+The conditioning strength is the scalar by which the control latent stream is
+added into the denoising stream at each of the backbone's control layers. One
+value applies uniformly to every control layer; a per-layer schedule is also
+accepted by the interface but is not used here. Turning it down weakens how
+tightly the generated motion is bound to the simulated motion without changing
+anything else about the request.
+
+Appearance comes only from text. The prompt names the target scene in the
+ordinary way (``a bright red rubber ball bouncing on a polished concrete studio
+floor''), and a single fixed negative prompt---shared by every clip---pushes away
+from the rendered look the control video literally has, listing cartoon, CGI,
+render, grayscale and flat shading among the things to avoid. No appearance
+reference image is supplied. Sampling is deterministic given the seed, and the
+seed is recorded per clip.
+
+Two properties of this arrangement are worth stating plainly. First, the backbone
+consumes a control video that was \emph{computed}, not estimated: no monocular
+depth predictor sits in the loop, so the geometry the generator follows is exactly
+the simulator's geometry, with no estimation error of its own. Second, this is a
+control-branch mechanism rather than image-to-image editing: it is neither an
+SDEdit-style noised re-synthesis~\cite{meng2022sdedit} of a rendered source nor a
+copy of source pixels, which is what separates it from conditioning schemes that
+carry a synthetic source's look into the output.
 
 \subsection{Rendering the control signal}
-The control video is produced from a single simulation pass. We simulate
-rigid-body dynamics in MuJoCo~\cite{todorov2012mujoco} and, in the same pass,
-read the renderer's z-buffer for depth and its segmentation buffer for a
-silhouette. Depth is mapped to a near-bright grayscale under the inverse-depth
-convention the control branch expects, and---importantly---normalized
-\emph{globally} across the whole clip from robust percentiles, not per frame, so
-that a receding object dims consistently instead of being re-stretched every
-frame. Most scenes use depth; flat tabletop scenes, where a single depth plane
-carries little signal, use the object silhouette instead. Structure-conditioned
-generation of this kind---driving synthesis from an explicit geometric control
-rather than from text alone---follows the lineage of ControlNet for
-images~\cite{zhang2023controlnet} and motion/structure control for
-video~\cite{wang2023videocomposer,vace2025}; here the control is a physically
-simulated depth field.
+\paragraph{One simulation, several registered views.} A scene is described as
+data---a list of moving bodies with initial positions and velocities, a list of
+static surfaces, and a camera placed by a look-at rule---and the same engine turns
+any such description into a simulation. Dynamics are integrated in
+MuJoCo~\cite{todorov2012mujoco} under gravity at $9.81\,\mathrm{m/s^2}$ with a
+one-millisecond solver step, a fourth-order integrator, and an elliptic friction
+cone. Output frames are produced on a coarser clock: the requested scene duration
+is divided into the frame budget, and the solver is advanced by that many
+sub-steps between frames. At every output frame, and from the \emph{same} solver
+state, three renderers are queried in turn---a shaded colour view, the depth
+buffer, and the object-segmentation buffer. Because they read one state, the
+resulting videos are registered pixel for pixel, so a depth control and a
+silhouette control for the same scene describe the same geometry and can be
+substituted for one another without re-simulating.
+
+\paragraph{From depth buffer to control video.} The depth buffer holds distance
+from the camera. It is turned into a control video by an inverted, clipped affine
+map: distances are mapped so that near surfaces are bright and far surfaces dark,
+which is the polarity monocular depth estimators produce and therefore the
+polarity the control branch was trained to read. The mapping's endpoints are
+robust percentiles---the first and the ninety-seventh---of the depth values in the
+scene, computed after discarding the far-clip constant that the background sky
+writes into the buffer, so that a single distant constant cannot compress the whole
+range into a few grey levels.
+
+\paragraph{Why the mapping is fixed for the whole clip.} The endpoints are computed
+once over all frames of the clip, not per frame. This is a substantive choice, not
+a detail: it makes the assigned grey level a function of distance alone, so the same
+distance reads as the same grey in every frame, and a change in brightness therefore
+means a change in distance. If the endpoints were recomputed per frame---which is
+the convention monocular depth estimators follow, since they emit one relative map
+per image---the grey assigned to a distance would depend on the depth distribution
+of that particular frame. A body holding its distance while other content enters or
+leaves the view would then change brightness, and the control branch has no way to
+distinguish that from the body actually moving toward or away from the camera. Fixing
+the mapping across the clip removes that ambiguity by construction. A per-frame
+variant is still rendered alongside the fixed-mapping one so the two can be compared
+directly on the same simulation.
+
+\paragraph{Boundary treatment.} A simulator's depth buffer has ideal, hard edges: a
+silhouette boundary is a one-pixel step. Estimated depth maps, which is what the
+control branch has seen, do not look like that---their boundaries are soft. Each
+grayscale frame therefore receives a small symmetric Gaussian blur before encoding.
+Because the kernel is symmetric, the half-intensity contour of an edge stays where it
+was, so the smoothing changes how the boundary is presented without displacing the
+geometry it represents.
+
+\paragraph{Silhouettes, and when they replace depth.} The segmentation buffer labels
+each pixel with the geometry that produced it. Collecting the labels that belong to
+the simulation's moving bodies and painting them white on black yields a silhouette
+control: the moving bodies' outlines over time, with no distance information at all.
+Depth is the default because it carries both outline and distance ordering. It stops
+being informative when a scene is flat---when every object rests on one
+near-horizontal surface at nearly the same distance from the camera, the depth field
+is almost constant across the objects and their surroundings, and the control has
+little geometric contrast to offer. Measured on the rendered controls, the depth
+separation between a moving body and the surface immediately around it is about
+twenty grey levels for a ball bouncing on a floor and about a hundred for a ball
+arcing through open air, but only about fourteen for a rack of balls on a tabletop.
+For those flat layouts we substitute the silhouette, which restores a
+maximum-contrast figure-and-ground signal; the price is that distance ordering
+between the objects is discarded, and the generator has to recover it from the prompt
+and from ordinary scene priors.
+
+\paragraph{A timing property of the renders.} The frame budget and playback rate are
+fixed---eighty-one frames written at sixteen frames per second---while the simulated
+interval differs per scene. The clip therefore plays the simulated motion back
+stretched in time, by factors between roughly $1.8\times$ and $2.3\times$ for the
+scenes used here. The trajectory shapes and the contact events are the simulation's;
+their absolute rate in the finished clip is not, and a downstream measurement of
+speed or duration must be read against the render clock rather than the simulator's.
+
+\paragraph{Relation to structure conditioning generally.} Driving synthesis from an
+explicit geometric control rather than from text alone follows the lineage of
+ControlNet for images~\cite{zhang2023controlnet} and motion and structure control for
+video~\cite{wang2023videocomposer,vace2025}. What differs here is the provenance of
+the control: it is not estimated from a photograph or drawn by hand but computed from
+a physics solver, so the structure the generator is asked to follow is physically
+consistent by construction.
 
 \subsection{Pipeline and configuration}
 \Cref{tab:genconfig} lists the operating configuration. Generation runs as a
@@ -252,10 +357,27 @@ checkpoint provides a pre-flight sanity gate and is not used for final clips.}
 \label{tab:genconfig}
 \end{table}
 
+\begin{figure}[p]
+  \centering
+  \includegraphics[width=\linewidth]{fig_generation_cases.pdf}
+  \caption{The same mechanism across two scenes with very different requested
+  appearance---an indoor studio and an outdoor field---each shown as its depth
+  control above and the resulting generated clip below. Each scene has its own
+  timestamps, chosen from the turning points of that scene's tracked vertical
+  path so every column carries motion. The appearance changes completely with
+  the prompt while the motion stays the simulation's: for the thrown ball the
+  generated and control paths agree to a correlation of $1.0000$ horizontally
+  and $0.9998$ vertically, with a median disagreement of $0.7$ pixels across and
+  $1.1$ pixels down, over the $63$ frames in which the ball is measurable in
+  both before it leaves the frame.}
+  \label{fig:gencases}
+\end{figure}
+
 \subsection{What it achieves, and how we validated it}\label{sec:gen-quality}
 Generation was validated \emph{qualitatively}: by visual inspection of the
 output clips and by a lightweight color-blob trajectory tracker that checks
-whether the generated object follows the control's path. There is no learned or
+whether the generated object follows the control's path (\cref{fig:gencases}).
+There is no learned or
 quantitative video-quality score (no FVD, no human-preference model, no critic
 score) applied to this line, and we make no such claim. Under this qualitative
 bar, single-object scenes---a bouncing ball, a projectile arc---render cleanly
@@ -278,6 +400,22 @@ result.
 
 % =====================================================================
 \section{A Human-Annotated Video-Flaw Benchmark}\label{sec:dataset}
+
+
+\subsection{Method summary}
+The benchmark starts from a corpus of AI-generated clips in which a person watched
+each clip against its prompt and wrote down every place the video failed to deliver
+what the text asked for, marking each failure with a severity, a confidence, the time
+range it occupies, a box track locating it in the frame, the exact prompt fragment it
+violates, and a sentence of reasoning. From that corpus we derive the evaluation
+target in three filtering steps, all recorded and re-runnable: keep the clips whose
+prompt or whose flagged failures describe motion and dynamics rather than, say,
+subtitle typography; keep the individual failures a video-only critic could in
+principle see, discarding the ones that are complaints about sound; and draw a
+smaller frozen core by stratified sampling under a fixed seed so that every
+experiment is scored against exactly the same target. The human-written fields are
+the ground truth. The coarse type tags used for reporting are assigned by models,
+not by the annotator, and are labelled as such wherever they appear.
 % =====================================================================
 
 \subsection{The corpus}
@@ -291,36 +429,112 @@ successor~\cite{videophy2024,videophy2_2025}, which we treat as separate transfe
 targets rather than as the annotation source here.
 
 \subsection{Human annotation schema}
-Each human flaw is a localized, typed record. The annotator marks, per flaw: a
-\textbf{severity} and \textbf{confidence}; a \textbf{time span} (start/end
-frame); \textbf{per-frame bounding boxes} localizing the flaw in space; the
-\textbf{prompt fragment} the video violates; and a free-text \textbf{rationale}.
-This is a richer object than a clip-level preference score: it says \emph{what}
-is wrong, \emph{where} in the frame, \emph{when} in time, and \emph{against which
-part of the prompt}. These fields are the human ground truth. A separate,
-coarse \emph{scope} and \emph{category} tag on each flaw is assigned
-automatically by a language-model ensemble, not by the human annotator, and we
-label it as machine-derived wherever it is used---it is convenience metadata, not
-part of the human ground truth. We record annotations as single-annotator; the
-corpus does not carry multiple independent annotations per flaw, and we make no
-inter-annotator-agreement claim.
+Each human flaw is a localized record with six fields. The annotator gives a
+\textbf{severity} and a \textbf{confidence}, each on a five-point scale; a
+\textbf{time span}, as a start and end frame index bounding the interval in which
+the flaw is visible; a \textbf{box track} locating it in the frame, recorded as
+labelled boxes at the beginning, middle and end of the flagged interval, in
+normalized image coordinates, with one box per object involved; the exact
+\textbf{prompt fragment} the video violates, quoted verbatim from the prompt; and a
+free-text \textbf{rationale} saying what went wrong. Each clip additionally carries
+an overall severity for the whole video and a short list of the objects, actions and
+relations the prompt calls for.
+
+This is a richer object than a clip-level preference score: it says \emph{what} is
+wrong, \emph{where} in the frame, \emph{when} in time, and \emph{against which part
+of the prompt}. Not every field is filled on every flaw, and we state how often rather
+than assume: every flaw carries a quoted prompt fragment and a rationale, about seven in
+eight carry a frame range, and about three in four carry a box track---the
+remainder are explicitly marked as having no box, typically because the complaint is
+about the clip as a whole or about something absent rather than something visible in
+a particular place.
+
+These human fields are the ground truth for everything in this report. Two coarse
+tags used for grouping and reporting---a \emph{modality} tag saying whether the
+complaint is about what is seen, what is heard, or both, and a \emph{type} tag naming
+the dominant kind of complaint from a fixed ten-item list---are \emph{not} written by
+the annotator. They are assigned by asking three language models to classify each
+flaw from its quoted prompt fragment and rationale at temperature zero with a fixed
+seed, and taking the majority; a three-way disagreement on modality resolves to
+``both'', a three-way disagreement on type resolves to ``other'', and a flaw that
+receives no usable vote falls back to a frozen keyword rule. We label these two
+fields as machine-assigned wherever they are used and never treat them as ground
+truth. Annotations are single-annotator: the corpus does not carry multiple
+independent annotations of the same flaw, so no inter-annotator-agreement figure is
+available and none is claimed.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{fig_benchmark_anatomy.pdf}
+  \caption{One human flaw record, shown in full. The annotator quotes the prompt
+  fragment the video fails to satisfy, bounds the interval in which the failure is
+  visible, boxes the objects involved at the start, middle and end of that
+  interval, and writes a severity, a confidence and a rationale in their own
+  words. Frames and boxes are the annotator's; the flagged window is
+  $1.62$\,s of an $8$\,s clip. Nothing about the critic's output appears here.}
+  \label{fig:benchanatomy}
+\end{figure}
 
 \subsection{The physics-focused evaluation set}
-The critic is evaluated not on all 1{,}500 clips but on a frozen,
-physics-focused subset, selected so that the flaws exercise physical and
-compositional reasoning rather than, say, subtitle typos. A physics-relevance
-filter keeps \textbf{606 clips with 1{,}107 flaws} as the full evaluation set,
-from which a smaller \textbf{frozen core of 150 clips and 306 flaws} is drawn for
-routine measurement. The core is fixed by a recorded seed and date so that every
-experiment is scored against exactly the same target; a continuity-focused
-stratum (29 clips, 85 flaws) is tracked within it. \Cref{tab:datastats}
-summarizes the counts. We are explicit that the evaluation set is the 606-clip /
+The critic is evaluated not on all 1{,}500 clips but on a frozen, physics-focused
+subset. Selection runs in three recorded stages, and we state each because the
+denominator of every later measurement depends on them.
+
+\emph{Stage one, clip selection.} A clip enters the pool if its video file is
+actually retrievable and if it shows signs of dynamics. The dynamics test is a fixed
+vocabulary of motion words---falling, bouncing, rolling, colliding, pouring, toppling,
+and so on---applied to the prompt and, separately, to each flaw's rationale and quoted
+prompt fragment. A clip is kept when its prompt contains at least one such word, or
+when one of its flaws does, or when it has a time-windowed flaw against an
+action-typed object. The test is a keyword rule, and we treat it as one: it selects
+for prompts and complaints that \emph{talk about} motion, which is a proxy for, not a
+guarantee of, a flaw whose adjudication needs physical reasoning. This stage keeps
+\textbf{606} of the 1{,}500 clips, carrying \textbf{1{,}171} human flaws; most of the
+loss is clips the rule judges non-dynamic, with a smaller number dropped for having no
+retrievable video.
+
+\emph{Stage two, flaw selection.} Within those clips, a flaw is a usable detection
+target only if a critic that sees only pixels could in principle find it. We therefore
+keep the flaws whose modality tag is ``seen'' or ``both'' and drop the ones that are
+purely complaints about sound, which removes \textbf{64} flaws and leaves
+\textbf{1{,}107} as the full evaluation set. Three properties make the surviving
+records usable as targets rather than as opinions: the complaint is anchored to a
+verbatim prompt fragment, so what was promised is unambiguous; it is bounded in time,
+so a detector's claim can be checked against the interval a person marked; and it
+carries a severity, so misses can be reported by how much they mattered instead of
+counted flat.
+
+\emph{Stage three, the frozen core.} From the full evaluation set a smaller core of
+\textbf{150 clips with 306 flaws} is drawn for routine measurement. The draw is
+deterministic and its contract is recorded rather than left to a library default: a
+fixed seed; strata formed by crossing overall clip severity, number of flaws per clip,
+and clip duration; a largest-remainder proportional allocation across strata; within
+each stratum, candidates ordered lexicographically and then shuffled once by a single
+generator whose call sequence is fixed; and a replacement rule, drawing from the same
+stratum's queue first, for any clip that cannot be downloaded or decoded. A
+continuity-focused stratum of 29 clips and 85 flaws is carried inside the core so that
+measurements remain comparable to earlier work on the same clips, and it is exempt from
+replacement. Every clip that enters the core is verified end to end---downloaded and
+decoded---before the core is written, and the selection, the strata, and any
+replacements are stored with the set. \Cref{tab:datastats} summarizes the counts. We are explicit that the evaluation set is the 606-clip /
 1{,}107-flaw derivative (with a frozen 150-clip / 306-flaw core), not the full
 1{,}500-clip corpus; conflating the two would overstate the evaluation. We are also explicit that the 150-clip / 306-flaw core
 is used as an \emph{optimization set}: system and prompt decisions are repeatedly
 made against it, so coverage on it measures fit to that core rather than
 generalization, and a generalization claim requires a separately sequestered
 held-out set that has not influenced system design, which is future work.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{fig_benchmark_composition.pdf}
+  \caption{How the evaluation set is derived from the annotated corpus. Clips are
+  removed only at the first step; the second step removes flaw \emph{records}
+  whose complaint is audible but not visible, leaving the clip count unchanged.
+  The routine core is a fixed random sample balanced by severity, flaw count and
+  clip length. A further 711 annotated clips are kept aside for training and
+  share no clip with either frozen set.}
+  \label{fig:benchcomp}
+\end{figure}
 
 \begin{table}[t]
 \centering
@@ -355,23 +569,54 @@ For any learning that consumes this data, a training pool of 711 clips is held
 strictly disjoint from the frozen evaluation sets, so the evaluation core is
 never trained on.
 
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{fig_benchmark_distributions.pdf}
+  \caption{Two properties of the routine evaluation core that shape how a detector
+  must behave. \textbf{Left:} most clips are flagged in only one or two places, so
+  a detector that raises many complaints per clip will mostly be raising ones no
+  annotator marked. \textbf{Right:} flagged windows are bimodal --- many failures
+  are confined to a small part of the clip while a comparable group runs almost
+  its whole length --- so both a brief localized check and a whole-clip check are
+  needed.}
+  \label{fig:benchdist}
+\end{figure}
+
 % =====================================================================
 \section{The Auditable Multi-Tool Critic}\label{sec:critic}
 % =====================================================================
 
-\subsection{Overview}
-The critic takes a prompt $q$ and a video $v$ and is designed to return a verdict
-in $\{\text{plausible}, \text{implausible}, \abstain\}$ with a trace: the claims
-it checked, the evidence each tool produced, and the rule that combined them. A
-single holistic ``is this plausible?'' score would hide which observation drove
-the verdict and could confound photorealism with prompt satisfaction. Instead the
-critic decomposes: a served vision-language \emph{reasoner} turns the prompt into
-small checkable claims and grounds each to the measurements it needs; frozen
-\emph{perception specialists} return localized evidence only; and a
-\emph{deterministic core} interprets most of that evidence with typed
-three-valued predicates and rolls the per-claim outcomes into the clip verdict.
-The learned parts are the reasoner and the specialists; the aggregation is
+\subsection{Method summary}
+The critic takes a prompt and a video and returns one of three answers---plausible,
+implausible, or abstain---together with the trace that produced it: the claims it
+checked, what each tool measured, and the rule that combined those measurements. The
+method has four stages. A served vision-language model reads the prompt only, splits
+it into small separately checkable claims, and writes down, for each claim, which
+measurements would settle it. Those requested measurements are type-checked as a
+program before anything runs. Each surviving measurement is then executed by a frozen
+open perception specialist that is contractually allowed to report only what it
+measured---a box, a count, a track, a time window, a depth---and never whether the
+prompt was satisfied. Finally a deterministic layer turns the measurements into
+per-claim outcomes and the per-claim outcomes into the clip answer, by fixed rules
+with no learned component. A single holistic ``is this plausible?'' score is
+deliberately absent from that path, because it would hide which observation drove the
+answer and would let photorealism stand in for prompt satisfaction. The learned parts
+are the reasoner and the specialists; everything that combines evidence is
 deterministic and inspectable.
+
+\begin{figure}[t]
+  \centering
+  \input{figs/fig_critic_pipeline}
+  \caption{The critic. A reasoner turns the prompt into checkable claims and
+  writes down the measurements that would settle each one; the plan is
+  type-checked before any tool runs; a general verifier reading the frames
+  densely decides whether things are present and events happen, while frozen
+  specialists supply the quantities it cannot produce. Every call returns
+  evidence only, and fixed rules --- not a second model --- turn that evidence
+  into the verdict and the trace beside it. Shaded boxes are learned components;
+  outlined boxes are deterministic.}
+  \label{fig:criticpipe}
+\end{figure}
 
 \subsection{The reasoner}
 One served vision-language model---Qwen3-VL-30B-A3B-Instruct~\cite{qwen3vl2025},
@@ -420,27 +665,137 @@ is not yet exercised in the routed configuration.}
 \end{table}
 
 \subsection{Evidence-only tool contract}\label{sec:contract}
-Specialists are frozen and constrained by a schema that forbids verdict-, label-,
-and mismatch-shaped fields: a specialist reports \emph{what it measured} (a box, a
-count, a track, a time window, a depth), not \emph{whether the prompt is
-satisfied}. A fail-closed adapter rejects any output that violates the schema, so
-a malformed or verdict-shaped output cannot enter the accepted evidence record,
-and each accepted measurement carries the prompt span and entity/event identifier
-that requested it. This guarantees that no specialist \emph{directly emits} the
-verdict; it does not make a learned measurement semantically neutral, and a
-confidently wrong measurement can still mislead a downstream predicate.
+Specialists are frozen, and what they are permitted to say is fixed by a schema
+rather than by convention. A specialist reports \emph{what it measured}---a box, a
+count, a track, a time window, a depth---and never \emph{whether the prompt is
+satisfied}. The schema is enforced by a validator that refuses, rather than repairs,
+anything off-contract, so an off-contract output cannot enter the accepted evidence
+record at all. The complete rule set is:
+
+\begin{itemize}
+  \item \textbf{Judgment-shaped fields are refused by name.} A fixed list of field
+  names is rejected anywhere in a measurement, at any nesting depth---among them
+  \emph{label}, \emph{judgment}, \emph{decision}, \emph{plausible}, \emph{reasoning},
+  \emph{rationale}, \emph{ground truth}, \emph{human label}, and \emph{flaw}---as is
+  any field name containing \emph{mismatch} or \emph{verdict}, and any name that
+  starts like an evaluation label.
+  \item \textbf{Renaming does not evade the rule.} Field names are normalized before
+  the check: case and separators are stripped and camel-case is split, so a rejected
+  name cannot be smuggled in by rewriting it.
+  \item \textbf{Numbers must be real numbers.} Measurements are validated as strict
+  data: no infinities, no not-a-number, no duplicate keys, no values outside the
+  serialisable types. A measurement that cannot be canonically serialised is refused.
+  \item \textbf{Every measurement is tied to the text that asked for it.} A record
+  carries the clip identifier, the full prompt, and the exact claim fragment being
+  checked, and that fragment is required to occur \emph{verbatim} in the prompt---a
+  paraphrase is a validation failure. This is what makes a measurement attributable
+  after the fact.
+  \item \textbf{Not-measuring is a first-class, and separate, outcome.} A record's
+  status is exactly one of measured, abstained, or errored. A measured record must
+  carry measurements and may carry neither an abstention reason nor an error message;
+  an abstention must carry a reason and no error; an error must carry a message and no
+  abstention reason. The three cannot be blurred.
+  \item \textbf{Heavy evidence is content-addressed.} Any file a specialist produces
+  is referenced by path plus a hash of its bytes, and the measurement payload itself
+  carries a hash of the tool's native output, so a record can be checked later against
+  the artifact it claims to describe.
+  \item \textbf{Cost travels with evidence.} Every record carries its own accounting:
+  accelerator seconds and tool calls are required; wall time, price, and token counts
+  are optional. Cost is therefore auditable per measurement rather than reconstructed
+  afterwards.
+  \item \textbf{The contract is versioned.} Each record names the schema version it
+  was written against, and a reader refuses a version it does not implement.
+\end{itemize}
+
+The guarantee this buys is narrow and worth stating precisely: no specialist
+\emph{emits} the verdict, and every measurement that reaches the deterministic layer
+is attributable to a prompt fragment and to a hashed artifact. It does not make a
+learned measurement semantically neutral, and it cannot detect a measurement that is
+confidently wrong; a wrong number inside a well-formed record will mislead the rule
+that consumes it.
 
 \subsection{Three-valued semantics and deterministic roll-up}\label{sec:semantics}
 Every claim resolves to \supported{}, \contradicted{}, or \unknownv{}, and
-\unknownv{} is first-class: when evidence is insufficient or ambiguous the critic
-abstains rather than guess. The gates are asymmetric---a positive, resolvable
-signal is required to assert \contradicted{}, whereas a failed or empty detection
-becomes \unknownv{}, never proof of absence. The clip roll-up is a separate
-deterministic step: if any claim is \contradicted{}, the clip is
-\emph{implausible}; otherwise, if all claims are \supported{}, it is
-\emph{plausible}; otherwise the critic \abstain{}s. ``Plausible'' therefore means
-only that no checked claim was contradicted---a summary of the executed plan, not
-a certificate of complete physical verification.
+\unknownv{} is first-class: it is what the critic reports when the evidence it
+actually obtained does not settle the question. The rules that produce those three
+values are fixed and are stated here in full, because which of them applies is the
+whole substance of the critic's answer.
+
+\paragraph{A measurement that looked and did not find is evidence, not silence.} When
+a specialist is asked about something over the whole clip and reports that it is not
+there, that is treated as a measurement and it contradicts the claim; it does not
+become \unknownv{}. Concretely: a stated count that does not match the measured count
+contradicts; a spatial claim whose two participants are never both visible with usable
+outlines contradicts, because the asserted arrangement was never realised anywhere; an
+asserted approach or departure whose subject cannot be followed at all contradicts;
+and a claim that something enters a container is contradicted both when it is never
+inside and when it is inside from the first observed frame with no crossing ever seen.
+
+\paragraph{Existence and occurrence are decided by the dense-frame model, not by the
+specialists.} A detector that returns a box, or a temporal grounder that returns a
+window, is not by itself evidence that the queried thing exists: those interfaces
+return their best candidate for a query whether or not the query has a referent. So
+whether an object is present at all, and whether a named event happens at all, are
+routed to the vision-language model watching the frames densely, and the specialists
+supply the quantities, windows, outlines, depths and tracks it cannot produce. A
+detector's box remains an \emph{input} to measurements---seeding a track, naming the
+participants of a spatial relation, feeding a count---and in that role its
+looked-and-absent report still contradicts. A measurement whose only consumers were
+existence or occurrence questions is not executed at all, which keeps unused
+perception out of the cost.
+
+\paragraph{Ordering is composed, never assumed.} For a claim that one event precedes
+or falls inside another, both events must first be confirmed to occur by the
+dense-frame model. If either is judged absent, the ordered claim is contradicted
+outright. Only once both are confirmed do the specialist's time windows decide the
+order, and they do so with a tolerance rather than a fixed threshold: the boundary
+slack is a quarter of the shorter of the two events, so ``before'' requires a gap that
+is resolvable relative to the events being ordered. Containment is directional---one
+interval inside the other, not merely overlapping it---and an interval that contains
+the other contradicts rather than abstains.
+
+\paragraph{Where \unknownv{} genuinely comes from.} It is reserved, and it is
+reserved for cases that are about the evidence rather than about the video. Two valid
+window measurements that cannot be reconciled within the tolerance yield \unknownv{}:
+that is the deterministic outcome of the ordering table, not a tool's opinion. So does
+an incomplete plan---a depth-ordering relation asked for without a depth measurement is
+reported as a gap rather than silently resolved from outlines alone. So does a required
+measurement that never arrived. So does a check that the planner emitted but bound to
+no claim text and no describable request, which is surfaced by name rather than
+absorbed. And so does an infrastructure failure, which is retried at the clip level and
+never scored.
+
+\paragraph{Sub-checks compose by a fixed rule, and an unresolved part does not
+disappear.} A claim may carry several sub-checks. The claim is \contradicted{} if
+\emph{any} of them is contradicted; it is \supported{} only if \emph{every} one is
+supported; in every other case---which is exactly the case where at least one part is
+unresolved and none is contradicted---the claim itself is left unresolved. An
+unresolved part therefore blocks a claim from being asserted as satisfied, but does not
+by itself accuse.
+
+\paragraph{Negation is handled at composition, not inside measurement.} A negated
+sub-check is written only around a whole assertion---``this does not happen'', ``this
+object is not present''---and never around a measurement. At composition time its
+outcome is flipped first, supported becoming contradicted and contradicted becoming
+supported, and the ordinary rule above then applies. The consequence is that the
+measurement rules never have to reason about a negated query, which is why negation
+around a count, an interval or a spatial relation is rejected at planning time rather
+than approximated.
+
+\paragraph{The clip answer.} The roll-up is a separate deterministic step over the
+per-claim outcomes: if any claim is \contradicted{}, the clip is \emph{implausible};
+otherwise, if every claim is \supported{}, it is \emph{plausible}; otherwise the critic
+\abstain{}s. ``Plausible'' therefore means only that no checked claim was
+contradicted---a summary of the plan that was executed, not a certificate of complete
+physical verification.
+
+\paragraph{Where an abstain-by-default rule does apply.} The three reasoner-mediated
+sub-checks of \cref{sec:reasoner-checks} are the exception, and they are asymmetric in
+the opposite direction from the measurement rules. Each may only report a mismatch on
+the strength of a positively contradicting feature it can actually see; if the features
+that would distinguish the two candidate readings are not clearly resolvable in the
+evidence it was given, it abstains, and an unparseable or missing answer also abstains.
+Absence of confirmation is never treated as a contradiction there.
 
 \subsection{Reasoner-mediated hard sub-checks}\label{sec:reasoner-checks}
 Three checks resist full symbolization and remain reasoner-mediated on
@@ -499,7 +854,10 @@ structural and legal only inside \code{eq}, \code{before}, or \code{during}.
 Relations are drawn from fixed vocabularies (for example \emph{behind},
 \emph{in front of}, \emph{above}, \emph{contained in} for space; \emph{moves
 toward}, \emph{rises then falls}, \emph{accelerates} for motion), and the three
-directed motion relations require an explicit target.
+directed motion relations require an explicit target. Depth-ordering relations
+(\emph{behind}, \emph{in front of}) cannot be settled from masks alone, so they
+additionally require a depth measurement; a plan that omits it is rejected as
+incomplete rather than silently resolved.
 \textsuperscript{$\dagger$}The plan-based path has no dedicated sound-event
 check: \code{sound} is routed to the general verifier, so on this path it does not
 constitute an audio measurement. The audio specialists of \cref{tab:arms} are used
@@ -543,6 +901,17 @@ cascade occurs \emph{and} a count check against the number. Under the compositio
 rule, a measured count below the stated number is by itself sufficient to
 contradict the claim even when the occurrence part is supported---a claim carrying
 only an occurrence check cannot express that.
+
+\begin{figure}[t]
+  \centering
+  \input{figs/fig_plan_example}
+  \caption{One claim, two measurements. A numeral in the claim adds a counting
+  check beside the occurrence judgment, and the composition rule lets the count
+  alone contradict the claim even when the cascade plainly happens. The prompt and
+  the annotator's record shown at the foot are real; what the critic returns on
+  this clip is not reported here.}
+  \label{fig:planexample}
+\end{figure}
 
 \subsubsection{Routing by what the claim says}
 Which measurement a claim receives is decided by its content rather than by a
@@ -773,7 +1142,7 @@ models~\cite{llmdet2025,countgd2024,countvid2026,tapnext2025,tapvid2022,timelens
 Prior video benchmarks largely provide clip-level physical-commonsense or
 preference labels~\cite{videophy2024,videophy2_2025,phygenbench2024}. Our benchmark
 instead provides \emph{localized} human flaw annotations---severity, time span,
-per-frame boxes, the violated prompt fragment, and a rationale---so that a
+a box track, the violated prompt fragment, and a rationale---so that a
 detector can be scored not only on whether a clip is flawed but on whether it
 found the specific, spatially and temporally located error a person marked.
 
