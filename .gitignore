@@ -1,0 +1,14 @@
+# build artifacts and internal notes — never publish
+*.aux
+*.log
+*.blg
+*.bbl
+*.out
+*.zip
+*.synctex.gz
+pi_*.md
+pi_*.reply.md
+pi_*.consultlog
+*_brief*.md
+*_review*.md
+guardrails.md

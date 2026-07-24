@@ -316,7 +316,10 @@ experiment is scored against exactly the same target; a continuity-focused
 stratum (29 clips, 85 flaws) is tracked within it. \Cref{tab:datastats}
 summarizes the counts. We are explicit that the evaluation set is the 606-clip /
 306-flaw derivative, not the full 1{,}500-clip corpus; conflating the two would
-overstate the evaluation.
+overstate the evaluation. We are also explicit that this frozen core is used as an
+\emph{optimization set}: design decisions are made against it, so coverage on it
+measures fit to that set, and a claim of generalization requires a separate
+held-out set, which is future work.
 
 \begin{table}[t]
 \centering
@@ -499,7 +502,10 @@ no accuracy or coverage numbers.
 
 \paragraph{Target and ground truth.} The frozen physics-focused set of
 \cref{sec:dataset} (150 clips / 306 flaws for routine measurement, 606 clips /
-1{,}107 flaws for full sweeps). Human labels are the only ground truth.
+1{,}107 flaws for full sweeps). Human labels are the only ground truth. This set
+is an optimization set: because design decisions are made against it, reported
+coverage measures fit to it, and a generalization claim requires a later held-out
+set.
 
 \paragraph{Matching is outside the critic.} To decide whether a critic output
 corresponds to a human-flagged flaw, a separate protocol uses two judge models (a
