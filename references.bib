@@ -1,0 +1,730 @@
+% =====================================================================
+% references.bib
+% Titles / authors / arXiv IDs checked against arXiv/DBLP (2026-07-23).
+% A small number of venue strings and DOIs were compiled from established
+% knowledge (live lookup was blocked for those) and are owed one final
+% confirmation pass before camera-ready; see the report cover note.
+% =====================================================================
+
+% ---------- A. Video generation, physical plausibility, evaluation ----------
+
+@article{diffphy2025,
+  title  = {Think Before You Diffuse: Infusing Physical Rules into Video Diffusion},
+  author = {Zhang, Ke and Xiao, Cihang and Xu, Yiqun and Mei, Jiebo and Patel, Vishal M.},
+  journal= {arXiv preprint arXiv:2505.21653},
+  year   = {2025},
+  note   = {The parent ``DiffPhy'' work this project extends. Title as verified
+            live on the arXiv abstract page; some project docs cite an earlier
+            subtitle ``Physics-Aware Video Generation via Chain-of-Thought Conditioning.''}
+}
+
+@article{wan2025,
+  title  = {Wan: Open and Advanced Large-Scale Video Generative Models},
+  author = {{Wan Team}},
+  journal= {arXiv preprint arXiv:2503.20314},
+  year   = {2025},
+  note   = {The Wan 2.1 open video-diffusion backbone.}
+}
+
+@article{vace2025,
+  title  = {VACE: All-in-One Video Creation and Editing},
+  author = {Jiang, Zeyinzi and Han, Zhen and Mao, Chaojie and Zhang, Jingfeng and Pan, Yulin and Liu, Yu},
+  journal= {arXiv preprint arXiv:2503.07598},
+  year   = {2025},
+  note   = {Mask-conditioned controllable video generation; the project's stylizer.}
+}
+
+@article{videophy2024,
+  title  = {VideoPhy: Evaluating Physical Commonsense for Video Generation},
+  author = {Bansal, Hritik and Lin, Zongyu and Xie, Tianyi and Zong, Zeshun and Yarom, Michal and
+            Bitton, Yonatan and Jiang, Chenfanfu and Sun, Yizhou and Chang, Kai-Wei and Grover, Aditya},
+  journal= {arXiv preprint arXiv:2406.03520},
+  year   = {2024}
+}
+
+@article{videophy2_2025,
+  title  = {VideoPhy-2: A Challenging Action-Centric Physical Commonsense Evaluation in Video Generation},
+  author = {Bansal, Hritik and Peng, Clark and Bitton, Yonatan and Goldenberg, Roi and Grover, Aditya and Chang, Kai-Wei},
+  journal= {arXiv preprint arXiv:2503.06800},
+  year   = {2025}
+}
+
+@inproceedings{videoscore2024,
+  title    = {VideoScore: Building Automatic Metrics to Simulate Fine-grained Human Feedback for Video Generation},
+  author   = {He, Xuan and Jiang, Dongfu and Zhang, Ge and Ku, Max and Soni, Achint and others},
+  booktitle= {EMNLP},
+  year     = {2024},
+  note     = {arXiv:2406.15252.}
+}
+
+@article{videoscore2_2025,
+  title  = {VideoScore2: Think before You Score in Generative Video Evaluation},
+  author = {He, Xuan and Jiang, Dongfu and Nie, Ping and Liu, Minghao and Jiang, Zhengxuan and others},
+  journal= {arXiv preprint arXiv:2509.22799},
+  year   = {2025}
+}
+
+@article{physicsiq2025,
+  title  = {Do Generative Video Models Understand Physical Principles?},
+  author = {Motamed, Saman and Culp, Laura and Swersky, Kevin and Jaini, Priyank and Geirhos, Robert},
+  journal= {arXiv preprint arXiv:2501.09038},
+  year   = {2025},
+  note   = {The Physics-IQ benchmark; visual realism does not imply physical understanding.}
+}
+
+@article{vjepa_physics2025,
+  title  = {Intuitive Physics Understanding Emerges from Self-Supervised Pretraining on Natural Videos},
+  author = {Garrido, Quentin and Ballas, Nicolas and others},
+  journal= {arXiv preprint arXiv:2502.11831},
+  year   = {2025},
+  note   = {V-JEPA intuitive physics: violation-of-expectation in a learned latent beats pixel/text-space.}
+}
+
+% ---------- B. LLM tool-use, visual programs, plan-execute DAGs ----------
+
+@inproceedings{visprog2023,
+  title    = {Visual Programming: Compositional Visual Reasoning without Training},
+  author   = {Gupta, Tanmay and Kembhavi, Aniruddha},
+  booktitle= {CVPR},
+  year     = {2023},
+  note     = {arXiv:2211.11559.}
+}
+
+@inproceedings{vipergpt2023,
+  title    = {ViperGPT: Visual Inference via Python Execution for Reasoning},
+  author   = {Sur{\'i}s, D{\'i}dac and Menon, Sachit and Vondrick, Carl},
+  booktitle= {ICCV},
+  year     = {2023},
+  note     = {arXiv:2303.08128.}
+}
+
+@inproceedings{codevqa2023,
+  title    = {Modular Visual Question Answering via Code Generation},
+  author   = {Subramanian, Sanjay and Narasimhan, Medhini and Khangaonkar, Kushal and Yang, Kevin and
+              Nagrani, Arsha and Schmid, Cordelia and Zeng, Andy and Darrell, Trevor and Klein, Dan},
+  booktitle= {ACL},
+  year     = {2023},
+  note     = {arXiv:2306.05392.}
+}
+
+@inproceedings{nmn2016,
+  title    = {Neural Module Networks},
+  author   = {Andreas, Jacob and Rohrbach, Marcus and Darrell, Trevor and Klein, Dan},
+  booktitle= {CVPR},
+  year     = {2016},
+  note     = {arXiv:1511.02799.}
+}
+
+@inproceedings{hugginggpt2023,
+  title    = {HuggingGPT: Solving AI Tasks with ChatGPT and its Friends in Hugging Face},
+  author   = {Shen, Yongliang and Song, Kaitao and Tan, Xu and Li, Dongsheng and Lu, Weiming and Zhuang, Yueting},
+  booktitle= {NeurIPS},
+  year     = {2023},
+  note     = {arXiv:2303.17580.}
+}
+
+@article{taskmatrix2023,
+  title  = {TaskMatrix.AI: Completing Tasks by Connecting Foundation Models with Millions of APIs},
+  author = {Liang, Yaobo and Wu, Chenfei and Song, Ting and Wu, Wenshan and Xia, Yan and others},
+  journal= {arXiv preprint arXiv:2303.16434},
+  year   = {2023}
+}
+
+@article{controlllm2023,
+  title  = {ControlLLM: Augment Language Models with Tools by Searching on Graphs},
+  author = {Liu, Zhaoyang and Lai, Zeqiang and Gao, Zhangwei and Cui, Erfei and Li, Ziheng and others},
+  journal= {arXiv preprint arXiv:2310.17796},
+  year   = {2023},
+  note   = {Tool use as search over a tool graph (``Thoughts-on-Graph'').}
+}
+
+@inproceedings{llmcompiler2024,
+  title    = {An LLM Compiler for Parallel Function Calling},
+  author   = {Kim, Sehoon and Moon, Suhong and Tabrizi, Ryan and Lee, Nicholas and Mahoney, Michael W. and
+              Keutzer, Kurt and Gholami, Amir},
+  booktitle= {ICML},
+  year     = {2024},
+  note     = {arXiv:2312.04511. Plans a DAG of function calls, dispatches independent calls in parallel.}
+}
+
+@article{rewoo2023,
+  title  = {ReWOO: Decoupling Reasoning from Observations for Efficient Augmented Language Models},
+  author = {Xu, Binfeng and Peng, Zhiyuan and Lei, Bowen and Mukherjee, Subhabrata and Liu, Yuchen and Xu, Dongkuan},
+  journal= {arXiv preprint arXiv:2305.18323},
+  year   = {2023},
+  note   = {Plan-up-front, then execute; the ReWOO plan-execute separation.}
+}
+
+@inproceedings{toolchainstar2024,
+  title    = {ToolChain*: Efficient Action Space Navigation in Large Language Models with A* Search},
+  author   = {Zhuang, Yuchen and Chen, Xiang and Yu, Tong and Mitra, Saayan and Bursztyn, Victor and
+              Rossi, Ryan A. and Sarkhel, Somdeb and Zhang, Chao},
+  booktitle= {ICLR},
+  year     = {2024},
+  note     = {arXiv:2310.13227.}
+}
+
+@inproceedings{got2024,
+  title    = {Graph of Thoughts: Solving Elaborate Problems with Large Language Models},
+  author   = {Besta, Maciej and Blach, Nils and Kubicek, Ales and Gerstenberger, Robert and others},
+  booktitle= {AAAI},
+  year     = {2024},
+  note     = {arXiv:2308.09687.}
+}
+
+@inproceedings{lats2024,
+  title    = {Language Agent Tree Search Unifies Reasoning, Acting, and Planning in Language Models},
+  author   = {Zhou, Andy and Yan, Kai and Shlapentokh-Rothman, Michal and Wang, Haohan and Wang, Yu-Xiong},
+  booktitle= {ICML},
+  year     = {2024},
+  note     = {arXiv:2310.04406.}
+}
+
+@inproceedings{tot2023,
+  title    = {Tree of Thoughts: Deliberate Problem Solving with Large Language Models},
+  author   = {Yao, Shunyu and Yu, Dian and Zhao, Jeffrey and Shafran, Izhak and Griffiths, Thomas L. and
+              Cao, Yuan and Narasimhan, Karthik},
+  booktitle= {NeurIPS},
+  year     = {2023},
+  note     = {arXiv:2305.10601.}
+}
+
+% ---------- C. Modular / agentic video QA & reasoning ----------
+
+@article{proviq2023,
+  title  = {Zero-Shot Video Question Answering with Procedural Programs},
+  author = {Choudhury, Rohan and Niinuma, Koichiro and Kitani, Kris M. and Jeni, L{\'a}szl{\'o} A.},
+  journal= {arXiv preprint arXiv:2312.00937},
+  year   = {2023},
+  note   = {The video analogue of ViperGPT.}
+}
+
+@inproceedings{morevqa2024,
+  title    = {MoReVQA: Exploring Modular Reasoning Models for Video Question Answering},
+  author   = {Min, Juhong and Buch, Shyamal and Nagrani, Arsha and Cho, Minsu and Schmid, Cordelia},
+  booktitle= {CVPR},
+  year     = {2024},
+  note     = {arXiv:2404.06511.}
+}
+
+@inproceedings{videoagent_wang2024,
+  title    = {VideoAgent: Long-form Video Understanding with Large Language Model as Agent},
+  author   = {Wang, Xiaohan and Zhang, Yuhui and Zohar, Orr and Yeung-Levy, Serena},
+  booktitle= {ECCV},
+  year     = {2024},
+  note     = {arXiv:2403.10517.}
+}
+
+@inproceedings{videoagent_fan2024,
+  title    = {VideoAgent: A Memory-augmented Multimodal Agent for Video Understanding},
+  author   = {Fan, Yue and Ma, Xiaojian and Wu, Rujie and Du, Yuntao and Li, Jiaqi and Gao, Zhi and Li, Qing},
+  booktitle= {ECCV},
+  year     = {2024},
+  note     = {arXiv:2403.11481.}
+}
+
+@inproceedings{videotree2025,
+  title    = {VideoTree: Adaptive Tree-based Video Representation for LLM Reasoning on Long Videos},
+  author   = {Wang, Ziyang and Yu, Shoubin and Stengel-Eskin, Elias and Yoon, Jaehong and Cheng, Feng and
+              Bertasius, Gedas and Bansal, Mohit},
+  booktitle= {CVPR},
+  year     = {2025},
+  note     = {arXiv:2405.19209.}
+}
+
+% ---------- D. Perception specialists (the arms) + DMD ----------
+
+@inproceedings{llmdet2025,
+  title    = {LLMDet: Learning Strong Open-Vocabulary Object Detectors under the Supervision of Large Language Models},
+  author   = {Fu, Shenghao and Yang, Qize and Mo, Qijie and Yan, Junkai and Wei, Xihan and Meng, Jingke and
+              Xie, Xiaohua and Zheng, Wei-Shi},
+  booktitle= {CVPR},
+  year     = {2025},
+  note     = {arXiv:2501.18954.}
+}
+
+@inproceedings{countgd2024,
+  title    = {CountGD: Multi-Modal Open-World Counting},
+  author   = {Amini-Naieni, Niki and Han, Tengda and Zisserman, Andrew},
+  booktitle= {NeurIPS},
+  year     = {2024},
+  note     = {arXiv:2407.04619.}
+}
+
+@inproceedings{countvid2026,
+  title    = {Open-World Object Counting in Videos},
+  author   = {Amini-Naieni, Niki and Zisserman, Andrew},
+  booktitle= {AAAI},
+  year     = {2026},
+  note     = {arXiv:2506.15368. The CountVid model; the count arm.}
+}
+
+@article{tapnext2025,
+  title  = {TAPNext: Tracking Any Point (TAP) as Next Token Prediction},
+  author = {Zholus, Artem and Doersch, Carl and Yang, Yi and Koppula, Skanda and Patraucean, Viorica and
+            He, Xu and Rocco, Ignacio and Sajjadi, Mehdi S. M. and Chandar, Sarath and Goroshin, Ross},
+  journal= {arXiv preprint arXiv:2504.05579},
+  year   = {2025},
+  note   = {The point-tracking backbone behind the kinematic (physics) arm's TAPNext++.}
+}
+
+@inproceedings{tapvid2022,
+  title    = {TAP-Vid: A Benchmark for Tracking Any Point in a Video},
+  author   = {Doersch, Carl and Gupta, Ankush and Markeeva, Larisa and Recasens, Adri{\`a} and Smaira, Lucas and
+              Aytar, Yusuf and Carreira, Jo{\~a}o and Zisserman, Andrew and Yang, Yi},
+  booktitle= {NeurIPS Datasets and Benchmarks},
+  year     = {2022},
+  note     = {arXiv:2211.03726.}
+}
+
+@article{unitime2025,
+  title  = {Universal Video Temporal Grounding with Generative Multi-modal Large Language Models},
+  author = {Li, Zeqian and Di, Shangzhe and Zhai, Zhonghua and Huang, Weilin and Wang, Yanfeng and Xie, Weidi},
+  journal= {arXiv preprint arXiv:2506.18883},
+  year   = {2025},
+  note   = {UniTime, the earlier action-arm temporal grounder.}
+}
+
+@article{timelens_grounding2025,
+  title  = {TimeLens: Rethinking Video Temporal Grounding with Multimodal LLMs},
+  author = {Zhang, Yongdong and Wang, Yi and Ge, Yixiao and Ge, Yuying and Li, Xintao and Shan, Ying and Wang, Xiaohu},
+  journal= {arXiv preprint arXiv:2512.14698},
+  year   = {2025},
+  note   = {Closest published reference for the deployed action arm (the MCG-NJU
+            TimeLens2-8B checkpoint has no standalone paper).}
+}
+
+@article{sam2_2024,
+  title  = {SAM 2: Segment Anything in Images and Videos},
+  author = {Ravi, Nikhila and Gabeur, Valentin and Hu, Yuan-Ting and Hu, Ronghang and Ryali, Chaitanya and others},
+  journal= {arXiv preprint arXiv:2408.00714},
+  year   = {2024}
+}
+
+@article{sam3_2025,
+  title  = {SAM 3: Segment Anything with Concepts},
+  author = {Carion, Nicolas and Gustafson, Laura and Hu, Yuan-Ting and Debnath, Shoubhik and Hu, Ronghang and
+            Sur{\'i}s, D{\'i}dac and others},
+  journal= {arXiv preprint arXiv:2511.16719},
+  year   = {2025},
+  note   = {Open-vocabulary concept segmentation/tracking; used by the relation depth arm.}
+}
+
+@inproceedings{vggt2025,
+  title    = {VGGT: Visual Geometry Grounded Transformer},
+  author   = {Wang, Jianyuan and Chen, Minghao and Karaev, Nikita and Vedaldi, Andrea and Rupprecht, Christian and Novotny, David},
+  booktitle= {CVPR},
+  year     = {2025},
+  note     = {arXiv:2503.11651.}
+}
+
+@article{flexsed2025,
+  title  = {FlexSED: Towards Open-Vocabulary Sound Event Detection},
+  author = {Hai, Jiarui and Wang, Helin and Guo, Weizhe and Elhilali, Mounya},
+  journal= {arXiv preprint arXiv:2509.18606},
+  year   = {2025},
+  note   = {Text-queryable sound-event detection with timestamps; the audio arm.}
+}
+
+@inproceedings{whisper2023,
+  title    = {Robust Speech Recognition via Large-Scale Weak Supervision},
+  author   = {Radford, Alec and Kim, Jong Wook and Xu, Tao and Brockman, Greg and McLeavey, Christine and Sutskever, Ilya},
+  booktitle= {ICML},
+  year     = {2023},
+  note     = {arXiv:2212.04356.}
+}
+
+@article{qwen3vl2025,
+  title  = {Qwen3-VL Technical Report},
+  author = {{Qwen Team}},
+  journal= {arXiv preprint arXiv:2511.21631},
+  year   = {2025},
+  note   = {The vision-language reasoner (Qwen3-VL-30B-A3B-Instruct) at the centre of the critic.}
+}
+
+@article{qwen3omni2025,
+  title  = {Qwen3-Omni Technical Report},
+  author = {Xu, Jin and Guo, Zhifang and Hu, Hangrui and Chu, Yunfei and Wang, Xiong and others},
+  journal= {arXiv preprint arXiv:2509.17765},
+  year   = {2025},
+  note   = {Omni-modal model; the audio arm's whole-clip listening model.}
+}
+
+@article{dmd_schmid2010,
+  title  = {Dynamic Mode Decomposition of Numerical and Experimental Data},
+  author = {Schmid, Peter J.},
+  journal= {Journal of Fluid Mechanics},
+  volume = {656},
+  pages  = {5--28},
+  year   = {2010},
+  doi    = {10.1017/S0022112010001217}
+}
+
+@article{dmd_tu2014,
+  title  = {On Dynamic Mode Decomposition: Theory and Applications},
+  author = {Tu, Jonathan H. and Rowley, Clarence W. and Luchtenburg, Dirk M. and Brunton, Steven L. and Kutz, J. Nathan},
+  journal= {Journal of Computational Dynamics},
+  volume = {1},
+  number = {2},
+  pages  = {391--421},
+  year   = {2014},
+  note   = {Exact DMD.}
+}
+
+% ---------- E. Multi-query optimization, semantic-operator systems, formal framings ----------
+
+@article{sellis1988mqo,
+  title  = {Multiple-Query Optimization},
+  author = {Sellis, Timos K.},
+  journal= {ACM Transactions on Database Systems (TODS)},
+  volume = {13},
+  number = {1},
+  pages  = {23--52},
+  year   = {1988},
+  note   = {Foundational MQO: optimize a batch of queries jointly via shared sub-expressions.}
+}
+
+@inproceedings{roy2000mqo,
+  title    = {Efficient and Extensible Algorithms for Multi Query Optimization},
+  author   = {Roy, Prasan and Seshadri, S. and Sudarshan, S. and Bhobe, Siddhesh},
+  booktitle= {SIGMOD},
+  year     = {2000},
+  note     = {Practical shared-subexpression MQO in a Volcano-style optimizer.}
+}
+
+@inproceedings{graefe1993volcano,
+  title    = {The Volcano Optimizer Generator: Extensibility and Efficient Search},
+  author   = {Graefe, Goetz and McKenna, William J.},
+  booktitle= {ICDE},
+  year     = {1993}
+}
+
+@article{graefe1995cascades,
+  title  = {The Cascades Framework for Query Optimization},
+  author = {Graefe, Goetz},
+  journal= {IEEE Data Engineering Bulletin},
+  volume = {18},
+  number = {3},
+  pages  = {19--29},
+  year   = {1995}
+}
+
+@inproceedings{palimpzest2025,
+  title    = {A Declarative System for Optimizing AI Workloads},
+  author   = {Liu, Chunwei and Russo, Matthew and Cafarella, Michael and Cao, Lei and Chen, Peter Baile and
+              Chen, Zui and Franklin, Michael and Kraska, Tim and Madden, Samuel and Vitagliano, Gerardo},
+  booktitle= {CIDR},
+  year     = {2025},
+  note     = {Palimpzest. arXiv:2405.14696.}
+}
+
+@article{lotus2024,
+  title  = {Semantic Operators: A Declarative Model for Rich, AI-based Data Processing},
+  author = {Patel, Liana and Jha, Siddharth and Pan, Melissa and Gupta, Harshit and Asawa, Parth and
+            Guestrin, Carlos and Zaharia, Matei},
+  journal= {arXiv preprint arXiv:2407.11418},
+  year   = {2024},
+  note   = {The LOTUS system of LLM-backed semantic operators with a cost/accuracy optimizer.}
+}
+
+@inproceedings{parrot2024,
+  title    = {Parrot: Efficient Serving of LLM-based Applications with Semantic Variable},
+  author   = {Lin, Chaofan and Han, Zhenhua and Zhang, Chengruidong and Yang, Yuqing and Yang, Fan and
+              Chen, Chen and Qiu, Lili},
+  booktitle= {OSDI},
+  year     = {2024},
+  note     = {arXiv:2405.19888.}
+}
+
+@article{charikar1999steiner,
+  title  = {Approximation Algorithms for Directed Steiner Problems},
+  author = {Charikar, Moses and Chekuri, Chandra and Cheung, To-Yat and Dai, Zuo and Goel, Ashish and Guha, Sudipto and Li, Ming},
+  journal= {Journal of Algorithms},
+  volume = {33},
+  number = {1},
+  pages  = {73--91},
+  year   = {1999},
+  note   = {Cheapest tool-DAG covering a set of obligations as a directed Steiner tree.}
+}
+
+@article{chvatal1979setcover,
+  title  = {A Greedy Heuristic for the Set-Covering Problem},
+  author = {Chv{\'a}tal, Va{\v s}ek},
+  journal= {Mathematics of Operations Research},
+  volume = {4},
+  number = {3},
+  pages  = {233--235},
+  year   = {1979},
+  note   = {The ln n greedy bound; obligations as elements, tools as sets.}
+}
+
+@article{howard1966voi,
+  title  = {Information Value Theory},
+  author = {Howard, Ronald A.},
+  journal= {IEEE Transactions on Systems Science and Cybernetics},
+  volume = {2},
+  number = {1},
+  pages  = {22--26},
+  year   = {1966},
+  note   = {Value of information; the basis for VoI-driven tool selection.}
+}
+
+@article{bajcsy1988active,
+  title  = {Active Perception},
+  author = {Bajcsy, Ruzena},
+  journal= {Proceedings of the IEEE},
+  volume = {76},
+  number = {8},
+  pages  = {966--1005},
+  year   = {1988},
+  note   = {Perception as goal-directed control over what/how to sense.}
+}
+
+@article{kaelbling1998pomdp,
+  title  = {Planning and Acting in Partially Observable Stochastic Domains},
+  author = {Kaelbling, Leslie Pack and Littman, Michael L. and Cassandra, Anthony R.},
+  journal= {Artificial Intelligence},
+  volume = {101},
+  number = {1--2},
+  pages  = {99--134},
+  year   = {1998},
+  note   = {Canonical POMDP; deciding the next perception action under uncertainty.}
+}
+
+% ---------- F. Grounded T2I/T2V faithfulness metrics; declarative video ----------
+% ---------- analytics; logic / temporal / neuro-symbolic / physical      ----------
+% All F entries verified against arXiv / Crossref / DBLP live (2026-07-23).
+
+% -- F1. Grounded text-to-visual faithfulness / alignment metrics --
+
+@inproceedings{tifa2023,
+  title     = {{TIFA}: Accurate and Interpretable Text-to-Image Faithfulness Evaluation with Question Answering},
+  author    = {Hu, Yushi and Liu, Benlin and Kasai, Jungo and Wang, Yizhong and Ostendorf, Mari and Krishna, Ranjay and Smith, Noah A.},
+  booktitle = {ICCV},
+  year      = {2023},
+  note      = {arXiv:2303.11897.}
+}
+
+@inproceedings{dsg2024,
+  title     = {Davidsonian Scene Graph: Improving Reliability in Fine-grained Evaluation for Text-to-Image Generation},
+  author    = {Cho, Jaemin and Hu, Yushi and Garg, Roopal and Anderson, Peter and Krishna, Ranjay and Baldridge, Jason and Bansal, Mohit and Pont-Tuset, Jordi and Wang, Su},
+  booktitle = {ICLR},
+  year      = {2024},
+  note      = {arXiv:2310.18235.}
+}
+
+@inproceedings{vqascore2024,
+  title     = {Evaluating Text-to-Visual Generation with Image-to-Text Generation},
+  author    = {Lin, Zhiqiu and Pathak, Deepak and Li, Baiqi and Li, Jiayao and Xia, Xide and Neubig, Graham and Zhang, Pengchuan and Ramanan, Deva},
+  booktitle = {ECCV},
+  year      = {2024},
+  note      = {VQAScore. arXiv:2404.01291.}
+}
+
+@inproceedings{genaibench2024,
+  title     = {{GenAI-Bench}: Evaluating and Improving Compositional Text-to-Visual Generation},
+  author    = {Li, Baiqi and Lin, Zhiqiu and Pathak, Deepak and Li, Jiayao and Fei, Yixin and Wu, Kewen and Ling, Tiffany and Xia, Xide and Zhang, Pengchuan and Neubig, Graham and Ramanan, Deva},
+  booktitle = {CVPR Workshops},
+  year      = {2024},
+  note      = {arXiv:2406.13743.}
+}
+
+@inproceedings{vbench2024,
+  title     = {{VBench}: Comprehensive Benchmark Suite for Video Generative Models},
+  author    = {Huang, Ziqi and He, Yinan and Yu, Jiashuo and Zhang, Fan and Si, Chenyang and Jiang, Yuming and Zhang, Yuanhan and Wu, Tianxing and Jin, Qingyang and Chanpaisit, Nattapol and Wang, Yaohui and Chen, Xinyuan and Wang, Limin and Lin, Dahua and Qiao, Yu and Liu, Ziwei},
+  booktitle = {CVPR},
+  year      = {2024},
+  note      = {arXiv:2311.17982.}
+}
+
+@article{t2vcompbench2024,
+  title  = {{T2V-CompBench}: A Comprehensive Benchmark for Compositional Text-to-Video Generation},
+  author = {Sun, Kaiyue and Huang, Kaiyi and Liu, Xian and Wu, Yue and Xu, Zihan and Li, Zhenguo and Liu, Xihui},
+  journal= {arXiv preprint arXiv:2407.14505},
+  year   = {2024}
+}
+
+@inproceedings{fetv2023,
+  title     = {{FETV}: A Benchmark for Fine-Grained Evaluation of Open-Domain Text-to-Video Generation},
+  author    = {Liu, Yuanxin and Li, Lei and Ren, Shuhuai and Gao, Rundong and Li, Shicheng and Chen, Sishuo and Sun, Xu and Hou, Lu},
+  booktitle = {NeurIPS},
+  year      = {2023},
+  note      = {arXiv:2311.01813.}
+}
+
+@inproceedings{evalcrafter2024,
+  title     = {{EvalCrafter}: Benchmarking and Evaluating Large Video Generation Models},
+  author    = {Liu, Yaofang and Cun, Xiaodong and Liu, Xuebo and Wang, Xintao and Zhang, Yong and Chen, Haoxin and Liu, Yang and Zeng, Tieyong and Chan, Raymond and Shan, Ying},
+  booktitle = {CVPR},
+  year      = {2024},
+  note      = {arXiv:2310.11440.}
+}
+
+@inproceedings{clipscore2021,
+  title     = {{CLIPScore}: A Reference-free Evaluation Metric for Image Captioning},
+  author    = {Hessel, Jack and Holtzman, Ari and Forbes, Maxwell and Le Bras, Ronan and Choi, Yejin},
+  booktitle = {EMNLP},
+  year      = {2021},
+  note      = {arXiv:2104.08718.}
+}
+
+@inproceedings{pickscore2023,
+  title     = {Pick-a-Pic: An Open Dataset of User Preferences for Text-to-Image Generation},
+  author    = {Kirstain, Yuval and Polyak, Adam and Singer, Uriel and Matiana, Shahbuland and Penna, Joe and Levy, Omer},
+  booktitle = {NeurIPS},
+  year      = {2023},
+  note      = {PickScore. arXiv:2305.01569.}
+}
+
+@inproceedings{imagereward2023,
+  title     = {{ImageReward}: Learning and Evaluating Human Preferences for Text-to-Image Generation},
+  author    = {Xu, Jiazheng and Liu, Xiao and Wu, Yuchen and Tong, Yuxuan and Li, Qinkai and Ding, Ming and Tang, Jie and Dong, Yuxiao},
+  booktitle = {NeurIPS},
+  year      = {2023},
+  note      = {arXiv:2304.05977.}
+}
+
+% -- F2. Declarative / optimized video analytics over approximate models --
+
+@article{noscope2017,
+  title  = {NoScope: Optimizing Neural Network Queries over Video at Scale},
+  author = {Kang, Daniel and Emmons, John and Abuzaid, Firas and Bailis, Peter and Zaharia, Matei},
+  journal= {Proceedings of the VLDB Endowment},
+  volume = {10},
+  number = {11},
+  pages  = {1586--1597},
+  year   = {2017},
+  doi    = {10.14778/3137628.3137664},
+  note   = {arXiv:1703.02529.}
+}
+
+@article{blazeit2019,
+  title  = {BlazeIt: Optimizing Declarative Aggregation and Limit Queries for Neural Network-Based Video Analytics},
+  author = {Kang, Daniel and Bailis, Peter and Zaharia, Matei},
+  journal= {Proceedings of the VLDB Endowment},
+  volume = {13},
+  number = {4},
+  pages  = {533--546},
+  year   = {2019},
+  doi    = {10.14778/3372716.3372725}
+}
+
+@article{scanner2018,
+  title  = {Scanner: Efficient Video Analysis at Scale},
+  author = {Poms, Alex and Crichton, Will and Hanrahan, Pat and Fatahalian, Kayvon},
+  journal= {ACM Transactions on Graphics},
+  volume = {37},
+  number = {4},
+  articleno = {138},
+  year   = {2018},
+  doi    = {10.1145/3197517.3201394},
+  note   = {arXiv:1805.07339.}
+}
+
+@inproceedings{tahoma2019,
+  title     = {Physical Representation-Based Predicate Optimization for a Visual Analytics Database},
+  author    = {Anderson, Michael R. and Cafarella, Michael and Ros, German and Wenisch, Thomas F.},
+  booktitle = {ICDE},
+  pages     = {1466--1477},
+  year      = {2019},
+  publisher = {IEEE},
+  doi       = {10.1109/ICDE.2019.00132},
+  note      = {The Tahoma system. arXiv:1806.04226.}
+}
+
+@inproceedings{eva2022,
+  title     = {EVA: A Symbolic Approach to Accelerating Exploratory Video Analytics with Materialized Views},
+  author    = {Xu, Zhuangdi and Kakkar, Gaurav Tarlok and Arulraj, Joy and Ramachandran, Umakishore},
+  booktitle = {SIGMOD},
+  pages     = {602--616},
+  year      = {2022},
+  publisher = {ACM},
+  doi       = {10.1145/3514221.3526142}
+}
+
+@inproceedings{vocaludf2024,
+  title     = {Self-Enhancing Video Data Management System for Compositional Events with Large Language Models},
+  author    = {Zhang, Enhao and Sullivan, Nicole and Haynes, Brandon and Krishna, Ranjay and Balazinska, Magdalena},
+  booktitle = {SIGMOD},
+  year      = {2025},
+  note      = {The VOCAL-UDF system. arXiv:2408.02243.}
+}
+
+% -- F3. Logic / temporal reasoning / neuro-symbolic VQA / abstention / physical --
+
+@article{allen1983intervals,
+  title   = {Maintaining Knowledge about Temporal Intervals},
+  author  = {Allen, James F.},
+  journal = {Communications of the ACM},
+  volume  = {26},
+  number  = {11},
+  pages   = {832--843},
+  year    = {1983},
+  doi     = {10.1145/182.358434}
+}
+
+@inproceedings{geifman2017selective,
+  title     = {Selective Classification for Deep Neural Networks},
+  author    = {Geifman, Yonatan and El-Yaniv, Ran},
+  booktitle = {NeurIPS},
+  year      = {2017},
+  note      = {arXiv:1705.08500. Classification with a reject option.}
+}
+
+@inproceedings{nsvqa2018,
+  title     = {Neural-Symbolic {VQA}: Disentangling Reasoning from Vision and Language Understanding},
+  author    = {Yi, Kexin and Wu, Jiajun and Gan, Chuang and Torralba, Antonio and Kohli, Pushmeet and Tenenbaum, Joshua B.},
+  booktitle = {NeurIPS},
+  year      = {2018},
+  note      = {arXiv:1810.02338.}
+}
+
+@inproceedings{nsm2019,
+  title     = {Learning by Abstraction: The Neural State Machine},
+  author    = {Hudson, Drew A. and Manning, Christopher D.},
+  booktitle = {NeurIPS},
+  year      = {2019},
+  note      = {arXiv:1907.03950.}
+}
+
+@article{phygenbench2024,
+  title  = {Towards World Simulator: Crafting Physical Commonsense-Based Benchmark for Video Generation},
+  author = {Meng, Fanqing and Liao, Jiaqi and Tan, Xinyu and Shao, Wenqi and Lu, Quanfeng and Zhang, Kaipeng and Cheng, Yu and Li, Dianqi and Qiao, Yu and Luo, Ping},
+  journal= {arXiv preprint arXiv:2410.05363},
+  year   = {2024},
+  note   = {The PhyGenBench physical-commonsense generation benchmark.}
+}
+
+@article{conformal2021,
+  title  = {A Gentle Introduction to Conformal Prediction and Distribution-Free Uncertainty Quantification},
+  author = {Angelopoulos, Anastasios N. and Bates, Stephen},
+  journal= {arXiv preprint arXiv:2107.07511},
+  year   = {2021},
+  note   = {Cited as the calibration standard we do not yet meet.}
+}
+
+% ---- added for physics-guided generation pillar ----
+@inproceedings{todorov2012mujoco,
+  title={{MuJoCo}: A physics engine for model-based control},
+  author={Todorov, Emanuel and Erez, Tom and Tassa, Yuval},
+  booktitle={IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+  year={2012}
+}
+@inproceedings{zhang2023controlnet,
+  title={Adding conditional control to text-to-image diffusion models},
+  author={Zhang, Lvmin and Rao, Anyi and Agrawala, Maneesh},
+  booktitle={IEEE/CVF International Conference on Computer Vision (ICCV)},
+  year={2023}
+}
+@inproceedings{meng2022sdedit,
+  title={{SDEdit}: Guided image synthesis and editing with stochastic differential equations},
+  author={Meng, Chenlin and He, Yutong and Song, Yang and Song, Jiaming and Wu, Jiajun and Zhu, Jun-Yan and Ermon, Stefano},
+  booktitle={International Conference on Learning Representations (ICLR)},
+  year={2022}
+}
+@article{wang2023videocomposer,
+  title={{VideoComposer}: Compositional video synthesis with motion controllability},
+  author={Wang, Xiang and Yuan, Hangjie and Zhang, Shiwei and Chen, Dayou and Wang, Jiuniu and Zhang, Yingya and Shen, Yujun and Zhao, Deli and Zhou, Jingren},
+  journal={Advances in Neural Information Processing Systems (NeurIPS)},
+  year={2023}
+}

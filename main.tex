@@ -1,0 +1,650 @@
+% =====================================================================
+%  Adobe Technical Report -- Toward physics-faithful video generation:
+%  a depth-guided generator, a human-annotated flaw benchmark, and an
+%  auditable multi-tool critic.
+%  Compile: pdflatex main -> bibtex main -> pdflatex main x2
+%  (compiles unchanged under lualatex/xelatex; we build with tectonic)
+%
+%  Every quantitative descriptor of an artifact (clip counts, flaw
+%  counts, generation config, model identifiers) is grounded in the
+%  codebase. This report makes system-design and dataset claims; it does
+%  NOT report critic accuracy / coverage as a performance result, and it
+%  does not claim the closed generator-critic loop exists yet. Figures
+%  and comparative results are deferred by design.
+% =====================================================================
+\documentclass[11pt,letterpaper]{article}
+\usepackage{adobe-techreport}
+
+\reporttitle{Toward Physics-Faithful Video Generation}
+\reportsubtitle{A depth-guided generator, a human-annotated flaw benchmark,
+and an auditable multi-tool critic}
+\reportauthor{Adobe Research}
+\reportdate{July 2026}
+\reportnumber{}
+
+% convenience macros
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\supported}{\textsf{supported}}
+\newcommand{\contradicted}{\textsf{contradicted}}
+\newcommand{\unknownv}{\textsf{unknown}}
+\newcommand{\abstain}{\textsf{abstain}}
+\newcommand{\TODO}[1]{\textcolor{adobered}{\textbf{[TODO: #1]}}}
+
+\begin{document}
+\makeadobetitle
+
+% ---------------------------------------------------------------------
+% FRONT-MATTER SCOPE NOTE
+% ---------------------------------------------------------------------
+\begin{scopebox}
+\small
+\textbf{Scope.} This report describes three components built toward
+physics-faithful video generation: (1)~a generator that renders a physics
+simulation into photorealistic video through a depth/structure control
+channel; (2)~a human-annotated benchmark of prompt-versus-video flaws; and
+(3)~an auditable multi-tool critic that detects such flaws. The three are
+designed to compose into a loop in which the critic's judgment refines the
+generator; \textbf{that closed loop is future work and is not evaluated here}
+(\cref{sec:loop}).
+
+\smallskip
+\textbf{What is and is not reported.} We report the design of each component
+and the measured \emph{descriptive} statistics of the artifacts (clip counts,
+flaw counts, generation configuration, model identifiers). We do \emph{not}
+report critic accuracy, flaw coverage, false-alarm rates, a comparison between
+critic variants, or a learned video-quality score for the generator; those are
+performance claims deferred to a dedicated evaluation. Generator validation in
+this report is qualitative (visual inspection and adherence to the control
+signal), not a quantitative quality metric. \Cref{sec:eval} states the
+measurement protocol these results will follow.
+
+\smallskip
+\textbf{Status vocabulary.}
+\built{}~present and exercised in the codebase; \partialb{}~present with
+limited semantics; \stub{}~present but inactive; \notintegrated{}~built but not
+wired into the full loop; \proposed{}~designed, not implemented.
+\end{scopebox}
+
+% ---------------------------------------------------------------------
+\begin{abstract}
+\noindent
+Text-to-video generators produce clips of high visual quality that
+nonetheless violate physical common sense---objects interpenetrate, motion
+ignores gravity, quantities fail to conserve---and often simply fail to depict
+what the prompt requested. Making generated video \emph{physically faithful}
+requires three things at once: a generator that can be steered by physical
+structure rather than appearance alone; a way to measure, reliably and
+auditably, when a clip is wrong; and ground-truth data about the flaws real
+generators make. This report presents one component for each.
+
+First, a \textbf{physics-guided generator}: a rigid-body simulation is rendered
+into a per-frame depth (or silhouette) control video and passed to the native
+control branch of a Wan~2.2-VACE video-diffusion backbone, so that scene geometry
+and motion are driven by the simulation while the text prompt supplies
+appearance. Second, a \textbf{human-annotated flaw benchmark}: 1{,}500
+AI-generated clips carry human misalignment annotations---each with a severity,
+a time span, per-frame bounding boxes, the violated prompt fragment, and a
+free-text rationale---from which we derive a frozen, physics-focused evaluation
+set. Third, an \textbf{auditable multi-tool critic}: a served vision-language
+reasoner decomposes a prompt into checkable claims, routes each to a frozen
+open perception specialist that returns localized evidence only, and combines
+the outcomes with deterministic rules into a three-valued verdict
+(\emph{plausible}, \emph{implausible}, \emph{abstain}). The evaluation target is
+human labels, and no closed or proprietary model produces the critic's verdict.
+
+The intended end state is a loop in which the critic supplies the reward that
+refines the generator. We describe each component and its honest implementation
+status, and we specify the human-label evaluation protocol under which the
+critic and the loop will be measured; comparative performance numbers are
+deferred to that evaluation.
+\end{abstract}
+
+% =====================================================================
+\section{Introduction}\label{sec:intro}
+% =====================================================================
+
+\subsection{Physical faithfulness as the goal}
+State-of-the-art text-to-video models render strikingly realistic clips that
+still break physical common sense and often omit or distort what the prompt
+asked for. Physics-IQ quantifies the first problem directly: strong visual
+realism coexists with a large gap in physical understanding on its evaluated
+models and tasks~\cite{physicsiq2025}. Closing that gap is our long-term
+objective, and it decomposes into three coupled needs.
+
+\begin{itemize}
+  \item \textbf{A steerable generator.} A model that follows \emph{physical
+  structure}---the geometry and motion of a scene---rather than reproducing the
+  surface statistics of its training data.
+  \item \textbf{A reliable, auditable detector of flaws.} A measurement
+  instrument that says when a clip is wrong \emph{and} shows why, at the level
+  of individual evidence---because that judgment is the reward signal any
+  improvement loop consumes.
+  \item \textbf{Ground truth about real flaws.} A benchmark of the mistakes
+  real generators make, annotated by people, against which any detector is
+  measured.
+\end{itemize}
+
+\subsection{Three contributions and the loop they form}
+This report contributes one component for each need and states how they are
+intended to compose.
+
+\begin{enumerate}
+  \item \textbf{A physics-guided video generator} (\cref{sec:generation}) that
+  converts a rigid-body simulation into a depth or silhouette control video and
+  drives a Wan~2.2-VACE diffusion backbone's native control branch, separating
+  physical structure (from the simulation) from appearance (from the prompt).
+  \item \textbf{A human-annotated flaw benchmark} (\cref{sec:dataset}): a
+  1{,}500-clip corpus of AI-generated video with localized human misalignment
+  labels, and a frozen physics-focused subset used as the evaluation target.
+  \item \textbf{An auditable multi-tool critic} (\cref{sec:critic}) that
+  decomposes a prompt into claims, routes each to an open perception specialist
+  returning evidence only, and combines the evidence deterministically into a
+  three-valued verdict.
+\end{enumerate}
+
+\noindent The end state (\cref{sec:loop}) is a closed loop: the benchmark
+trains and evaluates the critic, and the critic's verdict becomes the reward
+that refines the generator. \emph{That loop is future work}; this report builds
+and characterizes its three parts.
+
+\subsection{Non-claims}
+We do not claim the closed generator--critic loop exists or that the critic has
+yet improved any generated video. We do not report critic accuracy, flaw
+coverage, false-alarm rate, or a comparison between critic variants; those await
+the evaluation of \cref{sec:eval}. We do not report a learned video-quality
+score for the generator---its validation here is qualitative. And we claim
+novelty for none of the individual building blocks (structure-conditioned
+generation, prompt decomposition, specialist routing, three-valued
+abstention); the contribution is their integration toward physical
+faithfulness.
+
+% =====================================================================
+\section{Physics-Guided Video Generation}\label{sec:generation}
+% =====================================================================
+
+\subsection{Overview}
+The generator answers a specific question: can a video-diffusion model be made
+to follow the \emph{geometry and motion} of a known physical scene, while a text
+prompt supplies only appearance? Our approach renders a physics simulation into
+a control video and feeds it to a diffusion backbone that accepts an explicit
+control channel, so structure comes from the simulation and texture from the
+prompt (\cref{fig:genpipe}). The pipeline is: a rigid-body simulation
+$\rightarrow$ a per-frame depth (or silhouette) render $\rightarrow$ generation
+through the backbone's native control branch.
+
+\begin{figure}[t]
+  \centering
+  \fbox{\parbox[c][3.4cm][c]{0.92\linewidth}{\centering \color{adobegray}
+  \textsf{Figure placeholder --- generation pipeline.}\\[3pt]
+  rigid-body simulation $\rightarrow$ depth / silhouette control video
+  $\rightarrow$ Wan-VACE control branch (control $=$ depth, mask $=$ all-white,
+  prompt $=$ appearance) $\rightarrow$ photorealistic clip.\\[3pt]
+  \emph{Structure from the simulation; appearance from the prompt. To be
+  rendered.}}}
+  \caption{Physics-guided generation. The control video carries scene geometry
+  and motion; the prompt carries appearance. \TODO{replace with real frames:
+  simulation, depth control, generated clip, side by side}}
+  \label{fig:genpipe}
+\end{figure}
+
+\subsection{Backbone and control mechanism}
+The backbone is Wan~2.2-VACE-Fun-14B, a two-expert mixture-of-experts
+video-diffusion model with a native control branch, run through the
+\code{WanVACEPipeline} interface; because the two expert stacks exceed the memory
+of a single 80\,GB accelerator, the experts are CPU-offloaded during generation.
+Generation is conditioned by passing the
+pre-computed control video into the pipeline's control input and an all-white
+mask into its mask input---the instruction to ``generate the entire frame under
+the guidance of the control''---together with the text prompt for appearance and
+a single scalar \emph{conditioning scale} governing how strongly the control
+branch binds. Crucially, the backbone consumes a \emph{pre-computed} control
+video and does not re-estimate depth from an RGB source; the geometry is exactly
+the simulation's. This is a control-branch mechanism, not image-to-image
+denoising: it is neither an SDEdit-style noised re-synthesis~\cite{meng2022sdedit}
+of a rendered source nor a copy of source RGB, which is what distinguishes it
+from conditioning schemes that leak the source's synthetic appearance into the
+result.
+
+\subsection{Rendering the control signal}
+The control video is produced from a single simulation pass. We simulate
+rigid-body dynamics in MuJoCo~\cite{todorov2012mujoco} and, in the same pass,
+read the renderer's z-buffer for depth and its segmentation buffer for a
+silhouette. Depth is mapped to a near-bright grayscale under the inverse-depth
+convention the control branch expects, and---importantly---normalized
+\emph{globally} across the whole clip from robust percentiles, not per frame, so
+that a receding object dims consistently instead of being re-stretched every
+frame. Most scenes use depth; flat tabletop scenes, where a single depth plane
+carries little signal, use the object silhouette instead. Structure-conditioned
+generation of this kind---driving synthesis from an explicit geometric control
+rather than from text alone---follows the lineage of ControlNet for
+images~\cite{zhang2023controlnet} and motion/structure control for
+video~\cite{wang2023videocomposer,vace2025}; here the control is a physically
+simulated depth field.
+
+\subsection{Pipeline and configuration}
+\Cref{tab:genconfig} lists the operating configuration. Generation runs as a
+staged GPU job: control videos are rendered, a small checkpoint provides a fast
+sanity gate, the 14B checkpoint generates the clips (data-parallel when more than
+one GPU is available), and the clips are streamed to storage.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{7pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}p{5.0cm} p{8.2cm}@{}}
+\toprule
+\textbf{Setting} & \textbf{Value} \\
+\midrule
+Backbone & Wan~2.2-VACE-Fun-14B (two-expert MoE), diffusers \code{WanVACEPipeline}, bf16 \\
+Memory & experts CPU-offloaded (two-expert weights exceed an 80\,GB accelerator) \\
+Control signal & MuJoCo z-buffer depth (globally normalized); object silhouette for flat scenes \\
+Conditioning & control video $+$ all-white mask $+$ text prompt; no reference image \\
+Resolution & $848\times480$ (flow-shift 3.0) \\
+Frames / rate & 81 frames at 16\,fps \\
+Sampler / steps & UniPC, 50 steps \\
+Guidance scale & 5.0 \\
+Conditioning scale & 1.0 (swept over $\{0.5, 0.8, 1.0\}$) \\
+\bottomrule
+\end{tabular}
+\caption{Deployed generation configuration, from the generation scripts. A small
+checkpoint provides a pre-flight sanity gate and is not used for final clips.}
+\label{tab:genconfig}
+\end{table}
+
+\subsection{What it achieves, and how we validated it}\label{sec:gen-quality}
+Generation was validated \emph{qualitatively}: by visual inspection of the
+output clips and by a lightweight color-blob trajectory tracker that checks
+whether the generated object follows the control's path. There is no learned or
+quantitative video-quality score (no FVD, no human-preference model, no critic
+score) applied to this line, and we make no such claim. Under this qualitative
+bar, single-object scenes---a bouncing ball, a projectile arc---render cleanly
+with the object following the simulated trajectory. Multi-object interaction
+(e.g.\ a billiards break) is \emph{not} solved: neither the deployed backbone
+nor the evaluated alternates produce a clean multi-object collision, and we
+report it as an open problem rather than a result.
+
+\subsection{Design choices}\label{sec:gen-design}
+Two choices define the deployed recipe and are stated as design decisions.
+(1)~\textbf{Native control over source re-synthesis.} A control branch that
+consumes a pre-computed depth video keeps the generator from importing a
+rendered source's synthetic look. (2)~\textbf{No reference image.} The pipeline
+supports an optional appearance reference, but the deployed recipe omits it;
+including it degraded single-object trajectories in our inspection. A separate,
+in-progress study probes \emph{when} during denoising the depth control can be
+released while the motion it has already induced is retained; its measurements
+are high-variance and not yet conclusive, and we do not report it as a settled
+result.
+
+% =====================================================================
+\section{A Human-Annotated Video-Flaw Benchmark}\label{sec:dataset}
+% =====================================================================
+
+\subsection{The corpus}
+The benchmark is built from a corpus of \textbf{1{,}500 AI-generated video
+clips}, each carrying human annotations of where the video fails to match its
+prompt. The clips are AI-generated; the generating model is not recorded in the
+data, and we do not attribute them to a specific system. Every clip has at least
+one human-flagged flaw (\cref{tab:datastats}). This corpus is distinct from
+existing physical-commonsense benchmarks such as VideoPhy and its action-centric
+successor~\cite{videophy2024,videophy2_2025}, which we treat as separate transfer
+targets rather than as the annotation source here.
+
+\subsection{Human annotation schema}
+Each human flaw is a localized, typed record. The annotator marks, per flaw: a
+\textbf{severity} and \textbf{confidence}; a \textbf{time span} (start/end
+frame); \textbf{per-frame bounding boxes} localizing the flaw in space; the
+\textbf{prompt fragment} the video violates; and a free-text \textbf{rationale}.
+This is a richer object than a clip-level preference score: it says \emph{what}
+is wrong, \emph{where} in the frame, \emph{when} in time, and \emph{against which
+part of the prompt}. These fields are the human ground truth. A separate,
+coarse \emph{scope} and \emph{category} tag on each flaw is assigned
+automatically by a language-model ensemble, not by the human annotator, and we
+label it as machine-derived wherever it is used---it is convenience metadata, not
+part of the human ground truth. We record annotations as single-annotator; the
+corpus does not carry multiple independent annotations per flaw, and we make no
+inter-annotator-agreement claim.
+
+\subsection{The physics-focused evaluation set}
+The critic is evaluated not on all 1{,}500 clips but on a frozen,
+physics-focused subset, selected so that the flaws exercise physical and
+compositional reasoning rather than, say, subtitle typos. A physics-relevance
+filter keeps \textbf{606 clips with 1{,}107 flaws} as the full evaluation set,
+from which a smaller \textbf{frozen core of 150 clips and 306 flaws} is drawn for
+routine measurement. The core is fixed by a recorded seed and date so that every
+experiment is scored against exactly the same target; a continuity-focused
+stratum (29 clips, 85 flaws) is tracked within it. \Cref{tab:datastats}
+summarizes the counts. We are explicit that the evaluation set is the 606-clip /
+306-flaw derivative, not the full 1{,}500-clip corpus; conflating the two would
+overstate the evaluation.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{7pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}p{7.6cm} r r@{}}
+\toprule
+\textbf{Set} & \textbf{Clips} & \textbf{Human flaws} \\
+\midrule
+Full corpus (all AI-generated, all annotated) & 1{,}500 & 2{,}582 \\
+Physics-relevant pool & 606 & 1{,}171 \\
+Full evaluation set (frozen) & 606 & 1{,}107 \\
+\quad Routine evaluation core (frozen) & 150 & 306 \\
+\quad\quad continuity stratum within the core & 29 & 85 \\
+Held-out training pool (disjoint from the frozen sets) & 711 & --- \\
+\bottomrule
+\end{tabular}
+\caption{Benchmark statistics, from the dataset manifests. The full evaluation
+set drops a small number of audio-scoped flaws relative to the physics-relevant
+pool. The training pool excludes every clip in the frozen evaluation sets.}
+\label{tab:datastats}
+\end{table}
+
+\subsection{Recall-oriented evaluation and a held-out training pool}
+Because every clip in the pool carries at least one flaw and there are no clean
+clips, the benchmark measures \emph{recall}---did the critic find the human
+flaws---and cannot on its own measure precision or false-alarm rate; a
+``flag-everything'' detector would score perfectly on recall. We state this
+limitation plainly and address false alarms in the protocol of \cref{sec:eval}.
+For any learning that consumes this data, a training pool of 711 clips is held
+strictly disjoint from the frozen evaluation sets, so the evaluation core is
+never trained on.
+
+% =====================================================================
+\section{The Auditable Multi-Tool Critic}\label{sec:critic}
+% =====================================================================
+
+\subsection{Overview}
+The critic takes a prompt $q$ and a video $v$ and is designed to return a verdict
+in $\{\text{plausible}, \text{implausible}, \abstain\}$ with a trace: the claims
+it checked, the evidence each tool produced, and the rule that combined them. A
+single holistic ``is this plausible?'' score would hide which observation drove
+the verdict and could confound photorealism with prompt satisfaction. Instead the
+critic decomposes: a served vision-language \emph{reasoner} turns the prompt into
+small checkable claims and grounds each to the measurements it needs; frozen
+\emph{perception specialists} return localized evidence only; and a
+\emph{deterministic core} interprets most of that evidence with typed
+three-valued predicates and rolls the per-claim outcomes into the clip verdict.
+The learned parts are the reasoner and the specialists; the aggregation is
+deterministic and inspectable.
+
+\subsection{The reasoner}
+One served vision-language model---Qwen3-VL-30B-A3B-Instruct~\cite{qwen3vl2025},
+BF16 weights (no quantization), tensor-parallel over two GPUs---performs the
+decomposition and grounding and runs three reasoner-mediated hard sub-checks
+(\cref{sec:reasoner-checks}). It is the only learned component that reasons over
+the whole prompt.
+
+\subsection{Perception specialists}\label{sec:arms}
+Each claim is routed to a frozen open specialist that measures one thing and
+returns only that measurement (\cref{tab:arms}). Two honesty notes are built into
+the table. First, some adapters \emph{declare} a stronger primary backend that is
+not the one actually executed; we list the backend that runs. Second, there is no
+holistic scoring tool in the verdict path by design: a learned holistic video
+scorer is kept out so that the verdict is built from localized evidence and
+deterministic rules, though such a scorer could still serve as an external
+baseline.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.22}
+\begin{tabular}{@{}p{2.5cm} p{5.4cm} p{4.6cm}@{}}
+\toprule
+\textbf{Capability} & \textbf{Open backend} & \textbf{Evidence returned} \\
+\midrule
+Object presence & LLMDet open-vocabulary detector~\cite{llmdet2025} & presence; bounding box \\
+Object count & CountGD-Box counter~\cite{countgd2024,countvid2026} (SAM~2.1 internal) & cardinality of a named set \\
+Kinematics & point tracking, TAPNext-style~\cite{tapnext2025} $+$ kinematic predicates & per-frame positions; static/moving, direction, speed \\
+Action timing & TimeLens-family temporal grounder~\cite{timelens_grounding2025} & time window of a named event \\
+Spatial relation & unified SAM~3 masks~\cite{sam3_2025} $+$ monocular depth $+$ reasoning & depth-ordered / image-plane relations \\
+Holistic & \emph{no tool by design}~\cite{videoscore2_2025} & --- \\
+Audio\textsuperscript{$\dagger$} & FlexSED sound-event detection~\cite{flexsed2025} & sound events with timestamps \\
+\bottomrule
+\end{tabular}
+\caption{Perception specialists and the open backend wired to each. In the routed
+configuration the object, count, kinematics, action, and spatial-relation
+backends execute as stages; the object and count adapters declare stronger
+primaries that are not on the executed path, so the running backend is shown. The
+relation capability is served by a unified mask-plus-depth reasoning arm, and no
+holistic scoring tool is used in the verdict path by design.
+\textsuperscript{$\dagger$}The audio backend is wired in the typed-plan path and
+is not yet exercised in the routed configuration.}
+\label{tab:arms}
+\end{table}
+
+\subsection{Evidence-only tool contract}\label{sec:contract}
+Specialists are frozen and constrained by a schema that forbids verdict-, label-,
+and mismatch-shaped fields: a specialist reports \emph{what it measured} (a box, a
+count, a track, a time window, a depth), not \emph{whether the prompt is
+satisfied}. A fail-closed adapter rejects any output that violates the schema, so
+a malformed or verdict-shaped output cannot enter the accepted evidence record,
+and each accepted measurement carries the prompt span and entity/event identifier
+that requested it. This guarantees that no specialist \emph{directly emits} the
+verdict; it does not make a learned measurement semantically neutral, and a
+confidently wrong measurement can still mislead a downstream predicate.
+
+\subsection{Three-valued semantics and deterministic roll-up}\label{sec:semantics}
+Every claim resolves to \supported{}, \contradicted{}, or \unknownv{}, and
+\unknownv{} is first-class: when evidence is insufficient or ambiguous the critic
+abstains rather than guess. The gates are asymmetric---a positive, resolvable
+signal is required to assert \contradicted{}, whereas a failed or empty detection
+becomes \unknownv{}, never proof of absence. The clip roll-up is a separate
+deterministic step: if any claim is \contradicted{}, the clip is
+\emph{implausible}; otherwise, if all claims are \supported{}, it is
+\emph{plausible}; otherwise the critic \abstain{}s. ``Plausible'' therefore means
+only that no checked claim was contradicted---a summary of the executed plan, not
+a certificate of complete physical verification.
+
+\subsection{Reasoner-mediated hard sub-checks}\label{sec:reasoner-checks}
+Three checks resist full symbolization and remain reasoner-mediated on
+tool-localized inputs: object subtype identity (is the detected object the
+specific kind named), dense action-event recall (did a named event occur, densely
+over time), and depth-ordered spatial relations. Each runs a fresh reasoner pass
+over evidence a tool has already localized, under the same asymmetric gate. We
+name them explicitly rather than imply a pipeline that is more symbolic than it
+is.
+
+\subsection{Auditable orchestration: a typed execution layer}\label{sec:compiler}
+Routing could be a flat claim-to-tool table. To make the orchestration
+inspectable, we instead compile each prompt into a typed \emph{verification
+plan}---entities, event occurrences, observations (a tool operation plus its
+measurement contract), typed predicates, and claims---and type-check the plan
+before any tool runs. The validator rejects ill-typed plans loudly (for example,
+an existence check that reads an event clause rather than an entity noun, or a
+temporal check lacking two event localizations) and re-prompts the reasoner.
+Measurements that are described by an identical contract are executed once and
+shared; sharing uses an exact-key match only, so a whole-clip measurement and a
+sub-interval measurement are never conflated. Temporal relations are directional
+and tolerance-scaled: ``$A$ before $B$'' requires a resolvable gap and returns
+\unknownv{} when the windows overlap within tolerance, following a subset of
+Allen's interval algebra~\cite{allen1983intervals}.
+
+\paragraph{Two execution configurations, stated plainly.} The system exposes two
+configurations, and we keep them distinct. In the \emph{routed} configuration,
+each claim is dispatched to its dedicated specialist (\cref{tab:arms}) and the
+object, count, kinematics, action, and relation tools run as executable stages
+(the audio backend is wired but not yet exercised here). In the
+\emph{typed-plan} configuration, the
+compiler and its typed predicates run, but the live value source used so far is
+the served reasoner over densely sampled frames, with cached and controlled
+values; wiring the typed-plan layer to dispatch the full specialist registry
+directly is integration work in progress, not an existing capability. Statements
+about running the named specialists refer to the routed configuration; statements
+about typed plans, validation, and reuse refer to the typed-plan layer. Global
+plan selection among alternative tool recipes and a value-of-information loop that
+spawns follow-up measurements are designed but \proposed{}, not built.
+
+% =====================================================================
+\section{The Intended Refinement Loop}\label{sec:loop}
+% =====================================================================
+The three components are meant to close a loop: the benchmark trains and
+evaluates the critic; the critic scores generated clips; and the critic's
+verdict becomes a reward that fine-tunes or guides the generator toward physical
+faithfulness. \textbf{This loop is not yet built.} The generator and the critic
+today run on disjoint data---the generator on simulation-driven clips, the critic
+on the human-annotated benchmark---and no reward-driven generation run exists.
+Prerequisites are a critic whose reward is trustworthy on the frozen human
+labels (\cref{sec:eval}) and a decision about where the reward enters generation
+(preference optimization, guidance, or data selection). We state the loop as the
+organizing goal and as explicit future work, not as a result.
+
+% =====================================================================
+\section{Evaluation Protocol and Measurement}\label{sec:eval}
+% =====================================================================
+This section specifies how the critic will be measured; it deliberately reports
+no accuracy or coverage numbers.
+
+\paragraph{Target and ground truth.} The frozen physics-focused set of
+\cref{sec:dataset} (150 clips / 306 flaws for routine measurement, 606 clips /
+1{,}107 flaws for full sweeps). Human labels are the only ground truth.
+
+\paragraph{Matching is outside the critic.} To decide whether a critic output
+corresponds to a human-flagged flaw, a separate protocol uses two judge models (a
+GPT-family and a Gemini-family model, majority over runs). These judges perform
+\emph{flaw matching only}; they are not components of the critic, do not produce
+its verdict, and are not treated as ground truth. Any ``majority-of-three'' in
+this project refers to such a model-vote protocol, never to human annotators.
+
+\paragraph{Recall, and the false-alarm gap.} Because the benchmark has no clean
+clips, the primary measurable quantity is recall of the human flaws. A meaningful
+false-alarm or precision number requires either clean clips or per-allegation
+adjudication of the critic's non-matching outputs; we specify that adjudication as
+part of the protocol and do not substitute a recall number for it.
+
+\paragraph{Dense-frame requirement.} The critic must observe the video densely.
+The evaluated components extract frames densely under a logged sampling policy,
+and any measurement obtained from a sparsely sampled input is excluded. A re-run
+counts only if it uses the dense path on the unchanged frozen target with BF16
+tools at pinned revisions.
+
+\paragraph{Comparisons to pre-specify.} Before execution we freeze the
+configurations, deterministic settings, specialist registry, planner prompt, and
+comparison rules. Two comparisons are of interest and will be reported
+separately: the routed critic against a simpler baseline that verifies each claim
+independently with a single general vision-language call; and, as an internal
+ablation, shared versus unshared execution of the same validated plan. We report
+none of these here; the protocol is pre-registered only.
+
+% =====================================================================
+\section{Related Work}\label{sec:related}
+% =====================================================================
+
+\subsection{Physics and structure in video generation}
+Physical-commonsense generation and its evaluation are studied by
+VideoPhy~\cite{videophy2024,videophy2_2025}, PhyGenBench~\cite{phygenbench2024},
+and Physics-IQ~\cite{physicsiq2025}; V-JEPA-style work argues physics is best
+judged in a learned state space~\cite{vjepa_physics2025}. Our generator does not
+learn physics: it \emph{imports} it from a simulator and asks the backbone to
+render it, via structure conditioning. Structure- and motion-conditioned
+synthesis has a strong lineage---ControlNet for images~\cite{zhang2023controlnet},
+motion control for video~\cite{wang2023videocomposer}, the Wan family and its VACE
+control interface~\cite{wan2025,vace2025}, and, as guided editing rather than
+control-branch conditioning, SDEdit~\cite{meng2022sdedit}. DiffPhy conditions a
+diffusion backbone on a physics chain-of-thought~\cite{diffphy2025}; we instead
+condition on a rendered depth field from a simulation.
+
+\subsection{Evaluating text-to-visual faithfulness}
+Decomposing a prompt into checkable pieces is established: TIFA~\cite{tifa2023}
+and the Davidsonian Scene Graph~\cite{dsg2024} score generated
+questions/propositions with a vision-language model, VQAScore uses an
+image-to-text model~\cite{vqascore2024}, and GenAI-Bench, VBench, T2V-CompBench,
+FETV, and EvalCrafter benchmark compositional
+alignment~\cite{genaibench2024,vbench2024,t2vcompbench2024,fetv2023,evalcrafter2024};
+embedding and preference scorers predict alignment or human
+preference~\cite{clipscore2021,pickscore2023,imagereward2023}, and learned quality
+models predict human judgment
+directly~\cite{videoscore2024,videoscore2_2025}. We keep such a holistic learned
+scorer out of the verdict path. Relative to these, our critic routes each claim to
+a dedicated open perception specialist under an evidence-only contract, validates a
+typed plan before execution, distinguishes event occurrences, reuses perception
+only under an exact contract, and preserves claim-level provenance with an explicit
+\unknownv{} outcome. We claim novelty for the integration, not the parts.
+
+\subsection{Visual programs, tool-use, and modular video QA}
+Composing perception modules for reasoning includes Neural Module
+Networks~\cite{nmn2016}, VisProg~\cite{visprog2023}, ViperGPT~\cite{vipergpt2023},
+CodeVQA~\cite{codevqa2023}, and neural-symbolic
+VQA~\cite{nsvqa2018,nsm2019}; LLM tool-controllers and plan-execute graphs include
+HuggingGPT, TaskMatrix.AI, ControlLLM, LLMCompiler, and
+ReWOO~\cite{hugginggpt2023,taskmatrix2023,controlllm2023,llmcompiler2024,rewoo2023},
+with search-based
+variants~\cite{toolchainstar2024,lats2024,tot2023,got2024}; modular video QA
+includes ProViQ, MoReVQA, the VideoAgent systems, and
+VideoTree~\cite{proviq2023,morevqa2024,videoagent_wang2024,videoagent_fan2024,videotree2025}.
+Our execution layer is narrower and verification-specific: a \emph{typed} plan,
+type-checked before tools run, whose evidence obligations carry three-valued
+semantics; it does not search over alternative plans. Reuse of equivalent
+measurements is common-subexpression elimination in the
+multi-query-optimization sense~\cite{sellis1988mqo,roy2000mqo,graefe1993volcano,graefe1995cascades},
+and the specialists themselves draw on open detection, counting, tracking,
+grounding, and audio
+models~\cite{llmdet2025,countgd2024,countvid2026,tapnext2025,tapvid2022,timelens_grounding2025,unitime2025,sam2_2024,sam3_2025,flexsed2025}.
+
+\subsection{Flaw and preference datasets}
+Prior video benchmarks largely provide clip-level physical-commonsense or
+preference labels~\cite{videophy2024,videophy2_2025,phygenbench2024}. Our benchmark
+instead provides \emph{localized} human flaw annotations---severity, time span,
+per-frame boxes, the violated prompt fragment, and a rationale---so that a
+detector can be scored not only on whether a clip is flawed but on whether it
+found the specific, spatially and temporally located error a person marked.
+
+% =====================================================================
+\section{Limitations}\label{sec:limitations}
+% =====================================================================
+
+\paragraph{Generation.} Validation is qualitative (visual inspection plus a
+trajectory tracker); there is no learned quality metric for this line.
+Multi-object interaction is unsolved. The control signal comes from a simulator,
+so scene diversity is bounded by what is simulated, and the mapping from
+simulation to prompt appearance is not itself verified for physical consistency.
+
+\paragraph{Benchmark.} The corpus is recall-only (no clean clips), so precision is
+not directly measurable; flaws are single-annotator with no inter-annotator
+agreement; the scope/category tags are machine-derived; and the source generator
+of the clips is unrecorded. Repeatedly designing against one frozen set risks
+overfitting to it even without training on it.
+
+\paragraph{Critic.} The spatial relation predicate and negative-event
+verification are limited; the typed-plan layer does not yet dispatch the full
+specialist registry; binding remains a central failure mode, since the compiler
+enforces symbolic identifier consistency but cannot guarantee that heterogeneous
+tools localized the same physical instance; and the reasoner-mediated sub-checks
+reduce but do not remove semantic opacity.
+
+\paragraph{Loop.} The generator--critic loop is unbuilt, and critic quality on the
+frozen labels is the gate before any reward-driven generation is attempted.
+
+% =====================================================================
+\section{Conclusion}\label{sec:conclusion}
+% =====================================================================
+Physical faithfulness in generated video requires steering, measurement, and
+ground truth together. This report contributes one piece for each: a generator
+that imports geometry and motion from a simulation and renders them through a
+video-diffusion control branch; a human-annotated benchmark that localizes real
+flaws in space, time, and prompt reference; and an auditable multi-tool critic
+that decomposes a prompt, routes each claim to an open specialist returning
+evidence only, and combines the evidence deterministically into a three-valued
+verdict. We have described each component and its honest implementation status
+and specified the human-label protocol under which the critic---and eventually the
+loop that lets it refine the generator---will be measured. The comparative
+numbers, and the closed loop itself, are the next milestones, not claims of this
+report.
+
+% =====================================================================
+\appendix
+\section{Appendix}\label{sec:appendix}
+\begin{placeholder}
+To be expanded: the full generation configuration and control-render details;
+the benchmark schema and per-stratum statistics; the critic's plan schema,
+predicate type rules, and temporal-relation truth tables; the specialist license
+and revision manifest; and the pre-registered evaluation manifest.
+\end{placeholder}
+
+% =====================================================================
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}
