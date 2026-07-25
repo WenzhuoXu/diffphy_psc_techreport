@@ -50,7 +50,7 @@
 \begin{tikzpicture}[
     x=1cm, y=1cm,
     pfbox/.style   = {rounded corners=2pt, line width=0.7pt, align=center,
-                      inner sep=5pt, font=\sffamily\footnotesize,
+                      inner sep=3.6pt, font=\sffamily\footnotesize,
                       text=adobeink},
     % LEARNED component: light gray fill, as in the pipeline figure
     pflearn/.style = {pfbox, draw=adobeink, fill=adobegray!12},
@@ -58,7 +58,7 @@
     pfdet/.style   = {pfbox, draw=adobeink, fill=white},
     % the plan itself: mono, with the operation names accented
     pfcode/.style  = {pfbox, draw=adobeink, fill=white,
-                      font=\ttfamily\footnotesize, inner sep=5pt},
+                      font=\ttfamily\footnotesize, inner sep=4pt},
     % text we were given rather than anything the critic produced
     pfdata/.style  = {pfbox, draw=adobegray, fill=white,
                       dash pattern=on 2pt off 1.6pt},
@@ -79,7 +79,7 @@
      and how many traps it involves.}};
 
   % ---------------- 2. one line of plan ---------------------------------
-  \node[pfcode, text width=13.6cm, align=center, anchor=north] (code) at ($(claim.south)+(0,-0.72)$)
+  \node[pfcode, text width=13.6cm, align=center, anchor=north] (code) at ($(claim.south)+(0,-0.50)$)
     {check(c2, \pfop{judge}("the tossed ball triggers a cascade of\\
      1,000 mousetraps") \pfop{and} \pfop{eq}(\pfop{count}("mousetrap"), 1000))};
 
@@ -93,7 +93,7 @@
   \coordinate (fan) at ($(code.south)+(0,-0.92)$);
 
   \node[pflearn, text width=6.2cm, anchor=north west]
-    (subA) at ($(claim.south west)+(0,-3.30)$)
+    (subA) at ($(claim.south west)+(0,-2.72)$)
     {\textbf{Does the cascade occur?}\\[2pt]
      \pfsub{Goes to the general verifier, which reads\\
      the frames densely. Occurrence questions go\\
@@ -102,7 +102,7 @@
      \pfsub{Returns an occurrence decision.}};
 
   \node[pflearn, text width=6.2cm, anchor=north east]
-    (subB) at ($(claim.south east)+(0,-3.30)$)
+    (subB) at ($(claim.south east)+(0,-2.72)$)
     {\textbf{How many traps are there?}\\[2pt]
      \pfsub{Goes to the counting specialist, which\\
      returns the number of traps it can see and\\
@@ -111,9 +111,9 @@
      \pfsub{Returns a count.}};
 
   % ---------------- 4. the composition rule -----------------------------
-  \coordinate (merge) at ($(subA.south)+(0,-0.62)$);
+  \coordinate (merge) at ($(subA.south)+(0,-0.46)$);
   \node[pfdet, text width=13.6cm, anchor=north]
-    (rule) at ($(0,0 |- merge)+(0,-0.42)$)
+    (rule) at ($(0,0 |- merge)+(0,-0.30)$)
     {\textbf{How the two outcomes compose}\\[3pt]
      {\color{adobered}\textbf{any part contradicted $\rightarrow$ the claim is
       contradicted}}\\[1.5pt]
@@ -126,7 +126,7 @@
 
   % ---------------- 5. the human record this claim comes from ------------
   \node[pfdata, text width=13.6cm, anchor=north]
-    (human) at ($(rule.south)+(0,-0.55)$)
+    (human) at ($(rule.south)+(0,-0.42)$)
     {\textbf{Why this claim is in the benchmark}\\[2pt]
      \pfsub{An annotator marked exactly this prompt fragment, wrote that the
      video shows 63 mousetraps rather than\\
@@ -156,7 +156,7 @@
 
   % ---------------- inline legend ---------------------------------------
   \node[pfnote, anchor=north west, text width=13.6cm] (leg)
-    at ($(human.south west)+(0,-0.40)$)
+    at ($(human.south west)+(0,-0.32)$)
     {Gray fill marks a learned component; a white box with an outline is a
      deterministic rule; a dashed box is text we were handed rather than
      anything the critic produced.};

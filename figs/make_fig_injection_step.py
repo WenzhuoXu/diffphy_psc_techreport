@@ -1,35 +1,41 @@
 #!/usr/bin/env python3
-"""Build fig_injection_step for the technical report.
+"""Build the injection-step figures for the technical report.
 
-The question the figure answers: the depth control does not have to be applied
-for the whole denoising process; if it is released partway through, does the
-generated motion still follow the simulation?
+The question they answer: the depth control does not have to be applied for the
+whole denoising process; if it is released partway through, does the generated
+motion still follow the simulation?
 
-Two panels, one visual system:
+Two panels, one visual system, written as TWO separate figures so that each one
+is short enough to sit on a report page beside its own caption:
 
-  LEFT  -- the release-point sweep. One clip per release point, three scenes,
-           scored twice: over the AIRBORNE window (up to the frame at which the
-           simulated object first reaches the ground) and over the AFTER-CONTACT
-           window (that frame to the end). x axis is the NOISE LEVEL at which the
-           control was switched off; the step index of each run is printed
-           underneath as a label only, because the same step index sits at a
-           different noise level under a different sampling schedule.
-  RIGHT -- the seeded measurement at one release point, 16 seeds per cell, with
-           95% confidence intervals of the mean.
+  fig_injection_sweep -- the release-point sweep. One clip per release point,
+           three scenes, scored twice: over the AIRBORNE window (up to the frame
+           at which the simulated object first reaches the ground) and over the
+           AFTER-CONTACT window (that frame to the end). x axis is the NOISE LEVEL
+           at which the control was switched off; the step index of each run is
+           printed underneath as a label only, because the same step index sits at
+           a different noise level under a different sampling schedule.
+  fig_injection_seeds -- the seeded measurement at one release point, 16 seeds
+           per cell, with 95% confidence intervals of the mean.
 
-NOTHING here is read from a cached score file for the left panel: the control and
+`draw(..., only="both")` still renders the original stacked fig_injection_step,
+but the two split files are what the report includes.
+
+NOTHING is read from a cached score file for the sweep figure: the control and
 every generated clip are re-tracked from the mp4s and the correlations recomputed,
-so the plotted curve is measured at figure-build time. The right panel's means and
-intervals come from the seeded aggregate JSON and are re-derived from that file's
-own per-clip rows before plotting, and the script aborts if the two disagree.
+so the plotted curve is measured at figure-build time. The seeded figure's means
+and intervals come from the seeded aggregate JSON and are re-derived from that
+file's own per-clip rows before plotting, and the script aborts if the two
+disagree.
 
 Everything printed to stdout is measured or read: the resolved font files, the
 per-clip frame counts, the detected contact frame per scene, every plotted point
 with its sample count, and the figure geometry.
 
 Run:  python3 /Users/wenzhuox/diffphy_psc/techreport/figs/make_fig_injection_step.py
+      (add --only sweep | seeded | both to build just one of them)
 
-Idempotent: re-running overwrites the same two output files byte-identically.
+Idempotent: re-running overwrites the same output files byte-identically.
 """
 from __future__ import annotations
 
@@ -430,10 +436,16 @@ HEAD_RULE = 0.160
 SUBHEAD_H = 0.185     # scene name above its own plot, so it never sits on the data
 PANEL_GAP = 0.40      # between the two panels, horizontally
 BLOCK_GAP = 0.26      # between stacked scene blocks
-AX_H = 0.86           # plot height for one left-panel scene row
-XLAB_H = 0.50         # under the last left plot: tick labels + step labels + axis title
-RXLAB_H = 0.44        # under the last right plot: two-line group labels
-LEGEND_H = 0.34       # under those: the two keys (each two lines tall)
+AX_H = 0.86           # plot height for one sweep-figure scene row
+XLAB_H = 0.50         # under the last sweep plot: tick labels + step labels + axis title
+RXLAB_H = 0.50        # under the last seeded plot: two-line group labels + gap to the key
+LEGEND_H = 0.34       # a one-row key
+SWEEP_LEGEND_H = 0.50  # the sweep key wraps onto two rows, so it needs more
+# The seeded figure's heading band also has to clear the first scene name, which is
+# drawn just above that scene's own plot; without the extra room the two overlap.
+SEED_HEAD_H = 0.435
+SEED_AX_H = 1.05      # seeded plot height: its own tick labels need the room
+SEED_GAP = 0.30       # between the two stacked figures when both are drawn together
 
 # Y-axis tick labels and the axis title live in a GUTTER inside the content box.
 # Without it the labels are drawn outside the figure canvas and get cut off, since
@@ -445,8 +457,13 @@ LABEL_FS = 8.0
 TICK_FS = 8.0
 KEY_FS = 8.0
 
-LEFT_W = CONTENT_W - 2 * GUTTER   # sweep panel: content width less its gutter
-RIGHT_W = CONTENT_W - 2 * GUTTER  # seeded panel: same, stacked below
+LEFT_W = CONTENT_W - 2 * GUTTER   # sweep figure: content width less its gutter
+RIGHT_W = CONTENT_W - 2 * GUTTER  # seeded figure: same width, so the two match
+
+# output stem per mode; "both" keeps the original stacked file building
+STEMS = {"sweep": "fig_injection_sweep",
+         "seeded": "fig_injection_seeds",
+         "both": "fig_injection_step"}
 
 
 class Layout:
@@ -493,201 +510,232 @@ def despine(ax, keep=("left", "bottom")):
 # --------------------------------------------------------------------------- #
 # draw
 # --------------------------------------------------------------------------- #
-def draw(sweep: dict, seeded: dict) -> list[Path]:
+def draw(sweep: dict, seeded: dict, only: str = "both") -> list[Path]:
+    """Render one figure.
+
+    `only="sweep"`  -> the release-point sweep alone   -> fig_injection_sweep
+    `only="seeded"` -> the seeded bars alone           -> fig_injection_seeds
+    `only="both"`   -> both stacked in one canvas      -> fig_injection_step
+
+    Every drawing block, every key and the output stem are gated on `only`, so a
+    single-panel build reserves height for that panel only.
+    """
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 
+    if only not in STEMS:
+        raise SystemExit(f"only= must be one of {sorted(STEMS)}, got {only!r}")
+    do_sweep = only in ("sweep", "both")
+    do_seeded = only in ("seeded", "both")
+
     n_rows = len(SWEEP_SCENES)
-    n_sc_pre = len(SEED_SCENES)
-    SEED_AX_H = 1.05                      # taller: its own tick labels need room
-    sweep_h = HEAD_H + n_rows * AX_H + (n_rows - 1) * BLOCK_GAP + XLAB_H + LEGEND_H
-    SEED_TOP = sweep_h + 0.30             # the stacked panel starts below the first
-    seed_h = HEAD_H + n_sc_pre * SEED_AX_H + (n_sc_pre - 1) * BLOCK_GAP + 0.52 + LEGEND_H
-    content_h = SEED_TOP + seed_h
+    n_sc = len(SEED_SCENES)
+
+    # heights, measured from the constants above rather than hand-tuned totals
+    sweep_body_h = (HEAD_H + n_rows * AX_H + (n_rows - 1) * BLOCK_GAP + XLAB_H)
+    sweep_h = sweep_body_h + SWEEP_LEGEND_H
+    seed_body_h = (SEED_HEAD_H + n_sc * SEED_AX_H + (n_sc - 1) * BLOCK_GAP + RXLAB_H)
+    seed_h = seed_body_h + LEGEND_H
+
+    SEED_TOP = 0.0 if only == "seeded" else (sweep_h + SEED_GAP)
+    if only == "sweep":
+        content_h = sweep_h
+    elif only == "seeded":
+        content_h = seed_h
+    else:
+        content_h = SEED_TOP + seed_h
+
     fig_h = content_h + 2 * PAD_IN
     fig = plt.figure(figsize=(FIG_W, fig_h))
     L = Layout(fig, FIG_W, fig_h)
 
     break_line = seeded["break_line"]
 
-    # ---------------- left panel: the release-point sweep -------------------
-    L.text(0.0, HEAD_BASE, "Retention against the release point",
-           ha="left", va="baseline", fontproperties=semibold(HEAD_FS), color=INK)
-    L.hrule(0.0, LEFT_W, HEAD_RULE, GRAY)
+    # ---------------- the release-point sweep -------------------------------
+    if do_sweep:
+        L.text(0.0, HEAD_BASE, "Retention against the release point",
+               ha="left", va="baseline", fontproperties=semibold(HEAD_FS), color=INK)
+        L.hrule(0.0, LEFT_W, HEAD_RULE, GRAY)
 
-    # x axis: noise level, high noise on the LEFT (denoising runs left to right)
-    sig_all = sorted({r["sigma"] for s in sweep.values() for r in s["rows"]
-                      if r["sigma"] is not None}, reverse=True)
-    x_lo, x_hi = min(sig_all) - 0.035, max(sig_all) + 0.035
+        # x axis: noise level, high noise on the LEFT (denoising runs left to right)
+        sig_all = sorted({r["sigma"] for s in sweep.values() for r in s["rows"]
+                          if r["sigma"] is not None}, reverse=True)
+        x_lo, x_hi = min(sig_all) - 0.035, max(sig_all) + 0.035
 
-    for i, (scene, _t) in enumerate(SWEEP_SCENES):
-        info = sweep[scene]
-        rows = [r for r in info["rows"] if r["sigma"] is not None]
-        base = next(r for r in info["rows"] if r["sigma"] is None)
-        y_top = HEAD_H + i * (AX_H + BLOCK_GAP)
-        ax = fig.add_axes(L.rect(GUTTER, y_top, LEFT_W, AX_H))
+        for i, (scene, _t) in enumerate(SWEEP_SCENES):
+            info = sweep[scene]
+            rows = [r for r in info["rows"] if r["sigma"] is not None]
+            base = next(r for r in info["rows"] if r["sigma"] is None)
+            y_top = HEAD_H + i * (AX_H + BLOCK_GAP)
+            ax = fig.add_axes(L.rect(GUTTER, y_top, LEFT_W, AX_H))
 
-        # the region a curve must stay out of: below the pre-registered break line
-        ax.axhspan(-1.05, break_line, color=LIGHT, lw=0, zorder=0)
+            # the region a curve must stay out of: below the pre-registered break line
+            ax.axhspan(-1.05, break_line, color=LIGHT, lw=0, zorder=0)
 
-        # the never-released baseline, as a reference level
-        for key, style in (("air_x", (0, (1.2, 1.4))), ("post_x", (0, (1.2, 1.4)))):
-            pass  # baselines drawn once below, from the whole-clip windows
+            series = [
+                ("air_x", "airborne, across frame", GRAY, "o", "-", 1.0),
+                ("air_y", "airborne, up/down", GRAY, "^", (0, (2.6, 1.6)), 1.0),
+                ("post_x", "after contact, across frame", ADOBE_RED, "s", "-", 1.25),
+                ("post_y", "after contact, up/down", INK, "D", (0, (2.6, 1.6)), 1.0),
+            ]
+            for key, _lab, color, marker, ls, lw in series:
+                pts = [(r["sigma"], r[key]) for r in rows if r[key] is not None]
+                if len(pts) < 2:
+                    continue
+                xs = [p[0] for p in pts]
+                ys = [p[1] for p in pts]
+                ax.plot(xs, ys, ls=ls, lw=lw, color=color, marker=marker, ms=2.9,
+                        mfc="white" if marker in ("^", "D") else color,
+                        mec=color, mew=HAIRLINE, clip_on=False, zorder=3)
 
-        series = [
-            ("air_x", "airborne, across frame", GRAY, "o", "-", 1.0),
-            ("air_y", "airborne, up/down", GRAY, "^", (0, (2.6, 1.6)), 1.0),
-            ("post_x", "after contact, across frame", ADOBE_RED, "s", "-", 1.25),
-            ("post_y", "after contact, up/down", INK, "D", (0, (2.6, 1.6)), 1.0),
+            # baseline (control never released) as a hairline reference for both windows
+            for key, color in (("air_x", GRAY), ("post_x", ADOBE_RED)):
+                v = base[key]
+                if v is None:
+                    continue
+                ax.plot([x_lo, x_hi], [v, v], color=color, lw=HAIRLINE,
+                        ls=(0, (0.9, 1.6)), zorder=1)
+
+            ax.set_xlim(x_hi, x_lo)   # high noise on the left
+            ax.set_ylim(-1.05, 1.06)
+            ax.set_yticks([-1.0, -0.5, 0.0, 0.5, 1.0])
+            ax.set_yticklabels(["−1.0", "−0.5", "0", "0.5", "1.0"])
+            despine(ax)
+            ax.set_ylabel("retention", fontsize=LABEL_FS, color=GRAY, labelpad=2.0)
+
+            # scene name inside the axes, top-left, so it needs no extra band
+            ax.text(0.012, 0.055, info["title"], transform=ax.transAxes,
+                    ha="left", va="bottom", fontproperties=semibold(LABEL_FS), color=INK)
+
+            if i < n_rows - 1:
+                ax.set_xticklabels([])
+                ax.set_xticks(sig_all)
+            else:
+                ax.set_xticks(sig_all)
+                ax.set_xticklabels([f"{s:.2f}" for s in sig_all])
+                ax.set_xlabel("noise level at which the control was released",
+                              fontsize=LABEL_FS, color=GRAY, labelpad=11.0)
+                # the step index of each run, as a label only
+                for s in sig_all:
+                    k = next(r["step"] for r in rows if r["sigma"] == s)
+                    ax.annotate(f"step {k}", xy=(s, 0), xycoords=("data", "axes fraction"),
+                                xytext=(0, -15.5), textcoords="offset points",
+                                ha="center", va="top", fontsize=TICK_FS, color=GRAY,
+                                annotation_clip=False)
+
+            # mark, on the scene that breaks, where retention collapses
+            if scene == "projectile_55":
+                bad = [r for r in rows
+                       if r["post_x"] is not None and r["post_x"] < break_line]
+                if bad:
+                    w = max(bad, key=lambda r: r["sigma"])
+                    # placed in the empty lower-right of this row (the x axis runs
+                    # high noise to low, so subtracting sigma moves right). Directly
+                    # under the collapse point the label would run off the axes and
+                    # its leader would cross the scene name.
+                    ax.annotate("runs opposite to\nthe simulation",
+                                xy=(w["sigma"], w["post_x"]),
+                                xytext=(w["sigma"] - 0.062, -0.14),
+                                ha="left", va="top", fontsize=KEY_FS, color=ADOBE_RED,
+                                linespacing=1.25,
+                                arrowprops=dict(arrowstyle="-", color=ADOBE_RED,
+                                                lw=HAIRLINE, shrinkA=1.0, shrinkB=2.0))
+
+        # key, under the axis labels
+        y_key = sweep_body_h + 0.055
+        handles = [
+            Line2D([], [], color=GRAY, lw=1.0, ls="-", marker="o", ms=2.9,
+                   mfc=GRAY, mec=GRAY, mew=HAIRLINE, label="airborne, across frame"),
+            Line2D([], [], color=GRAY, lw=1.0, ls=(0, (2.6, 1.6)), marker="^", ms=2.9,
+                   mfc="white", mec=GRAY, mew=HAIRLINE, label="airborne, up/down"),
+            Line2D([], [], color=ADOBE_RED, lw=1.25, ls="-", marker="s", ms=2.9,
+                   mfc=ADOBE_RED, mec=ADOBE_RED, mew=HAIRLINE,
+                   label="after contact, across frame"),
+            Line2D([], [], color=INK, lw=1.0, ls=(0, (2.6, 1.6)), marker="D", ms=2.9,
+                   mfc="white", mec=INK, mew=HAIRLINE, label="after contact, up/down"),
+            Line2D([], [], color=GRAY, lw=HAIRLINE, ls=(0, (0.9, 1.6)),
+                   label="control never released"),
         ]
-        for key, _lab, color, marker, ls, lw in series:
-            pts = [(r["sigma"], r[key]) for r in rows if r[key] is not None]
-            if len(pts) < 2:
-                continue
-            xs = [p[0] for p in pts]
-            ys = [p[1] for p in pts]
-            ax.plot(xs, ys, ls=ls, lw=lw, color=color, marker=marker, ms=2.9,
-                    mfc="white" if marker in ("^", "D") else color,
-                    mec=color, mew=HAIRLINE, clip_on=False, zorder=3)
+        leg = fig.legend(handles=handles, loc="upper left", frameon=False,
+                         bbox_to_anchor=(L._fx(0.0), L._fy(y_key)),
+                         ncol=3, columnspacing=1.05, handlelength=2.1,
+                         handletextpad=0.45, labelspacing=0.30, fontsize=KEY_FS)
+        for t in leg.get_texts():
+            t.set_color(GRAY)
 
-        # baseline (control never released) as a hairline reference for both windows
-        for key, color in (("air_x", GRAY), ("post_x", ADOBE_RED)):
-            v = base[key]
-            if v is None:
-                continue
-            ax.plot([x_lo, x_hi], [v, v], color=color, lw=HAIRLINE,
-                    ls=(0, (0.9, 1.6)), zorder=1)
+    # ---------------- the seeded measurement --------------------------------
+    if do_seeded:
+        rx = 0.0
+        L.text(rx, SEED_TOP + HEAD_BASE,
+               f"At one release point (noise level {seeded['sigma']:.2f}), "
+               f"{seeded['scenes']['projectile_55']['cells'][0]['n_seeds']} seeds per bar",
+               ha="left", va="baseline", fontproperties=semibold(HEAD_FS), color=INK)
+        L.hrule(rx, RIGHT_W, SEED_TOP + HEAD_RULE, GRAY)
 
-        ax.set_xlim(x_hi, x_lo)   # high noise on the left
-        ax.set_ylim(-1.05, 1.06)
-        ax.set_yticks([-1.0, -0.5, 0.0, 0.5, 1.0])
-        ax.set_yticklabels(["−1.0", "−0.5", "0", "0.5", "1.0"])
-        despine(ax)
-        ax.set_ylabel("retention", fontsize=LABEL_FS, color=GRAY, labelpad=2.0)
+        # one small axes per scene, bars = the three cells, two windows side by side
+        sc_h = SEED_AX_H
+        for j, (scene, _t) in enumerate(SEED_SCENES):
+            info = seeded["scenes"][scene]
+            y_top = SEED_TOP + SEED_HEAD_H + j * (sc_h + BLOCK_GAP)
+            ax = fig.add_axes(L.rect(rx + GUTTER, y_top, RIGHT_W, sc_h))
+            ax.axhspan(-0.05, break_line, color=LIGHT, lw=0, zorder=0)
 
-        # scene name inside the axes, top-left, so it needs no extra band
-        ax.text(0.012, 0.055, info["title"], transform=ax.transAxes,
-                ha="left", va="bottom", fontproperties=semibold(LABEL_FS), color=INK)
+            groups = [("arc_rx", "airborne\nacross"), ("arc_ry", "airborne\nup/down"),
+                      ("full_rx", "whole clip\nacross"), ("full_ry", "whole clip\nup/down")]
+            n_g, n_c = len(groups), len(info["cells"])
+            bw = 0.78 / n_c
+            colors = {"a4": LIGHT, "a1": ADOBE_RED, "a2": GRAY}
+            for ci, cell in enumerate(info["cells"]):
+                xs = [gi + (ci - (n_c - 1) / 2) * bw for gi in range(n_g)]
+                ys = [cell[k]["mean"] for k, _ in groups]
+                los = [cell[k]["mean"] - cell[k]["ci"][0] for k, _ in groups]
+                his = [cell[k]["ci"][1] - cell[k]["mean"] for k, _ in groups]
+                ax.bar(xs, ys, width=bw * 0.92, color=colors[cell["arm"]],
+                       edgecolor=GRAY if cell["arm"] == "a4" else colors[cell["arm"]],
+                       linewidth=HAIRLINE, zorder=2)
+                ax.errorbar(xs, ys, yerr=[los, his], fmt="none", ecolor=INK,
+                            elinewidth=HAIRLINE, capsize=1.7, capthick=HAIRLINE, zorder=4)
 
-        if i < n_rows - 1:
-            ax.set_xticklabels([])
-            ax.set_xticks(sig_all)
-        else:
-            ax.set_xticks(sig_all)
-            ax.set_xticklabels([f"{s:.2f}" for s in sig_all])
-            ax.set_xlabel("noise level at which the control was released",
-                          fontsize=LABEL_FS, color=GRAY, labelpad=11.0)
-            # the step index of each run, as a label only
-            for s in sig_all:
-                k = next(r["step"] for r in rows if r["sigma"] == s)
-                ax.annotate(f"step {k}", xy=(s, 0), xycoords=("data", "axes fraction"),
-                            xytext=(0, -15.5), textcoords="offset points",
-                            ha="center", va="top", fontsize=TICK_FS, color=GRAY,
-                            annotation_clip=False)
+            ax.set_xlim(-0.6, n_g - 0.4)
+            ax.set_ylim(-0.05, 1.10)
+            ax.set_yticks([0.0, 0.5, break_line, 1.0])
+            ax.set_yticklabels(["0", "0.5", f"{break_line:.1f}", "1.0"])
+            ax.set_xticks(range(n_g))
+            ax.set_xticklabels([lab for _, lab in groups] if j == n_sc - 1
+                               else [""] * n_g, linespacing=1.22)
+            despine(ax)
+            ax.set_ylabel("retention", fontsize=LABEL_FS, color=GRAY, labelpad=2.0)
+            ax.text(0.012, 1.075, info["title"], transform=ax.transAxes,
+                    ha="left", va="bottom", fontproperties=semibold(LABEL_FS), color=INK)
 
-        # mark, on the scene that breaks, where retention collapses
-        if scene == "projectile_55":
-            bad = [r for r in rows if r["post_x"] is not None and r["post_x"] < break_line]
-            if bad:
-                w = max(bad, key=lambda r: r["sigma"])
-                ax.annotate("runs opposite to\nthe simulation",
-                            xy=(w["sigma"], w["post_x"]),
-                            xytext=(w["sigma"] - 0.055, w["post_x"] - 0.30),
-                            ha="left", va="top", fontsize=KEY_FS, color=ADOBE_RED,
-                            linespacing=1.25,
-                            arrowprops=dict(arrowstyle="-", color=ADOBE_RED,
-                                            lw=HAIRLINE, shrinkA=1.0, shrinkB=2.0))
+        # key for the seeded figure, aligned with the sweep figure's key
+        from matplotlib.patches import Patch
+        rhandles = [
+            Patch(facecolor=LIGHT, edgecolor=GRAY, lw=HAIRLINE, label="never released"),
+            Patch(facecolor=ADOBE_RED, edgecolor=ADOBE_RED, lw=HAIRLINE,
+                  label="released, history reset"),
+            Patch(facecolor=GRAY, edgecolor=GRAY, lw=HAIRLINE, label="released, no reset"),
+        ]
+        rleg = fig.legend(handles=rhandles, loc="upper left", frameon=False,
+                          bbox_to_anchor=(L._fx(rx),
+                                          L._fy(SEED_TOP + seed_body_h + 0.02)),
+                          ncol=3, columnspacing=1.05, handlelength=1.25,
+                          handletextpad=0.45, labelspacing=0.30, fontsize=KEY_FS)
+        for t in rleg.get_texts():
+            t.set_color(GRAY)
 
-    # key, under the axis labels
-    y_key = HEAD_H + n_rows * AX_H + (n_rows - 1) * BLOCK_GAP + XLAB_H + 0.055
-    handles = [
-        Line2D([], [], color=GRAY, lw=1.0, ls="-", marker="o", ms=2.9,
-               mfc=GRAY, mec=GRAY, mew=HAIRLINE, label="airborne, across frame"),
-        Line2D([], [], color=GRAY, lw=1.0, ls=(0, (2.6, 1.6)), marker="^", ms=2.9,
-               mfc="white", mec=GRAY, mew=HAIRLINE, label="airborne, up/down"),
-        Line2D([], [], color=ADOBE_RED, lw=1.25, ls="-", marker="s", ms=2.9,
-               mfc=ADOBE_RED, mec=ADOBE_RED, mew=HAIRLINE,
-               label="after contact, across frame"),
-        Line2D([], [], color=INK, lw=1.0, ls=(0, (2.6, 1.6)), marker="D", ms=2.9,
-               mfc="white", mec=INK, mew=HAIRLINE, label="after contact, up/down"),
-        Line2D([], [], color=GRAY, lw=HAIRLINE, ls=(0, (0.9, 1.6)),
-               label="control never released"),
-    ]
-    leg = fig.legend(handles=handles, loc="upper left", frameon=False,
-                     bbox_to_anchor=(L._fx(0.0), L._fy(y_key)),
-                     ncol=3, columnspacing=1.05, handlelength=2.1,
-                     handletextpad=0.45, labelspacing=0.30, fontsize=KEY_FS)
-    for t in leg.get_texts():
-        t.set_color(GRAY)
-
-    # ---------------- right panel: the seeded measurement -------------------
-    rx = 0.0
-    L.text(rx, SEED_TOP + HEAD_BASE,
-           f"At one release point (noise level {seeded['sigma']:.2f}), "
-           f"{seeded['scenes']['projectile_55']['cells'][0]['n_seeds']} seeds per bar",
-           ha="left", va="baseline", fontproperties=semibold(HEAD_FS), color=INK)
-    L.hrule(rx, RIGHT_W, SEED_TOP + HEAD_RULE, GRAY)
-
-    # one small axes per scene, bars = the three cells, two windows side by side
-    n_sc = len(SEED_SCENES)
-    sc_h = SEED_AX_H
-    for j, (scene, _t) in enumerate(SEED_SCENES):
-        info = seeded["scenes"][scene]
-        y_top = SEED_TOP + HEAD_H + j * (sc_h + BLOCK_GAP)
-        ax = fig.add_axes(L.rect(rx + GUTTER, y_top, RIGHT_W, sc_h))
-        ax.axhspan(-0.05, break_line, color=LIGHT, lw=0, zorder=0)
-
-        groups = [("arc_rx", "airborne\nacross"), ("arc_ry", "airborne\nup/down"),
-                  ("full_rx", "whole clip\nacross"), ("full_ry", "whole clip\nup/down")]
-        n_g, n_c = len(groups), len(info["cells"])
-        bw = 0.78 / n_c
-        colors = {"a4": LIGHT, "a1": ADOBE_RED, "a2": GRAY}
-        for ci, cell in enumerate(info["cells"]):
-            xs = [gi + (ci - (n_c - 1) / 2) * bw for gi in range(n_g)]
-            ys = [cell[k]["mean"] for k, _ in groups]
-            los = [cell[k]["mean"] - cell[k]["ci"][0] for k, _ in groups]
-            his = [cell[k]["ci"][1] - cell[k]["mean"] for k, _ in groups]
-            ax.bar(xs, ys, width=bw * 0.92, color=colors[cell["arm"]],
-                   edgecolor=GRAY if cell["arm"] == "a4" else colors[cell["arm"]],
-                   linewidth=HAIRLINE, zorder=2)
-            ax.errorbar(xs, ys, yerr=[los, his], fmt="none", ecolor=INK,
-                        elinewidth=HAIRLINE, capsize=1.7, capthick=HAIRLINE, zorder=4)
-
-        ax.set_xlim(-0.6, n_g - 0.4)
-        ax.set_ylim(-0.05, 1.10)
-        ax.set_yticks([0.0, 0.5, break_line, 1.0])
-        ax.set_yticklabels(["0", "0.5", f"{break_line:.1f}", "1.0"])
-        ax.set_xticks(range(n_g))
-        ax.set_xticklabels([lab for _, lab in groups] if j == n_sc - 1 else [""] * n_g, linespacing=1.22)
-        despine(ax)
-        ax.set_ylabel("retention", fontsize=LABEL_FS, color=GRAY, labelpad=2.0)
-        ax.text(0.012, 1.075, info["title"], transform=ax.transAxes,
-                ha="left", va="bottom", fontproperties=semibold(LABEL_FS), color=INK)
-
-    # key for the right panel, aligned with the left panel's key
-    from matplotlib.patches import Patch
-    rhandles = [
-        Patch(facecolor=LIGHT, edgecolor=GRAY, lw=HAIRLINE, label="never released"),
-        Patch(facecolor=ADOBE_RED, edgecolor=ADOBE_RED, lw=HAIRLINE,
-              label="released, history reset"),
-        Patch(facecolor=GRAY, edgecolor=GRAY, lw=HAIRLINE, label="released, no reset"),
-    ]
-    rleg = fig.legend(handles=rhandles, loc="upper left", frameon=False,
-                      bbox_to_anchor=(L._fx(rx), L._fy(SEED_TOP + HEAD_H + n_sc * (sc_h + BLOCK_GAP) + 0.42)),
-                      ncol=2, columnspacing=1.05, handlelength=1.25,
-                      handletextpad=0.45, labelspacing=0.30, fontsize=KEY_FS)
-    for t in rleg.get_texts():
-        t.set_color(GRAY)
-
-    print(f"\n[fig] figure {FIG_W:.2f} x {fig_h:.2f} in, content "
+    print(f"\n[fig] {STEMS[only]}: figure {FIG_W:.2f} x {fig_h:.2f} in, content "
           f"{CONTENT_W:.2f} x {content_h:.2f} in, margin {PAD_IN:.2f} in on all four "
           f"sides, every rule {HAIRLINE:.1f} pt")
-    print(f"[fig] left panel {LEFT_W:.2f} in wide ({n_rows} scene rows of "
-          f"{AX_H:.2f} in), right panel {RIGHT_W:.2f} in wide "
-          f"({n_sc} scene rows of {sc_h:.2f} in), panel gap {PANEL_GAP:.2f} in")
+    if do_sweep:
+        print(f"[fig] sweep block {LEFT_W:.2f} x {sweep_h:.2f} in "
+              f"({n_rows} scene rows of {AX_H:.2f} in)")
+    if do_seeded:
+        print(f"[fig] seeded block {RIGHT_W:.2f} x {seed_h:.2f} in "
+              f"({n_sc} scene rows of {SEED_AX_H:.2f} in)")
     print(f"[fig] every in-figure text size: heading {HEAD_FS} pt, labels "
           f"{LABEL_FS} pt, ticks {TICK_FS} pt, key {KEY_FS} pt (all >= 8 pt)")
-    return save(fig, "fig_injection_step")
+    return save(fig, STEMS[only])
 
 
 def save(fig, stem: str) -> list[Path]:
@@ -709,14 +757,23 @@ def save(fig, stem: str) -> list[Path]:
     return paths
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    modes = ["sweep", "seeded"]          # the report includes these two
+    if "--only" in argv:
+        want = argv[argv.index("--only") + 1]
+        if want not in STEMS:
+            raise SystemExit(f"--only must be one of {sorted(STEMS)}, got {want!r}")
+        modes = [want]
+
     apply_style()
     for p in (SWEEP, SEEDED):
         if not p.exists():
             raise SystemExit(f"missing source: {p}")
     sweep = measure_sweep()
     seeded = measure_seeded()
-    draw(sweep, seeded)
+    for mode in modes:
+        draw(sweep, seeded, only=mode)
     return 0
 
 

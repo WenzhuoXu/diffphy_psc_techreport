@@ -55,7 +55,7 @@
     x=1cm, y=1cm,
     % --- shared box shape -------------------------------------------------
     gcbox/.style   = {rounded corners=2pt, line width=0.7pt, align=center,
-                      inner sep=5pt, font=\sffamily\footnotesize,
+                      inner sep=3.6pt, font=\sffamily\footnotesize,
                       text=adobeink},
     % --- LEARNED component: light gray fill --------------------------------
     gclearn/.style = {gcbox, draw=adobeink, fill=adobegray!12},
@@ -64,7 +64,7 @@
     % --- accent: the check the assembled plan must pass before execution ---
     gcgate/.style  = {gcbox, draw=adobered, fill=white},
     % --- what is handed to the system --------------------------------------
-    gcdata/.style  = {gcbox, draw=adobegray, fill=white, inner sep=4pt,
+    gcdata/.style  = {gcbox, draw=adobegray, fill=white, inner sep=3pt,
                       dash pattern=on 2pt off 1.6pt},
     gcline/.style  = {draw=adobeink, line width=0.7pt},
     gcarr/.style   = {gcline, -{Straight Barb[length=3.6pt,width=3.8pt]}},
@@ -88,18 +88,18 @@
      name for each; nothing is measured in this pass}};
 
   \node[gcdata, text width=4.6cm, anchor=south]
-    (prompt) at ($(name.north)+(0,0.52)$)
+    (prompt) at ($(name.north)+(0,0.40)$)
     {\textbf{Prompt and its claims}};
 
   % ---------------- grouping (deterministic) -------------------------------
   \node[gcdet, text width=13.1cm, anchor=north]
-    (split) at ($(name.south)+(0,-0.68)$)
+    (split) at ($(name.south)+(0,-0.40)$)
     {\textbf{Claims taken in small groups}\\[1.5pt]
      \gcsub{a few claims at a time, in the order they appear in the prompt}};
 
   % ---------------- per-group measurement writing (learned) ----------------
   \node[gclearn, text width=13.1cm, anchor=north]
-    (build) at ($(split.south)+(0,-0.46)$)
+    (build) at ($(split.south)+(0,-0.30)$)
     {\textbf{For each group: what would settle these claims}\\[1.5pt]
      \gcsub{the group is shown the whole prompt and the whole list of names, but
      only its own claims; it may\\ refer to any name on the list, and may not
@@ -107,7 +107,7 @@
 
   % ---------------- mechanical renaming (deterministic) --------------------
   \node[gcdet, text width=13.1cm, anchor=north]
-    (norm) at ($(build.south)+(0,-0.46)$)
+    (norm) at ($(build.south)+(0,-0.30)$)
     {\textbf{Names made group-local}\\[1.5pt]
      \gcsub{each group's measurements and checks are renumbered under that
      group's own label and its internal\\ references rewritten to match, so two
@@ -115,35 +115,35 @@
 
   % ---------------- assembly (deterministic) ------------------------------
   \node[gcdet, text width=13.1cm, anchor=north]
-    (assemble) at ($(norm.south)+(0,-0.46)$)
+    (assemble) at ($(norm.south)+(0,-0.30)$)
     {\textbf{Groups assembled into one plan}};
 
   % ---------------- the check before execution (accented) ------------------
   \node[gcgate, text width=13.1cm, anchor=north]
-    (gate) at ($(assemble.south)+(0,-0.46)$)
+    (gate) at ($(assemble.south)+(0,-0.30)$)
     {{\color{adobered}\textbf{The whole plan is checked, not each group}}\\[1.5pt]
      \gcsub{types, argument shapes and every cross-reference are checked over the
      assembled plan;\\ each complaint is traced back to the group it came from}};
 
   % ---------------- the two recoveries ------------------------------------
-  \coordinate (fan) at ($(gate.south)+(0,-0.40)$);
+  \coordinate (fan) at ($(gate.south)+(0,-0.30)$);
 
   \node[gcdet, text width=5.8cm, anchor=north west]
-    (retry) at ($(gate.south west)+(0,-1.02)$)
+    (retry) at ($(gate.south west)+(0,-0.76)$)
     {\textbf{Re-ask that group}\\[1.5pt]
      \gcsub{shown its own complaints and the rules\\ of the format --- never what
      to conclude}};
 
   \node[gcdet, text width=5.8cm, anchor=north east]
-    (fall) at ($(gate.south east)+(0,-1.02)$)
+    (fall) at ($(gate.south east)+(0,-0.76)$)
     {\textbf{Otherwise, fall back claim by claim}\\[1.5pt]
      \gcsub{a group that still fails hands its claims\\ one at a time to the
      general verifier;\\ each is charged, none is dropped}};
 
   % ---------------- execution --------------------------------------------
-  \coordinate (mrg) at ($(fall.south)+(0,-0.58)$);
+  \coordinate (mrg) at ($(fall.south)+(0,-0.40)$);
   \node[gcdet, text width=13.1cm, anchor=north]
-    (exec) at ($(0,0 |- mrg)+(0,-0.30)$)
+    (exec) at ($(0,0 |- mrg)+(0,-0.22)$)
     {\textbf{Execution}\\[1.5pt]
      \gcsub{a measurement requested more than once is executed once, and fixed
      rules turn the evidence\\ into the per-claim outcomes and the clip answer}};

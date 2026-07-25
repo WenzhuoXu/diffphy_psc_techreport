@@ -35,6 +35,24 @@ and an auditable multi-tool critic}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,calc}
 
+% ---- float placement -------------------------------------------------
+% Every figure must appear before the bibliography. Two things make that
+% hold. (1) Size: no figure PDF is taller than the text block less its own
+% caption, so none of them is float-page-only and none can dam the queue
+% behind it. (2) A barrier at every \section, so an unplaced float cannot
+% cascade out of the section that discusses it and pile up at the end of
+% the document. The fractions below simply let a page carry more float and
+% less text than the article-class defaults, which are tuned for far fewer
+% figures than this report has.
+\usepackage[section]{placeins}
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\bottomfraction}{0.75}
+\renewcommand{\textfraction}{0.06}
+\renewcommand{\floatpagefraction}{0.62}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{4}
+
 \begin{document}
 \makeadobetitle
 
@@ -357,7 +375,7 @@ checkpoint provides a pre-flight sanity gate and is not used for final clips.}
 \label{tab:genconfig}
 \end{table}
 
-\begin{figure}[p]
+\begin{figure}[tb]
   \centering
   \includegraphics[width=\linewidth]{fig_generation_cases.pdf}
   \caption{The same mechanism across two scenes with very different requested
@@ -394,7 +412,7 @@ still fluid volume. None of it is a fluid solve, none of it is smoke, and none o
 it is a finite-element soft body. The scene captions name the primitive rather
 than the phenomenon for exactly this reason.
 
-\begin{figure}[p]
+\begin{figure}[tb]
   \centering
   \includegraphics[width=\linewidth]{fig_scene_breadth.pdf}
   \caption{Twelve of the $66$ scene kinds, one real generated frame each. The
@@ -409,7 +427,7 @@ than the phenomenon for exactly this reason.
   \label{fig:scenebreadth}
 \end{figure}
 
-\begin{figure}[p]
+\begin{figure}[tb]
   \centering
   \includegraphics[width=\linewidth]{fig_scene_control_pairs.pdf}
   \caption{Three deformable and granular scenes shown as \cref{fig:gencases}
@@ -424,30 +442,6 @@ than the phenomenon for exactly this reason.
   \label{fig:scenepairs}
 \end{figure}
 
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\linewidth]{fig_injection_step.pdf}
-  \caption{Releasing the depth control partway through denoising. The horizontal
-  axis is the noise level at which the control was switched off, high noise on the
-  left; the step index of each run is printed underneath as a label only, because
-  the same step index sits at a different noise level under a different schedule.
-  \textbf{Left:} the release-point sweep, one clip per point, three scenes, scored
-  separately over the airborne window and the window after the simulated object
-  first reaches the ground. Retention is the agreement between the generated
-  object's tracked path and the simulation's, so $1.0$ is ``moved the way the
-  simulation did''. The thrown ball's after-contact horizontal motion is the one
-  curve that breaks, and it breaks only at the earliest release: it runs
-  \emph{opposite} to the simulation at $\sigma=0.952$ and is restored from
-  $\sigma=0.903$ onward. Its airborne flight is unaffected at every release point.
-  \textbf{Right:} the seeded measurement at the single release point
-  $\sigma=0.952$, $16$ seeds per cell, error bars showing $95\%$ confidence
-  intervals of the mean. The airborne window is indistinguishable from never
-  releasing; the whole-clip number is not, and the direction that suffers is the
-  horizontal one. Grey band marks the region below the pre-registered $0.7$ break
-  line.}
-  \label{fig:injstep}
-\end{figure}
 
 \subsection{What it achieves, and how we validated it}\label{sec:gen-quality}
 Generation was validated \emph{qualitatively}: by visual inspection of the
@@ -520,11 +514,27 @@ broken (below $0.7$) while the airborne window alone reads as clean (above $0.9$
 --- the signature of a clip whose flight is right and whose ending is wrong. Both
 thresholds were fixed before scoring.
 
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{fig_injection_seeds.pdf}
+  \caption{The seeded measurement at the single release point $\sigma=0.952$,
+  $16$ seeds per bar, error bars showing $95\%$ confidence intervals of the mean.
+  Retention is the agreement between the generated object's tracked path and the
+  simulation's, so $1.0$ is ``moved the way the simulation did''. The three bars
+  in each group are the never-released baseline and the two release variants,
+  which differ only in whether the sampler's internal history is also reset at
+  the release. The airborne window is indistinguishable from never releasing; the
+  whole-clip number is not, and the direction that suffers is the horizontal one.
+  Grey band marks the region below the pre-registered $0.7$ break line.}
+  \label{fig:injstep}
+\end{figure}
+
 \paragraph{Result: the flight survives an early release; the ground contact does
 not.} \Cref{fig:injstep} shows the measurement. Two scenes were repeated over
 $16$ seeds each at one release point, $\sigma = 0.952$, in two variants (with and
 without a reset of the sampler's internal history at the release), against the
-never-released baseline: $96$ clips in total, $16$ per cell. Releasing the control
+never-released baseline: $96$ clips in total, $16$ per cell. \Cref{fig:injstep} shows that
+comparison. Releasing the control
 at $\sigma = 0.952$ leaves the airborne flight of the thrown ball essentially
 untouched --- per-seed horizontal agreement drops by $0.003$ relative to never
 releasing ($95\%$ confidence interval $0.001$ to $0.004$, $n=16$ paired seeds),
@@ -541,9 +551,28 @@ $16$ seeds at $\sigma = 0.952$ versus $1$ of $16$ never released, and the phanto
 count is $2$ of $16$ versus $0$ of $16$, so the collapses that do appear are
 predominantly ending failures on clips whose flight was clean.
 
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{fig_injection_sweep.pdf}
+  \caption{The release-point sweep: one clip per point, three scenes, scored
+  separately over the airborne window and the window after the simulated object
+  first reaches the ground. The horizontal axis is the noise level at which the
+  control was switched off, high noise on the left; the step index of each run is
+  printed underneath as a label only, because the same step index sits at a
+  different noise level under a different schedule. The thrown ball's
+  after-contact horizontal motion is the one curve that breaks, and it breaks only
+  at the earliest release: it runs \emph{opposite} to the simulation at
+  $\sigma=0.952$ and is restored from $\sigma=0.903$ onward. Its airborne flight is
+  unaffected at every release point. Across all three scenes, vertical motion ---
+  the direction gravity supplies --- is markedly more robust to an early release
+  than horizontal motion, which the simulation alone specifies. Grey band marks the
+  region below the pre-registered $0.7$ break line.}
+  \label{fig:injsweep}
+\end{figure}
+
 \paragraph{Result: a later release is clean, and the vertical direction is the
 robust one.} Sweeping the release point across six settings on a single seed for
-three scenes gives the shape of the curve. For the thrown ball, releasing at
+three scenes gives the shape of the curve (\cref{fig:injsweep}). For the thrown ball, releasing at
 $\sigma = 0.952$ gives an after-contact horizontal agreement of $-0.63$ (the ball
 travels the wrong way) with the airborne window still at $1.00$; releasing at
 $\sigma = 0.903$ or later restores the after-contact window to $0.98$ or above,
@@ -1059,6 +1088,23 @@ in the routed configuration (\cref{sec:planner-gaps}).}
 \label{tab:planops}
 \end{table}
 
+\begin{figure}[t]
+  \centering
+  \input{figs/fig_graph_construction}
+  \caption{How a plan is constructed. One pass names everything the prompt talks
+  about---the objects and actors, and each separate occurrence of an asserted
+  event---and nothing else; the claims are then handled a few at a time against
+  that fixed list, so that different parts of a long prompt refer to the same
+  things. Each group's identifiers are renumbered under its own label so groups
+  cannot collide when assembled, and the assembled plan is checked as a whole,
+  because what needs checking is mostly cross-reference. A group that fails is
+  asked again with its own complaints and a restatement of the format, never with
+  the answer; a group that still fails hands its claims to the general verifier one
+  at a time, charged to the plan's cost. Shaded boxes are learned components;
+  outlined boxes are deterministic.}
+  \label{fig:graphconstruct}
+\end{figure}
+
 \subsubsection{How a plan is constructed}\label{sec:plan-construction}
 Whatever surface the planner writes, the plan the executor consumes is a small set
 of linked tables: the things the prompt talks about, the separate occurrences of
@@ -1194,7 +1240,7 @@ rule, a measured count below the stated number is by itself sufficient to
 contradict the claim even when the occurrence part is supported---a claim carrying
 only an occurrence check cannot express that.
 
-\begin{figure}[tp]
+\begin{figure}[t]
   \centering
   \input{figs/fig_plan_example}
   \caption{One claim, two measurements. A numeral in the claim adds a counting
@@ -1203,23 +1249,6 @@ only an occurrence check cannot express that.
   the annotator's record shown at the foot are real; what the critic returns on
   this clip is not reported here.}
   \label{fig:planexample}
-\end{figure}
-
-\begin{figure}[tp]
-  \centering
-  \input{figs/fig_graph_construction}
-  \caption{How a plan is constructed. One pass names everything the prompt talks
-  about---the objects and actors, and each separate occurrence of an asserted
-  event---and nothing else; the claims are then handled a few at a time against
-  that fixed list, so that different parts of a long prompt refer to the same
-  things. Each group's identifiers are renumbered under its own label so groups
-  cannot collide when assembled, and the assembled plan is checked as a whole,
-  because what needs checking is mostly cross-reference. A group that fails is
-  asked again with its own complaints and a restatement of the format, never with
-  the answer; a group that still fails hands its claims to the general verifier one
-  at a time, charged to the plan's cost. Shaded boxes are learned components;
-  outlined boxes are deterministic.}
-  \label{fig:graphconstruct}
 \end{figure}
 
 \subsubsection{Routing by what the claim says}
