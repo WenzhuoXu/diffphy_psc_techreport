@@ -894,8 +894,9 @@ backends execute as stages; the object and count adapters declare stronger
 primaries that are not on the executed path, so the running backend is shown. The
 relation capability is served by a unified mask-plus-depth reasoning arm, and no
 holistic scoring tool is used in the verdict path by design.
-\textsuperscript{$\dagger$}The audio backend is wired in the typed-plan path and
-is not yet exercised in the routed configuration.}
+\textsuperscript{$\dagger$}The audio detector answers sound claims on the clip's
+own audio track, and returns the time spans in which it heard the queried sound, so a
+sound can be ordered against something seen.}
 \label{tab:arms}
 \end{table}
 
@@ -1003,17 +1004,22 @@ event \emph{is} present and placeable. What it does establish is the asymmetry t
 design turns on: a backend that cannot decline will answer an unanswerable question, and
 an invented window is indistinguishable from a measured one downstream.
 
-Permitting refusal is not free, and one traced case illustrates the cost. A claim asserted
-that a sound coincided with each impact. Because the input carried frames but no audio,
-the reasoner declined to give the sound a time window, and the ordering was left
-unresolved. The dedicated grounder returned a window for the same query despite having no
-audio evidence, and that unsupported estimate led to a flag that matched a human-labelled
-mismatch---so replacing it with a refusal lost one catch in this case. We prefer the trade,
-because unsupported measurements weaken the provenance of the detections a system takes
-credit for; but the trace establishes a concrete cost, not its aggregate size. Across
-twenty-six event-timing calls in that run the reasoner classified the queried event as
-absent in fourteen and declined to place it in one---the first being a judgement, the
-second a refusal, and only the second capable of costing a catch this way.
+Permitting refusal is not free, and one traced case shows both the cost and the reason to
+pay it. A claim asserted that a sound coincided with each impact. Asked to place that sound
+in time, the reasoner declined, stating that the frames carry no audio and that the question
+could not be answered from them. The ordering was left unresolved, and a catch was lost: the
+previous backend had returned a window for the same query without any audio evidence, and
+that unsupported estimate produced a flag matching a human-labelled mismatch.
+
+The refusal was also correct in a way the invented window concealed. The claim was about
+sound, and it was being put to a model that sees only frames---so no answer from that
+backend, right or wrong, could have been evidence. The refusal surfaced a routing fault
+rather than a perception limit, and sound claims are now measured on the clip's audio track
+by a detector queried with the described sound (\cref{tab:planops}); most clips in the
+evaluation set carry one. That is the general argument for permitting refusal: a backend
+that must answer converts a question it cannot address into a confident measurement, and
+downstream nothing distinguishes that from a real one. The cost is concrete---one catch in
+this trace---and its aggregate size is not established here.
 
 \paragraph{Ordering is composed, never assumed.} For a claim that one event precedes
 or falls inside another, both events must first be confirmed to occur by a backend
@@ -1132,10 +1138,10 @@ directed motion relations require an explicit target. Depth-ordering relations
 (\emph{behind}, \emph{in front of}) cannot be settled from masks alone, so they
 additionally require a depth measurement; a plan that omits it is rejected as
 incomplete rather than silently resolved.
-\textsuperscript{$\dagger$}The plan-based path has no dedicated sound-event
-check: \code{sound} is routed to the general verifier, so on this path it does not
-constitute an audio measurement. The audio specialists of \cref{tab:arms} are used
-in the routed configuration (\cref{sec:planner-gaps}).}
+\textsuperscript{$\dagger$}A sound claim is a real measurement on the clip's audio
+track, made by a detector queried with the described sound. If the clip carries no
+audio track at all, the claim resolves to \emph{unknown} rather than contradicted: a
+file that was never listened to cannot supply evidence of absence.}
 \label{tab:planops}
 \end{table}
 
