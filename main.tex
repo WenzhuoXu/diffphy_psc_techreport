@@ -1003,10 +1003,25 @@ event \emph{is} present and placeable. What it does establish is the asymmetry t
 design turns on: a backend that cannot decline will answer an unanswerable question, and
 an invented window is indistinguishable from a measured one downstream.
 
+Permitting refusal is not free, and one traced case illustrates the cost. A claim asserted
+that a sound coincided with each impact. Because the input carried frames but no audio,
+the reasoner declined to give the sound a time window, and the ordering was left
+unresolved. The dedicated grounder returned a window for the same query despite having no
+audio evidence, and that unsupported estimate led to a flag that matched a human-labelled
+mismatch---so replacing it with a refusal lost one catch in this case. We prefer the trade,
+because unsupported measurements weaken the provenance of the detections a system takes
+credit for; but the trace establishes a concrete cost, not its aggregate size. Across
+twenty-six event-timing calls in that run the reasoner classified the queried event as
+absent in fourteen and declined to place it in one---the first being a judgement, the
+second a refusal, and only the second capable of costing a catch this way.
+
 \paragraph{Ordering is composed, never assumed.} For a claim that one event precedes
-or falls inside another, both events must first be confirmed to occur by the
-dense-frame model. If either is judged absent, the ordered claim is contradicted
-outright. Only once both are confirmed do the specialist's time windows decide the
+or falls inside another, both events must first be confirmed to occur by a backend
+able to observe them---the dense-frame model for anything visible, and nothing on this
+path for an event that is only audible, which is why such an event yields a refusal
+rather than a window. If either event is judged absent, the ordered claim is
+contradicted outright; if either cannot be placed in time, the claim is left
+unresolved. Only once both are confirmed do the specialist's time windows decide the
 order, and they do so with a tolerance rather than a fixed threshold: the boundary
 slack is a quarter of the shorter of the two events, so ``before'' requires a gap that
 is resolvable relative to the events being ordered. Containment is directional---one
