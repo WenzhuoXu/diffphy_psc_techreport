@@ -394,8 +394,10 @@ checkpoint provides a pre-flight sanity gate and is not used for final clips.}
 \subsection{The scene set is not only balls}\label{sec:gen-breadth}
 The two cases above are single rigid bodies because those are the scenes whose
 trajectory can be checked against a closed-form path. The scene set itself is
-much wider: $1{,}314$ scenes across $66$ kinds, of which $652$ were watched and
-$591$ judged good. \cref{fig:scenebreadth} shows twelve of those kinds as real
+much wider: $1{,}314$ scenes across $66$ kinds. Before any of them was rendered
+photorealistically, $652$ of the underlying simulations were watched and $591$ judged
+to show the intended physical behaviour clearly enough to be worth generating from;
+that review is of the simulations, not of the generated video. \cref{fig:scenebreadth} shows twelve of those kinds as real
 generated frames---cloth draping and crumpling, a flag in wind, a swinging rope
 and a hanging chain, grains pouring into a heap and draining through a funnel, a
 ball dropped into a pit of balls, a loaded boat, a cascade down a slope,
@@ -420,10 +422,12 @@ than the phenomenon for exactly this reason.
   is accumulated over the whole clip and the tile is the frame by which half of
   that total change has happened, which lands mid-drape, mid-swing or mid-pour
   rather than on the first frame. The second caption line names the physics
-  primitive, and every body count in it is the scene's own parameter. Each clip
-  shown carries a good verdict from the review pass; two candidate tiles were cut
-  after tracking their control renders showed the phenomenon their label would
-  have claimed does not occur in the clip.}
+  primitive, and every body count in it is the scene's own parameter. The simulation each clip
+  was generated from passed the pre-generation review described in the text; the
+  generated clips themselves were checked by eye for this figure, which is a weaker
+  guarantee than a systematic review. Two candidate tiles were cut after tracking
+  their control renders showed the phenomenon their label would have claimed does not
+  occur in the clip.}
   \label{fig:scenebreadth}
 \end{figure}
 
@@ -604,9 +608,17 @@ which the generated ball is genuinely tiny and low-contrast against the grass, n
 clips in which the tracker mis-fired, but either way the confidence intervals at
 the late release points are too wide to place the transition sharply.
 
-\paragraph{Scope.} These are single moving rigid bodies --- a ball thrown across a
-field, a ball dropped onto a floor, a ball rolling off a ramp --- at one
-resolution and frame count, on a control rendered from the simulation. The seeded
+\paragraph{Scope.} One limit governs how far these numbers carry. The runs measured
+here condition the backbone by carrying a rendered source video through the
+denoising process and releasing it partway, rather than through the dedicated
+control branch that \cref{sec:generation} describes as the deployed route. The
+question---at what noise level does the low-frequency motion commit, and what
+breaks when the guidance is let go before then---is the same question in both
+cases, and the schedule is the same schedule; but these are measurements of the
+source-carrying route, and we do not claim the release point transfers unchanged
+to the control branch. Beyond that: these are single moving rigid bodies --- a ball
+thrown across a field, a ball dropped onto a floor, a ball rolling off a ramp ---
+at one resolution and frame count. The seeded
 part of the measurement covers one release point in depth ($16$ seeds), and the
 shape of the curve across release points rests on one seed per point for three
 scenes plus three seeds per point for one scene. Nothing here measures a
