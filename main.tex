@@ -424,6 +424,31 @@ than the phenomenon for exactly this reason.
   \label{fig:scenepairs}
 \end{figure}
 
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{fig_injection_step.pdf}
+  \caption{Releasing the depth control partway through denoising. The horizontal
+  axis is the noise level at which the control was switched off, high noise on the
+  left; the step index of each run is printed underneath as a label only, because
+  the same step index sits at a different noise level under a different schedule.
+  \textbf{Left:} the release-point sweep, one clip per point, three scenes, scored
+  separately over the airborne window and the window after the simulated object
+  first reaches the ground. Retention is the agreement between the generated
+  object's tracked path and the simulation's, so $1.0$ is ``moved the way the
+  simulation did''. The thrown ball's after-contact horizontal motion is the one
+  curve that breaks, and it breaks only at the earliest release: it runs
+  \emph{opposite} to the simulation at $\sigma=0.952$ and is restored from
+  $\sigma=0.903$ onward. Its airborne flight is unaffected at every release point.
+  \textbf{Right:} the seeded measurement at the single release point
+  $\sigma=0.952$, $16$ seeds per cell, error bars showing $95\%$ confidence
+  intervals of the mean. The airborne window is indistinguishable from never
+  releasing; the whole-clip number is not, and the direction that suffers is the
+  horizontal one. Grey band marks the region below the pre-registered $0.7$ break
+  line.}
+  \label{fig:injstep}
+\end{figure}
+
 \subsection{What it achieves, and how we validated it}\label{sec:gen-quality}
 Generation was validated \emph{qualitatively}: by visual inspection of the
 output clips and by a lightweight color-blob trajectory tracker that checks
@@ -443,11 +468,127 @@ Two choices define the deployed recipe and are stated as design decisions.
 consumes a pre-computed depth video keeps the generator from importing a
 rendered source's synthetic look. (2)~\textbf{No reference image.} The pipeline
 supports an optional appearance reference, but the deployed recipe omits it;
-including it degraded single-object trajectories in our inspection. A separate,
-in-progress study probes \emph{when} during denoising the depth control can be
-released while the motion it has already induced is retained; its measurements
-are high-variance and not yet conclusive, and we do not report it as a settled
-result.
+including it degraded single-object trajectories in our inspection.
+
+\subsection{When the control can be released}\label{sec:gen-release}
+The control does not have to be applied for the whole of denoising. A diffusion
+model builds a video over a sequence of denoising steps that starts from almost
+pure noise and ends at a clean frame, and the control signal is added in at every
+one of those steps. That raises a question with both a practical and a scientific
+side: if the control is switched off partway through, does the motion it has
+already induced survive to the finished clip? Practically, the steps after the
+release are free of the control, so the model is free to invent appearance there.
+Scientifically, the earliest release point that still preserves the motion is the
+point at which the model has \emph{committed} to that motion.
+
+\paragraph{Method.} We pick a step, keep the control at full strength for every
+step before it, and set the control's contribution to exactly zero from that step
+onward. Nothing else changes: same simulation, same control video, same prompt,
+same sampler, same seed. The comparison is always against the same clip generated
+with the control never released, so the release point is the only difference
+between the two.
+
+\paragraph{The release point is reported as a noise level, not a step number.}
+A step index is not a property of the model; it is a property of the sampling
+schedule we happened to choose. The schedule maps each step to a noise level, and
+that mapping changes when the number of steps or the schedule's shape changes.
+Concretely, on the schedule used here, step $8$ of $40$ sits at a noise level of
+$\sigma = 0.952$; on a differently-shaped $40$-step schedule the same step $8$ sits
+at $\sigma = 0.923$, and the noise level $0.952$ has moved to step $5$. Reporting
+``released at step $8$'' would therefore describe our schedule rather than the
+model, so every release point below is given as the noise level $\sigma$ at which
+the control was switched off, with the step index alongside it only as the label
+of the run.
+
+\paragraph{What is measured.} Both the control video and the generated clip are
+tracked frame by frame, giving the object's path in each. \emph{Retention} is how
+much of the simulated motion the generated clip keeps: the agreement between the
+generated path and the control's path, measured separately across the frame
+(horizontal) and up and down (vertical), because those two directions do not
+behave the same way. Agreement is a correlation over the frames in which the
+object is located in both videos, so a value near $1$ means the generated object
+moved the way the simulation did. Two windows are reported, because a single
+whole-clip number hides where a failure lives: the \emph{airborne} window, up to
+the frame at which the simulated object first reaches the ground, and the
+\emph{after-contact} window from that frame to the end. The contact frame is not
+hand-set per scene; it is read off the control's own vertical path as the first
+return to the floor after the object's highest point. Alongside retention we count
+two failure modes. A \emph{collapse} is a clip whose horizontal agreement falls
+below $0.7$, meaning the sideways motion no longer resembles the simulation's. A
+\emph{phantom} is the specific disagreement in which the whole-clip number reads as
+broken (below $0.7$) while the airborne window alone reads as clean (above $0.9$)
+--- the signature of a clip whose flight is right and whose ending is wrong. Both
+thresholds were fixed before scoring.
+
+\paragraph{Result: the flight survives an early release; the ground contact does
+not.} \Cref{fig:injstep} shows the measurement. Two scenes were repeated over
+$16$ seeds each at one release point, $\sigma = 0.952$, in two variants (with and
+without a reset of the sampler's internal history at the release), against the
+never-released baseline: $96$ clips in total, $16$ per cell. Releasing the control
+at $\sigma = 0.952$ leaves the airborne flight of the thrown ball essentially
+untouched --- per-seed horizontal agreement drops by $0.003$ relative to never
+releasing ($95\%$ confidence interval $0.001$ to $0.004$, $n=16$ paired seeds),
+which is a real but negligible difference. Over the whole clip the same release
+costs $0.13$ horizontally ($95\%$ CI $-0.02$ to $0.28$, $n=16$) and $0.18$
+vertically ($95\%$ CI $0.07$ to $0.29$, $n=16$). The gap between those two windows
+is the finding: what an early release breaks is not the arc but what happens after
+the ball reaches the ground. Scoring only the frames after the simulated contact,
+the generated ball's horizontal motion runs \emph{opposite} to the simulation's on
+$9$ of $16$ seeds when the control is released at $\sigma = 0.952$, and on $0$ of
+$16$ when it is never released --- the simulation rolls the ball forward and the
+generator, cut loose, rolls it back. The whole-clip collapse count follows: $3$ of
+$16$ seeds at $\sigma = 0.952$ versus $1$ of $16$ never released, and the phantom
+count is $2$ of $16$ versus $0$ of $16$, so the collapses that do appear are
+predominantly ending failures on clips whose flight was clean.
+
+\paragraph{Result: a later release is clean, and the vertical direction is the
+robust one.} Sweeping the release point across six settings on a single seed for
+three scenes gives the shape of the curve. For the thrown ball, releasing at
+$\sigma = 0.952$ gives an after-contact horizontal agreement of $-0.63$ (the ball
+travels the wrong way) with the airborne window still at $1.00$; releasing at
+$\sigma = 0.903$ or later restores the after-contact window to $0.98$ or above,
+and it stays there through the latest release point tested, $\sigma = 0.555$. The
+same sweep on a ball dropped onto a floor never breaks at all --- after-contact
+horizontal agreement is $1.00$ at every release point including the earliest,
+and the vertical agreement, which is the informative direction for a
+straight-down drop, is lowest at the earliest release ($0.78$ at $\sigma = 0.952$)
+and rises to $0.99$ or above once the release is at $\sigma = 0.903$ or later. A
+ball rolling off a ramp holds $0.99$ or better at every release point in both
+directions, but only a third of its frames are measurable at all, so it
+constrains little. Across all three scenes, vertical motion --- the direction
+gravity supplies --- is markedly more robust to an early release than horizontal
+motion, which the simulation alone specifies.
+
+\paragraph{A denser sweep, and what it does not settle.} A third run
+sweeps three release points on the thrown ball at three seeds and two guidance
+strengths, $18$ clips, and scores them against the control with a
+segmentation-based tracker rather than a colour tracker. It reproduces the
+direction of the effect --- airborne horizontal agreement is $1.00$ (mean over the
+$6$ clips at $\sigma = 0.952$, $95\%$ CI $0.998$ to $1.000$), while
+after-contact horizontal agreement at that same release point averages $0.69$ with
+a confidence interval spanning zero ($-0.04$ to $1.43$, $n=6$) and is negative on
+one clip; at $\sigma = 0.903$ and $\sigma = 0.833$ the after-contact window
+recovers to $0.99$ and $1.00$. But it also shows the ceiling on this measurement:
+at the latest release point the tracker loses the object entirely on $3$ of $6$
+clips, so those cells rest on $3$ clips, not $6$. On inspection those are clips in
+which the generated ball is genuinely tiny and low-contrast against the grass, not
+clips in which the tracker mis-fired, but either way the confidence intervals at
+the late release points are too wide to place the transition sharply.
+
+\paragraph{Scope.} These are single moving rigid bodies --- a ball thrown across a
+field, a ball dropped onto a floor, a ball rolling off a ramp --- at one
+resolution and frame count, on a control rendered from the simulation. The seeded
+part of the measurement covers one release point in depth ($16$ seeds), and the
+shape of the curve across release points rests on one seed per point for three
+scenes plus three seeds per point for one scene. Nothing here measures a
+multi-object collision, and nothing here measures the deformable and granular
+scenes of \cref{sec:gen-breadth}, whose objects the tracker cannot follow as a
+single path. We also do not separate the release itself from the sampler-history
+reset that accompanies it in one of the two variants: the two variants are
+statistically indistinguishable on every window and direction we measured (the
+largest per-seed difference is $0.04$ horizontally over the whole clip, $95\%$ CI
+$-0.04$ to $0.13$, $n=16$), which is consistent with the reset doing nothing once
+the motion has committed, but is not a demonstration that it never matters.
 
 % =====================================================================
 \section{A Human-Annotated Video-Flaw Benchmark}\label{sec:dataset}
