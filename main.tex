@@ -882,7 +882,7 @@ baseline.
 Object presence & LLMDet open-vocabulary detector~\cite{llmdet2025} & presence; bounding box \\
 Object count & CountGD-Box counter~\cite{countgd2024,countvid2026} (SAM~2.1 internal) & cardinality of a named set \\
 Kinematics & point tracking, TAPNext-style~\cite{tapnext2025} $+$ kinematic predicates & per-frame positions; static/moving, direction, speed \\
-Action timing & TimeLens-family temporal grounder~\cite{timelens_grounding2025} & time window of a named event \\
+Action timing & the reasoner over timestamped frames (a dedicated temporal grounder~\cite{timelens_grounding2025} remains available on request) & time window of a named event, or a stated refusal \\
 Spatial relation & unified SAM~3 masks~\cite{sam3_2025} $+$ monocular depth $+$ reasoning & depth-ordered / image-plane relations \\
 Holistic & \emph{no tool by design}~\cite{videoscore2_2025} & --- \\
 Audio\textsuperscript{$\dagger$} & FlexSED sound-event detection~\cite{flexsed2025} & sound events with timestamps \\
@@ -978,6 +978,30 @@ participants of a spatial relation, feeding a count---and in that role its
 looked-and-absent report still contradicts. A measurement whose only consumers were
 existence or occurrence questions is not executed at all, which keeps unused
 perception out of the cost.
+
+This is not a precaution against a hypothetical failure. Asked to time eleven events
+that a human viewer had confirmed do \emph{not} occur in their clips, a dedicated
+temporal grounding model returned a confident time window for all eleven---placing
+tigers crouching across seven seconds of an eight-second clip, and a candle going out
+in a clip where the flame burns to the end---while the same reasoner that watches the
+frames, asked the same eleven questions in a form that permits refusal, said the event
+was absent in seven of them. On a control set of six events that do occur in the same
+clips, the reasoner found five and the grounder six, so the difference is not a
+reasoner that refuses everything. Where a window \emph{was} readable the grounder
+ordered events perfectly; its failures were unusable output presented as measurement.
+Consequently the event-timing question is now put to the reasoner over frames labelled
+with their timestamps, in a form whose permitted answers include \emph{absent} and
+\emph{present but not placeable in time}; the dedicated grounder remains available
+when a caller asks for it. Two windows that begin at the same instant, or that each
+span the whole clip, are marked as carrying no order and the ordered claim is left
+unresolved rather than decided by a tie.
+
+The comparison is small---eleven absent events and six present ones, on clips a single
+viewer had annotated---so it fixes the routing of one question rather than ranking two
+models in general, and it says nothing about how often either backend is right when an
+event \emph{is} present and placeable. What it does establish is the asymmetry the
+design turns on: a backend that cannot decline will answer an unanswerable question, and
+an invented window is indistinguishable from a measured one downstream.
 
 \paragraph{Ordering is composed, never assumed.} For a claim that one event precedes
 or falls inside another, both events must first be confirmed to occur by the
