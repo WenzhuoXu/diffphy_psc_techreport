@@ -163,6 +163,14 @@ intended to compose.
   decomposes a prompt into claims, routes each to an open perception specialist
   returning evidence only, and combines the evidence deterministically into a
   three-valued verdict.
+  \item \textbf{A verification plan in which the video's own timeline is the
+  wiring} (\cref{sec:chaining}). Measurements are not a flat list dispatched in
+  parallel: one measurement's answer decides whether a second is run, where in the
+  clip it is run, and what its result is allowed to mean. An event's occurrence is
+  settled first and gates whether its timing may speak at all; a located interval
+  becomes the explicit list of frames a later, costlier measurement reads; and the
+  composition rule that turns two measured intervals into an order is arithmetic,
+  with a tolerance, that declines rather than breaks a tie.
 \end{enumerate}
 
 \noindent The end state (\cref{sec:loop}) is a closed loop: the benchmark
@@ -179,7 +187,9 @@ score for the generator---its validation here is qualitative. And we claim
 novelty for none of the individual building blocks (structure-conditioned
 generation, prompt decomposition, specialist routing, three-valued
 abstention); the contribution is their integration toward physical
-faithfulness.
+faithfulness, and in particular the chaining of \cref{sec:chaining}, which we
+present as a mechanism the reader can inspect rather than as a demonstrated
+accuracy advantage.
 
 % =====================================================================
 \section{Physics-Guided Video Generation}\label{sec:generation}
@@ -1005,6 +1015,7 @@ event \emph{is} present and placeable. What it does establish is the asymmetry t
 design turns on: a backend that cannot decline will answer an unanswerable question, and
 an invented window is indistinguishable from a measured one downstream.
 
+\label{sec:refusal}
 Permitting refusal is not free, and one traced case shows both the cost and the reason to
 pay it. A claim asserted that a sound coincided with each impact. Asked to place that sound
 in time, the reasoner declined, stating that the frames carry no audio and that the question
@@ -1346,6 +1357,65 @@ only an occurrence check cannot express that.
   the annotator's record shown at the foot are real; what the critic returns on
   this clip is not reported here.}
   \label{fig:planexample}
+\end{figure}
+
+\subsubsection{How the video's timeline wires the plan together}\label{sec:chaining}
+The plan is not a list of independent questions answered in parallel and then
+tallied. What makes it a graph is that measurements are wired to one another
+through the clip's own timeline: one measurement decides whether a second runs,
+where in the clip it runs, and what its answer is permitted to mean.
+\Cref{fig:planchain} follows a single claim about order through that wiring on a
+real clip.
+
+\paragraph{One measurement gates another.} A claim that one event precedes another
+is not settled by asking two timing questions and comparing the answers. The
+occurrence of each event is settled first, by the verifier that reads the frames
+densely, and only if both are confirmed are their measured intervals allowed to
+speak. If either event is judged not to occur, the ordered claim is contradicted
+outright and the timings are never consulted; if either cannot be placed in time,
+the claim is left unresolved. This ordering of operations is what keeps a returned
+interval from becoming backdoor evidence that an event happened---the failure mode
+of \cref{sec:refusal}, where a timing model asked about an absent event returns a
+confident interval anyway. Timings compose an order; they never establish
+existence.
+
+\paragraph{One measurement scopes another.} Several measurements are far too
+expensive to run over every frame---a depth comparison between two objects costs
+tens of seconds per frame, so a single spatial question over a long clip could cost
+an hour. Rather than sample frames, which is how a brief event gets missed, the
+plan asks a cheap question first: the whole clip goes to the verifier as frames
+labelled with their timestamps, and it is asked only \emph{when} the surface or the
+pair of objects is on screen. That answer is not a verdict and is never treated as
+one---if it says the objects never appear together, that claim is ignored and the
+whole clip is measured. What it produces is an interval, which is padded, floored to
+a minimum length, and turned into an explicit list of frame times handed to the
+expensive measurement, which then reads \emph{every} frame in that list. The saving
+is only the frames outside the interval, and a dozen enumerated conditions---an
+error, an unparsable answer, an interval covering most of the clip, a claim about
+absence, an unreadable frame clock---fall back to reading the whole clip. Every
+result records which of the two happened, so a scoped measurement is never mistaken
+for a whole-clip one.
+
+\paragraph{The composition is arithmetic, and it can decline.} Once two intervals
+exist, the order is decided by a rule with a tolerance rather than a threshold on
+raw numbers: the slack is a quarter of the shorter of the two intervals, so
+``before'' requires a gap the clip can actually resolve. Two intervals that begin at
+the same instant, or that each span the whole clip, carry no order, and the claim is
+left unresolved rather than decided by whichever number happens to be smaller. The
+figure shows the arithmetic as the compiler applied it.
+
+\begin{figure}[tp]
+  \centering
+  \includegraphics[width=\linewidth]{fig_plan_chain.pdf}
+  \caption{One claim about order, followed through the plan on a real clip. The
+  planner writes the line before any frame is read. The ordering check requests two
+  event timings, but they are consulted only after the verifier that reads the frames
+  confirms both events occur. The two intervals returned are shown on the clip's own
+  clock, with frames decoded at the instants they name: the first domino tips at
+  $1.62$--$1.67$\,s, the chain reaction runs from $2.33$\,s to the end. The order is
+  then decided by arithmetic with a tolerance of a quarter of the shorter interval.
+  Every number and every frame here is from the recorded run.}
+  \label{fig:planchain}
 \end{figure}
 
 \subsubsection{Routing by what the claim says}
