@@ -884,6 +884,7 @@ Object count & CountGD-Box counter~\cite{countgd2024,countvid2026} (SAM~2.1 inte
 Kinematics & point tracking, TAPNext-style~\cite{tapnext2025} $+$ kinematic predicates & per-frame positions; static/moving, direction, speed \\
 Action timing & the reasoner over timestamped frames (a dedicated temporal grounder~\cite{timelens_grounding2025} remains available on request) & time window of a named event, or a stated refusal \\
 Spatial relation & unified SAM~3 masks~\cite{sam3_2025} $+$ monocular depth $+$ reasoning & depth-ordered / image-plane relations \\
+Rendered text & an optical character recognition engine, over the frames where the surface is on screen & the characters actually printed, compared to the demanded string \\
 Holistic & \emph{no tool by design}~\cite{videoscore2_2025} & --- \\
 Audio\textsuperscript{$\dagger$} & FlexSED sound-event detection~\cite{flexsed2025} & sound events with timestamps \\
 \bottomrule
@@ -1011,6 +1012,30 @@ could not be answered from them. The ordering was left unresolved, and a catch w
 previous backend had returned a window for the same query without any audio evidence, and
 that unsupported estimate produced a flag matching a human-labelled mismatch.
 
+\paragraph{A reader that cannot be fluent.} The same asymmetry decides who reads text on
+screen. Generated video often renders lettering that is shaped like writing but is not
+writing, and that is precisely the defect a claim quoting a sign or a slogan is asking
+about. A generative model reading those pixels supplies the missing letters from its
+language prior: shown a crop of one camera body, the vision-language model returned
+\emph{``sound and colour, for film and sound recording''}, and---once told what the
+prompt had asked for---\emph{``shoot the camera to the front and enjoy the moment''}.
+Neither sentence is on the camera. A recognition engine given the same crop returned
+\emph{``RRVLE''}, \emph{``ToeFan''}, \emph{``ao Gony Raa um''}, which is what is
+actually printed there. On two clips where a human annotator had typed out the garbled
+lettering by hand, the engine's transcript matched theirs character for character. So the
+reading is done by an engine that transcribes glyphs and cannot compose a plausible
+sentence, and the comparison against the demanded string is ordinary text comparison.
+The distinction is not stylistic: a fluent reader would have reported the prompt's own
+words back and the claim would have been marked satisfied.
+
+Silence from that engine is then split by cause rather than treated as one outcome. If
+the engine itself fails, the claim is unresolved---that is a statement about the
+instrument. If the surface was on screen, and large and sharp enough that legible
+lettering would have survived, and nothing legible was read, the claim is contradicted:
+illegible lettering is the defect, not an absence of evidence about it. If the pictures
+were too small or too smeared for any text to survive, the claim is unresolved, which is
+the only remaining genuine abstention.
+
 The refusal was also correct in a way the invented window concealed. The claim was about
 sound, and it was being put to a model that sees only frames---so no answer from that
 backend, right or wrong, could have been evidence. The refusal surfaced a routing fault
@@ -1127,6 +1152,7 @@ lists the callable operations and the check each becomes.
 \code{rel("A||B", relation)} & spatial relation between two segmented objects & spatial \\
 \code{traj("phrase", relation, target)} & tracked motion of an object & trajectory \\
 \code{sound("description")} & the described sound is asserted & occurrence\textsuperscript{$\dagger$} \\
+\code{text("STRING", carrier=...)} & the clip renders that exact string on the named surface & rendered text \\
 \bottomrule
 \end{tabular}
 \caption{The planner's measurement vocabulary. \code{count} and \code{window} are
