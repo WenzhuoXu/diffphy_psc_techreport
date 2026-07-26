@@ -803,6 +803,112 @@ pool. The training pool excludes every clip in the frozen evaluation sets.}
 \label{tab:datastats}
 \end{table}
 
+\subsection{What the benchmark contains, precisely}\label{sec:bench-spec}
+This section states the contents exactly, because a benchmark is only useful to someone
+else if they can tell in advance what it will and will not measure for them.
+
+\paragraph{The clips.} The routine evaluation core is 150 AI-generated clips, median
+$8.0$\,s long (range $5.0$--$10.3$\,s), mostly at 24\,fps ($118$ of $150$; the rest at
+16, 25, 30 or 32). Their prompts are not one-line captions: a median prompt is $42$
+words and the longest is $188$, and many specify a shot list, a count, an ordering, an
+on-screen string and a sound in the same paragraph. That is what makes a single
+clip-level score inadequate---$66$ of the $150$ clips carry flaws of more than one
+kind, so one number per clip cannot say which of them a detector found.
+
+\paragraph{The flaws.} $306$ human-marked flaws, a median of two per clip. Each is a
+record with six fields, and \cref{tab:flawfields} gives their measured coverage rather
+than their nominal presence---a field that is filled four times in five is a different
+proposition from one that is always filled, and a user should know which is which
+before designing against it.
+
+\begin{table}[t]
+\centering\small
+\setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.18}
+\begin{tabular}{@{}p{3.5cm} p{6.1cm} c@{}}
+\toprule
+\textbf{Field} & \textbf{What it holds} & \textbf{Coverage} \\
+\midrule
+violated fragment & the words of the prompt the video fails, quoted verbatim; median $8$ words & 306/306 \\
+rationale & free text saying what went wrong instead; median $25$ words & 306/306 \\
+severity & $1$--$5$; the distribution is centred at $3$ and $4$ & 306/306 \\
+confidence & $1$--$5$; $239$ of $306$ are marked $4$ or $5$ & 306/306 \\
+time span & first and last frame in which the failure is visible & 237/306 \\
+box track & boxes at the start, middle and end of that span, one per object involved, in normalized coordinates & 208/306 \\
+\bottomrule
+\end{tabular}
+\caption{The six fields of a flaw record and how often each is filled across the 150-clip
+core. The first four are always present; timing and boxes are not, and a flaw carrying
+neither is one whose complaint is about the clip as a whole or about something that never
+appears.}
+\label{tab:flawfields}
+\end{table}
+
+\paragraph{What the flaws are about.} Grouping the $306$ by the machine-assigned tag of
+\cref{sec:dataset}: actions that do not happen or happen wrongly dominate at $139$,
+followed by wrong counts ($36$), wrong or missing objects ($30$), garbled on-screen text
+($25$), wrong spatial arrangement ($19$), wrong ordering in time ($17$), wrong attributes
+such as colour or material ($16$), camera and style failures ($10$), physical-motion
+failures ($7$) and a residual $7$. Two properties of that distribution matter to anyone
+adopting it. First, it is \emph{not} a physics benchmark in the narrow sense---the
+largest category by far is whether the requested action occurred at all. Second, the tail
+is where the specialist tooling earns its place: counting, text and spatial arrangement
+together are $80$ flaws, and each is a question a general-purpose model answers badly and
+a dedicated measurement answers well.
+
+\paragraph{Where in the clip they are.} Of the $237$ flaws carrying a time span, the
+flagged window covers a median of $62\%$ of the clip, but the distribution is bimodal:
+$57$ are confined to a quarter of the clip or less, and $95$ run for at least nine-tenths
+of it. A detector therefore needs both a way to look closely at a moment and a way to
+judge a whole clip; tuning only for one loses a large block of the other.
+
+\paragraph{Two properties that will bite a new user.} They are stated here rather than in
+a limitations section because they change how the benchmark must be scored.
+\emph{Every clip carries at least one flaw.} There are no clean clips, so recall is
+directly measurable and precision is not; a detector that flags everything scores
+perfectly on recall alone, which is why any result on this set should be reported
+alongside the rate at which its accusations land on a real flaw. And \emph{identical
+spans repeat}: twelve clips record the same failure two or three times under different
+identifiers, eighteen duplicate entries in all. Because a single accusation can be
+credited to at most one flaw, those duplicates are uncatchable by construction, and
+identical spans on a clip should be collapsed before scoring (\cref{sec:eval}).
+
+\paragraph{What it offers that a clip-level score does not.} Because each flaw names the
+prompt fragment it violates, a detector's output can be matched against a specific human
+complaint rather than correlated against a number. That supports three things a scalar
+cannot: measuring recall over failures rather than agreement over scores; attributing a
+miss to a stage---never decomposed, checked and cleared, or flagged but unmatched---which
+is what \cref{sec:eval} does; and reporting per-category performance, so a system that is
+strong on actions and weak on counting is visible as such rather than averaged into a
+single figure.
+
+\subsection{How this differs from existing video benchmarks}\label{sec:bench-vs}
+The closest relative is VideoPhy-2~\cite{videophy2_2025}, and the difference is worth
+stating precisely because it decides what each benchmark can measure. There, three
+annotators rate each clip on two five-point scales---semantic adherence and physical
+commonsense---and additionally mark each candidate physical rule as violated, followed
+or undetermined, with scores averaged and rules resolved by majority. The judgement is
+attached to the clip and to a predefined rule; annotators do not mark frames, spans or
+regions. Benchmarks built around per-dimension automatic metrics, such as
+VBench~\cite{vbench2024} and T2V-CompBench~\cite{t2vcompbench2024}, are further still
+from this: they score a model over their own fixed prompt suite, which makes them
+instruments for ranking generators rather than for scoring a detector on someone else's
+clips.
+
+Ours attaches the judgement to \emph{the words of the prompt that failed}, and where the
+annotator could, to a time span and a box track. That is what makes a detector's output
+matchable rather than merely correlatable, and it is why the failure attribution of
+\cref{sec:eval}---never decomposed, checked and cleared, or flagged but unmatched---is
+possible at all. A clip-level score cannot support that analysis, because there is
+nothing to align an individual accusation against.
+
+The trade runs the other way too, and we state it plainly rather than leave a reader to
+find it. VideoPhy-2's three annotators with majority resolution give redundancy this
+benchmark does not have: ours records one annotation per flaw, so there is no
+inter-annotator agreement figure and none is claimed. A user who needs a label whose
+noise is characterised should prefer the redundant benchmark; a user who needs to know
+\emph{which} failure a detector found, and where, needs this one. The two are
+complementary, and nothing here supersedes that work.
+
 \subsection{Recall-oriented evaluation and a held-out training pool}
 Two properties of the core shape how a detector must behave (\cref{fig:benchdist}).
 Because every clip in the pool carries at least one flaw and there are no clean
