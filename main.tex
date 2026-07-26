@@ -1615,101 +1615,79 @@ measures fit to that core rather than generalization.}
 
 \subsection{Results so far}
 \Cref{tab:results} reports the paired comparison completed to date: the plan-based
-critic against per-claim verification, on the 137 clips of the evaluation core that
-both systems have scored, carrying 289 human-labelled flaws between them. Both are
-given the same claim texts and the same matching protocol, and the per-claim baseline
-is wording-controlled---asked its questions in the same form the plan-based critic
-uses, because the phrasing alone changes how readily a verifier answers.
+critic against per-claim verification, on the 149 clips of the evaluation core both
+systems have scored. Both receive the same claim texts and the same matching protocol,
+and the per-claim baseline is wording-controlled---asked its questions in the form the
+plan-based critic uses, because the phrasing alone changes how readily a verifier
+answers.
+
+\paragraph{One correction to the denominator.} Twelve clips record the same flaw span
+two or three times under different identifiers---one clip notes ``two salmon emerge
+from the water at the same moment'' three times---for eighteen duplicate entries in
+all. Because the scoring loop credits an allegation to at most one flaw, a critic that
+makes the right accusation once is credited once and the duplicates count as misses:
+they are uncatchable by construction, since the only way to catch them would be to say
+the same thing three times. We therefore collapse identical spans on the same clip to a
+single flaw before scoring. A flaw an annotator noted twice is one flaw. The correction
+applies to every system equally and required no model call---the accusations were
+already recorded, and only the mapping from allegation to flaw changed. Both
+denominators are shown so the effect is visible rather than absorbed.
 
 \begin{table}[t]
 \centering\small
 \setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.18}
-\begin{tabular}{@{}p{6.0cm} c c c c@{}}
+\begin{tabular}{@{}p{5.6cm} c c c@{}}
 \toprule
-\textbf{System} & \textbf{Flaws caught} & \textbf{Recall} & \textbf{Calls} & \textbf{Alleg.\ hit} \\
- & of 289 & & per clip & rate \\
+\textbf{System} & \textbf{Flaws caught} & \textbf{Before collapsing} & \textbf{Calls} \\
+ & of 286 & duplicates, of 304 & per clip \\
 \midrule
-Plan-based critic & \textbf{190} & \textbf{65.7\%} & 13.2 & 40.9\% \\
-Per-claim verification, one claim at a time & 173 & 59.9\% & 12.3 & 40.3\% \\
+Plan-based critic & \textbf{197} \ (\textbf{68.9\%}) & 197 \ (64.8\%) & 13.2 \\
+Per-claim verification, one claim at a time & 179 \ (62.6\%) & 179 \ (58.9\%) & 12.3 \\
 \bottomrule
 \end{tabular}
-\caption{Paired results on 137 clips of the evaluation core (289 human-labelled
-flaws). The allegation hit rate is the share of the critic's accusations that match a
-human-labelled flaw; it is reported because recall alone rewards flagging everything.
-Calls count model and tool invocations and exclude the matching protocol, which sits
-outside the critic.}
+\caption{Paired results on 149 clips of the evaluation core. The left column collapses
+identical flaw spans on the same clip to a single flaw; the right column is the same
+allegations scored against the uncollapsed list, for comparison. Collapsing lowers the
+denominator from 304 to 286 and lifts every system equally---it removes misses that were
+uncatchable by construction rather than changing what any critic did. Calls count model
+and tool invocations and exclude the matching protocol, which sits outside the critic.}
 \label{tab:results}
 \end{table}
 
-The plan-based critic catches \textbf{17 more flaws}, $6$ points of recall, for about
+The plan-based critic catches \textbf{18 more flaws}, $6.3$ points of recall, for about
 one extra call per clip. Resampling whole clips with a fixed seed puts that difference
-at $95\%$ confidence in $[+7,+27]$, so it is a real difference on this set rather than
-sampling noise---while the share of accusations that land on a human-labelled flaw is
-essentially unchanged, $40.9\%$ against $40.3\%$, so the extra catches are not bought
-by flagging more indiscriminately. This set is the optimization set, so this is a
-measurement of fit, not of generalization.
+at $95\%$ confidence in $[+8,+28]$, so it is a real difference on this set rather than
+sampling noise. This set is the optimization set, so it measures fit, not
+generalization.
 
-\Cref{tab:bycat} shows where the difference comes from. It is concentrated in
-rendered text, where reading the glyphs with a recognition engine rather than asking a
-generative model what a sign says is worth $19$ points, and in actions, which are the
-largest category. Two categories---object identity and event ordering---are identical
-between the systems, and one, physical motion, is better without the plan on its six
-instances.
+\paragraph{Why the misses are missed.} The uncaught flaws are more informative than the
+caught ones, and they do not say what one might expect. Of the $89$ flaws the plan-based
+critic missed, only \emph{two} were never decomposed---that is, only two had no claim in
+the plan covering them at all. Eight were flagged by the critic but not linked to the
+human flaw by the matching protocol. The remaining seventy-nine were \emph{checked and
+cleared}: a claim covered the flaw and the critic judged the video fine. And of those
+seventy-nine, seventy-six were decided by a yes-or-no judgement with \emph{no
+measurement attached}---not by a specialist returning a wrong number.
 
-\begin{table}[t]
-\centering\small
-\setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.15}
-\begin{tabular}{@{}p{4.4cm} r c c@{}}
-\toprule
-\textbf{Flaw category} & \textbf{n} & \textbf{Plan-based} & \textbf{Per-claim} \\
-\midrule
-action           & 130 & 94 (72\%) & 86 (66\%) \\
-count            &  35 & 17 (49\%) & 15 (43\%) \\
-object           &  29 & 18 (62\%) & 18 (62\%) \\
-rendered text    &  21 & 16 (76\%) & 12 (57\%) \\
-spatial relation &  17 & 12 (71\%) & 10 (59\%) \\
-order and timing &  16 & 10 (62\%) & 10 (62\%) \\
-attribute        &  15 &  6 (40\%) &  5 (33\%) \\
-camera and style &  10 &  5 (50\%) &  5 (50\%) \\
-physical motion  &   6 &  4 (67\%) &  5 (83\%) \\
-other            &   7 &  5 (71\%) &  4 (57\%) \\
-\bottomrule
-\end{tabular}
-\caption{Flaws caught by category. Categories are the machine-assigned tags of
-\cref{sec:dataset}, used here for grouping only.}
-\label{tab:bycat}
-\end{table}
+That is the diagnosis this evaluation supports, and it is not the one the design
+anticipated. Decomposition is not the bottleneck, and neither, mostly, is specialist
+accuracy. The bottleneck is measurement \emph{coverage}: only $14.1\%$ of the checks
+actually executed are measurements, and the rest are occurrence or existence judgements
+made by the general verifier. Of $1{,}917$ executed checks, $1{,}414$ ask whether an
+event occurs and $233$ whether something exists, against $22$ spatial relations, $19$
+trajectories, $18$ orderings, $18$ text reads and $16$ counts. The plan's machinery is
+real and it works, but on this data the claims rarely ask it to measure anything.
+Raising that share is the obvious next lever, and it is a question about how claims are
+typed rather than about how well any tool performs.
 
-\paragraph{Why the misses are missed.} The uncaught flaws are more informative than
-the caught ones, and they do not say what one might expect. Of the flaws the
-plan-based critic missed, only \emph{three} were never decomposed---that is, only three
-had no claim in the plan covering them at all. Nineteen were flagged by the critic but
-not linked to the human flaw by the matching protocol. The overwhelming majority,
-seventy-seven, were \emph{checked and cleared}: a claim covered the flaw and the critic
-judged the video fine. And of those seventy-seven, seventy-four were decided by a
-yes-or-no judgement with \emph{no measurement attached}---not by a specialist returning
-a wrong number.
-
-That is the diagnosis this evaluation supports. Decomposition is not the bottleneck,
-and neither, mostly, is specialist accuracy. The bottleneck is measurement
-\emph{coverage}: only $14.6\%$ of the checks actually executed are measurements, and
-the rest are occurrence or existence judgements made by the general verifier. The
-plan's machinery is real and it works, but on this data the claims rarely ask it to
-measure anything. Raising that share is the obvious next lever, and it is a question
-about how claims are typed rather than about how well any tool performs.
-
-\paragraph{Cost.} Per-clip wall time over the 137 clips has a median of $95$\,s and a
-mean of $392$\,s; the ninetieth percentile is $1{,}371$\,s and the maximum $6{,}119$\,s.
+\paragraph{Cost.} Per-clip wall time over the 149 clips has a median of $102$\,s and a
+mean of $373$\,s; the ninetieth percentile is $1{,}087$\,s and the maximum $6{,}119$\,s.
 The mean sits far above the median because a minority of clips invoke dense per-frame
 specialists, and those clips set the wall-clock rather than the typical one.
 
-\paragraph{What this does not cover.} The paired set is 137 of the 150 benchmark
-clips. The shortfall is infrastructure rather than content---a serving endpoint dropped
-connections during the pass, leaving those clips without a decomposed claim set---and
-recovery is in progress. A four-way comparison that additionally includes two earlier
-configurations of the critic is available on the 107 clips all four have scored; on
-that smaller set the same ordering holds. The cost-matched comparison in both
-directions and per-clip GPU-second accounting remain unrun.
+\paragraph{What this does not cover.} The paired set is 149 of the 150 benchmark clips.
+The cost-matched comparison in both directions and per-clip GPU-second accounting remain
+unrun, as does every external comparison in \cref{tab:external}.
 
 \subsection{Comparison against published evaluators}
 The evaluators closest to this work in \cref{sec:related} score prompt-to-video
@@ -1727,8 +1705,8 @@ each will be given the same claim decomposition where it accepts one.
 \toprule
 \textbf{Evaluator} & \textbf{Output it produces} & \textbf{Caught} & \textbf{Recall} & \textbf{Calls} \\
 \midrule
-This work, plan-based & localized allegation & 190 & 65.7\% & 13.2 \\
-Per-claim verification & localized allegation & 173 & 59.9\% & 12.3 \\
+This work, plan-based & localized allegation & 197 & 68.9\% & 13.2 \\
+Per-claim verification & localized allegation & 179 & 62.6\% & 12.3 \\
 Question-decomposition scoring~\cite{tifa2023,dsg2024} & per-question answers & --- & --- & --- \\
 Alignment scoring~\cite{vqascore2024,clipscore2021} & clip-level scalar & --- & --- & --- \\
 Learned quality scoring~\cite{videoscore2024,videoscore2_2025} & clip-level scalar & --- & --- & --- \\
@@ -1736,7 +1714,7 @@ Modular video question answering~\cite{proviq2023,morevqa2024} & per-question an
 \bottomrule
 \end{tabular}
 \caption{The intended external comparison, stated before it is run. The first two rows
-are the measured systems of \cref{tab:results}, on its 137 clips and 289 flaws. Dashes
+are the measured systems of \cref{tab:results}, on its 149 clips and 286 flaws. Dashes
 are unrun. A clip-level scalar has no allegation
 to match against a localized human flaw, so scoring it requires a stated rule for turning
 a score into a decision; that rule will be fixed in advance and reported with the result.}
