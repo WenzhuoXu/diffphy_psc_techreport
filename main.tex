@@ -1544,44 +1544,52 @@ measures fit to that core rather than generalization.}
 \end{table}
 
 \subsection{Results so far}
-\Cref{tab:results} reports the paired comparison completed to date. It runs on the
-39 clips of the routine core whose plans contain a check that the measurement
-specialists can reach---a counting or an ordering check---because a clip with neither
-cannot move when those specialists change. Those 39 clips carry 91 human-labelled
-flaws. Every system is scored on the same clips with the same claim texts and the same
-matching protocol, so the rows are paired.
+\Cref{tab:results} reports the paired comparison completed to date. Three systems are
+scored on the same 107 clips of the routine core, which carry 229 human-labelled flaws
+between them, with the same claim texts and the same matching protocol, so the rows are
+paired clip by clip.
 
 \begin{table}[t]
 \centering\small
-\setlength{\tabcolsep}{5.5pt}\renewcommand{\arraystretch}{1.18}
-\begin{tabular}{@{}p{5.4cm} c c c c@{}}
+\setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.18}
+\begin{tabular}{@{}p{6.0cm} c c c c@{}}
 \toprule
-\textbf{System} & \textbf{Flaws caught} & \textbf{Allegations} & \textbf{Calls} & \textbf{GPU-s} \\
- & of 91 & raised & per clip & per clip \\
+\textbf{System} & \textbf{Flaws caught} & \textbf{Recall} & \textbf{Calls} & \textbf{GPU-s} \\
+ & of 229 & & per clip & per clip \\
 \midrule
-Plan-based, current specialists & 58 & 265 & 16.7 & --- \\
-Plan-based, previous specialists & 61 & 297 & 18.2 & --- \\
-Per-claim, wording-controlled & 57 & 246 & 14.5 & --- \\
-Per-claim, original wording & 45 & 163 & --- & --- \\
-\midrule
-\multicolumn{5}{@{}l}{\emph{Paired difference, resampling whole clips:}} \\
-\quad current vs.\ previous specialists & \multicolumn{4}{l}{$-3$ flaws, 95\% interval $[-7,+1]$} \\
-\quad plan-based vs.\ per-claim (wording-controlled) & \multicolumn{4}{l}{$+1$ flaw, 95\% interval $[-5,+7]$} \\
+Plan-based critic & \textbf{147} & \textbf{64.2\%} & 13.2 & --- \\
+Per-claim verification, one claim at a time & 139 & 60.7\% & 11.6 & --- \\
+Plan-based critic, earlier planner & 130 & 56.8\% & 17.1 & --- \\
 \bottomrule
 \end{tabular}
-\caption{Paired results on the 39 reachable clips of the routine core (91 human-labelled
-flaws). Allegations that do not match a human-labelled flaw are review burden, not false
-positives, until adjudicated. Both intervals straddle zero: on this subset the change of
-specialists did not measurably move coverage, and the plan-based system did not
-measurably beat per-claim verification. Calls count model and tool invocations and
-exclude the matching protocol, which sits outside the critic. Dashes are unrun
-measurements.}
+\caption{Paired results on 107 clips of the routine evaluation core (229 human-labelled
+flaws). The per-claim baseline is wording-controlled: it is asked its questions in the
+same form the plan-based critic uses, because the phrasing alone changes how readily a
+verifier answers. Calls count model and tool invocations and exclude the matching
+protocol, which sits outside the critic. Dashes are unrun measurements, not small
+numbers.}
 \label{tab:results}
 \end{table}
 
-\Cref{tab:results} is a subset result and is not a coverage figure for the critic. The
-full-set comparison on all 150 clips, the cost-matched comparison in both directions,
-and the per-clip GPU-second accounting are specified above and remain unrun.
+Two differences are worth separating. Against the per-claim baseline the plan-based
+critic catches eight more flaws, $3.5$ points of recall, for about $1.6$ more calls per
+clip---a gain, but a small one, and this set is the optimization set, so it is a
+measurement of fit rather than of generalization. Against its own earlier planner the
+same critic catches seventeen more flaws, $7.4$ points, while making about four
+\emph{fewer} calls per clip: writing the plan as one line of code per claim, rather than
+as several cross-referenced tables, both raised coverage and lowered cost. The two
+comparisons should not be added together; they share a treatment arm.
+
+A separate substitution---exchanging the measurement specialists themselves, with the
+planner held fixed---was scored on the 39 clips whose plans contain a check those
+specialists can reach. It moved coverage by $-3$ flaws with a $95\%$ interval of
+$[-7,+1]$, so on that subset the exchange did not measurably change what the critic
+catches. That comparison is reported here because it was run, not because it settles
+anything.
+
+Neither comparison is a coverage figure for the critic as such. The full-set comparison
+on all 150 clips, the cost-matched comparison in both directions, and per-clip
+GPU-second accounting are specified above and remain unrun.
 
 \subsection{Comparison against published evaluators}
 The evaluators closest to this work in \cref{sec:related} score prompt-to-video
@@ -1597,19 +1605,19 @@ each will be given the same claim decomposition where it accepts one.
 \setlength{\tabcolsep}{5.5pt}\renewcommand{\arraystretch}{1.18}
 \begin{tabular}{@{}p{4.6cm} p{3.5cm} c c c@{}}
 \toprule
-\textbf{Evaluator} & \textbf{Output it produces} & \textbf{Flaws caught} & \textbf{Alleg.} & \textbf{Calls} \\
+\textbf{Evaluator} & \textbf{Output it produces} & \textbf{Caught} & \textbf{Recall} & \textbf{Calls} \\
 \midrule
-This work, plan-based & localized allegation & 58\textsuperscript{a} & 265\textsuperscript{a} & 16.7\textsuperscript{a} \\
-Per-claim verification & localized allegation & 57\textsuperscript{a} & 246\textsuperscript{a} & 14.5\textsuperscript{a} \\
+This work, plan-based & localized allegation & 147 & 64.2\% & 13.2 \\
+Per-claim verification & localized allegation & 139 & 60.7\% & 11.6 \\
 Question-decomposition scoring~\cite{tifa2023,dsg2024} & per-question answers & --- & --- & --- \\
 Alignment scoring~\cite{vqascore2024,clipscore2021} & clip-level scalar & --- & --- & --- \\
 Learned quality scoring~\cite{videoscore2024,videoscore2_2025} & clip-level scalar & --- & --- & --- \\
 Modular video question answering~\cite{proviq2023,morevqa2024} & per-question answers & --- & --- & --- \\
 \bottomrule
 \end{tabular}
-\caption{The intended external comparison, stated before it is run. \textsuperscript{a}On
-the 39-clip subset of \cref{tab:results}, not the full frozen set, and therefore not
-comparable to a full-set figure. Dashes are unrun. A clip-level scalar has no allegation
+\caption{The intended external comparison, stated before it is run. The first two rows
+are the measured systems of \cref{tab:results}, on its 107 clips and 229 flaws. Dashes
+are unrun. A clip-level scalar has no allegation
 to match against a localized human flaw, so scoring it requires a stated rule for turning
 a score into a decision; that rule will be fixed in advance and reported with the result.}
 \label{tab:external}
