@@ -1306,8 +1306,22 @@ measurement, so that a plan cannot inflate its measurement rate by mislabeling
 salvaged terms. Every plan carries this accounting with it: how many calls, which
 claims fell back, which terms were salvaged.
 
+\begin{figure}[tp]
+  \centering
+  \input{figs/fig_plan_graph}
+  \caption{One prompt's plan as a graph. Each claim the prompt makes becomes one or
+  more typed checks, and each check names the measurements that would settle it. A
+  claim can carry more than one check---a numeral adds a count beside the occurrence
+  judgement, a spatial preposition adds a depth-ordered relation---and a single check
+  can consume more than one measurement, as an ordering does. Occurrence and existence
+  go to the general verifier reading the frames; quantities, timings, outlines and
+  depths come from specialists. Illustrative: the plan is written in the report's
+  measurement vocabulary, and the claims are of the kinds the planner emits.}
+  \label{fig:plangraph}
+\end{figure}
+
 \subsubsection{Several checks per claim, and negation}
-A claim rarely reduces to a single test. Because an expression may join several
+A claim rarely reduces to a single test (\cref{fig:plangraph}). Because an expression may join several
 calls, each conjunct becomes its own sub-claim with its own measurement, and the
 claim's outcome is composed from theirs by a fixed rule: \textbf{if any part is
 contradicted the claim is contradicted; if every part is supported the claim is

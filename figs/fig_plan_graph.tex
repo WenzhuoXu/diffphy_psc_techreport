@@ -1,0 +1,116 @@
+% =====================================================================
+% fig_plan_graph.tex -- one prompt's verification plan as a graph:
+% claims -> typed checks -> the measurements each check consumes.
+% \input into main.tex, which loads adobe-techreport.sty (adobered /
+% adobeink / adobegray) and tikz with arrows.meta, positioning, calc.
+% =====================================================================
+{%
+\ifdefined\tikzlibraryarrowsmetaloaded\else
+  \expandafter\ifx\csname tikz@library@arrows.meta@loaded\endcsname\relax
+    \PackageError{fig_plan_graph}{The preamble must contain
+      \string\usetikzlibrary{arrows.meta,positioning,calc}}{}%
+  \fi
+\fi
+%
+\footnotesize
+\begin{tikzpicture}[
+  font=\footnotesize,
+  >={Stealth[length=4pt,width=3pt]},
+  node distance=0pt,
+  % a claim taken from the prompt
+  pgclaim/.style   = {draw=adobeink, fill=adobegray!14, rounded corners=1.6pt,
+                      line width=0.6pt, align=left, inner sep=4pt,
+                      text width=3.32cm, minimum height=0.86cm},
+  % a typed check over measurements
+  pgcheck/.style   = {draw=adobered, fill=white, rounded corners=1.6pt,
+                      line width=0.6pt, align=center, inner sep=3.2pt,
+                      text width=2.32cm},
+  % a measurement handed to a tool
+  pgmeas/.style    = {draw=adobeink, fill=white, rounded corners=1.6pt,
+                      line width=0.6pt, align=left, inner sep=3.2pt,
+                      text width=4.15cm},
+  % a measurement answered by the general verifier rather than a specialist
+  pggen/.style     = {pgmeas, fill=adobegray!8, draw=adobegray},
+  pgedge/.style    = {draw=adobegray, line width=0.55pt, ->},
+  pglab/.style     = {font=\scriptsize, text=adobegray, inner sep=1.2pt},
+]
+
+% ---- the plan, as the planner wrote it -------------------------------
+\node[draw=adobegray, fill=adobegray!6, line width=0.5pt, rounded corners=1.6pt,
+      inner sep=5pt, text width=13.05cm, align=left, font=\ttfamily\scriptsize]
+  (code) at (0,0)
+  {check(c0, judge("a dolphin leaps out of the water"))\\
+   check(c1, before(window("the dolphin leaps"), window("the dolphin dives back under")))\\
+   check(c2, judge("two salmon emerge at the same moment") and eq(count("salmon"), 2))\\
+   check(c3, judge("the salmon are behind the fishing boat") and rel("salmon||fishing boat", "behind"))};
+
+% ---- row 1: a single occurrence check --------------------------------
+\node[pgclaim, anchor=north west] (c0) at ($(code.south west)+(0.10,-0.62)$)
+  {\textbf{c0}\\ the dolphin leaps};
+\node[pgcheck, anchor=west] (p0) at ($(c0.east)+(1.05,0)$) {event occurs};
+\node[pggen, anchor=west]  (m0) at ($(p0.east)+(1.05,0)$)
+  {\textbf{general verifier}\\ does the dolphin leap?};
+\draw[pgedge] (c0) -- (p0);
+\draw[pgedge] (p0) -- (m0);
+
+% ---- row 2: ordering, two measurements into one check ----------------
+\node[pgclaim, anchor=north west] (c1) at ($(c0.south west)+(0,-0.55)$)
+  {\textbf{c1}\\ it dives back \emph{after} the leap};
+\node[pgcheck, anchor=west] (p1) at ($(c1.east)+(1.05,0)$) {order in time\\ (strictly before)};
+\node[pgmeas, anchor=south west] (m1a) at ($(p1.east)+(1.05,0.06)$)
+  {\textbf{event timing}\\ when does it leap?};
+\node[pgmeas, anchor=north west] (m1b) at ($(p1.east)+(1.05,-0.06)$)
+  {\textbf{event timing}\\ when does it dive back?};
+\draw[pgedge] (c1) -- (p1);
+\draw[pgedge] (p1.east) to[out=25,in=180] (m1a.west);
+\draw[pgedge] (p1.east) to[out=-25,in=180] (m1b.west);
+
+% ---- row 3: a claim carrying two checks ------------------------------
+\node[pgclaim, anchor=north west] (c2) at ($(c1.south west)+(0,-1.15)$)
+  {\textbf{c2}\\ two salmon emerge together};
+\node[pgcheck, anchor=south west] (p2a) at ($(c2.east)+(1.05,0.42)$) {event occurs};
+\node[pgcheck, anchor=north west] (p2b) at ($(c2.east)+(1.05,-0.42)$) {count is 2};
+\node[pggen, anchor=west] (m2a) at ($(p2a.east)+(1.05,0)$)
+  {\textbf{general verifier}\\ do two emerge together?};
+\node[pgmeas, anchor=west] (m2b) at ($(p2b.east)+(1.05,0)$)
+  {\textbf{counter}\\ how many salmon?};
+\draw[pgedge] (c2.east) to[out=25,in=180] node[pglab,pos=0.55,above]{and} (p2a.west);
+\draw[pgedge] (c2.east) to[out=-25,in=180] node[pglab,pos=0.55,below]{and} (p2b.west);
+\draw[pgedge] (p2a) -- (m2a);
+\draw[pgedge] (p2b) -- (m2b);
+
+% ---- row 4: a claim whose second check needs a specialist ------------
+\node[pgclaim, anchor=north west] (c3) at ($(c2.south west)+(0,-1.45)$)
+  {\textbf{c3}\\ the salmon are behind the boat};
+\node[pgcheck, anchor=south west] (p3a) at ($(c3.east)+(1.05,0.42)$) {event occurs};
+\node[pgcheck, anchor=north west] (p3b) at ($(c3.east)+(1.05,-0.42)$) {behind\\ (depth order)};
+\node[pggen, anchor=west] (m3a) at ($(p3a.east)+(1.05,0)$)
+  {\textbf{general verifier}\\ are they behind it?};
+\node[pgmeas, anchor=west] (m3b) at ($(p3b.east)+(1.05,0)$)
+  {\textbf{outlines and depth}\\ salmon against boat};
+\draw[pgedge] (c3.east) to[out=25,in=180] node[pglab,pos=0.55,above]{and} (p3a.west);
+\draw[pgedge] (c3.east) to[out=-25,in=180] node[pglab,pos=0.55,below]{and} (p3b.west);
+\draw[pgedge] (p3a) -- (m3a);
+\draw[pgedge] (p3b) -- (m3b);
+
+% ---- column headings --------------------------------------------------
+\node[pglab, anchor=south] at ($(c0.north)+(0,0.10)$) {claims from the prompt};
+\node[pglab, anchor=south] at ($(p0.north)+(0,0.10)$) {typed checks};
+\node[pglab, anchor=south] at ($(m0.north)+(0,0.10)$) {measurements};
+
+% ---- key -------------------------------------------------------------
+\node[pgclaim, anchor=north west, text width=0.30cm, minimum height=0.30cm,
+      inner sep=0pt] (kA) at ($(c3.south west)+(0,-1.05)$) {};
+\node[pglab, anchor=west] (kAl) at ($(kA.east)+(0.10,0)$) {a claim};
+\node[pgcheck, anchor=west, text width=0.30cm, minimum height=0.30cm,
+      inner sep=0pt] (kB) at ($(kAl.east)+(0.55,0)$) {};
+\node[pglab, anchor=west] (kBl) at ($(kB.east)+(0.10,0)$) {a typed check};
+\node[pggen, anchor=west, text width=0.30cm, minimum height=0.30cm,
+      inner sep=0pt] (kC) at ($(kBl.east)+(0.55,0)$) {};
+\node[pglab, anchor=west] (kCl) at ($(kC.east)+(0.10,0)$) {answered by the general verifier};
+\node[pgmeas, anchor=west, text width=0.30cm, minimum height=0.30cm,
+      inner sep=0pt] (kD) at ($(kCl.east)+(0.55,0)$) {};
+\node[pglab, anchor=west] at ($(kD.east)+(0.10,0)$) {measured by a specialist};
+
+\end{tikzpicture}%
+}
