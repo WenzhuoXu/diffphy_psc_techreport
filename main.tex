@@ -105,11 +105,10 @@ the outcomes with deterministic rules into a three-valued verdict
 (\emph{plausible}, \emph{implausible}, \emph{abstain}). The evaluation target is
 human labels, and no closed or proprietary model produces the critic's verdict.
 
-The intended end state is a loop in which the critic supplies the reward that
-refines the generator. We describe each component and its implementation
-status, and we specify the human-label evaluation protocol under which the
-critic and the loop will be measured; comparative performance numbers are
-deferred to that evaluation.
+On the evaluation core, compiling a prompt into a plan and executing it recovers
+$68.9\%$ of localized flaws against $62.6\%$ for verifying each claim independently,
+at a slightly higher call count. The intended end state is a loop in which the critic
+supplies the reward that refines the generator; that loop is future work.
 \end{abstract}
 
 % =====================================================================
@@ -1222,9 +1221,9 @@ prompt. A group sees only its own claims, so anything that has to cross between
 groups must travel through the shared list of names rather than through another
 claim's wording. And every claim that degrades to per-claim verification is a claim
 whose plan was not used, which is why the accounting keeps those separate rather than
-folding them into the plan's measurements. Whether this construction procedure helps
-a verdict, or costs less than any alternative, is not established here; the
-comparison that would settle it is the one specified in \cref{sec:eval}.
+folding them into the plan's measurements. \Cref{sec:eval} reports what this
+construction buys: higher recall than independent per-claim verification, at a
+slightly higher call count.
 
 \subsection{Validating a plan before it runs}
 Because the plan is code, it can be checked mechanically before any tool is
@@ -1416,8 +1415,7 @@ diagnostic sets probe the routing rules; they are not an estimate of coverage or
 verdict accuracy on the evaluation benchmark.
 
 Density of measurement is a property of the plan, not of the verdict it produces;
-whether it changes what the critic catches is settled end-to-end in
-\cref{sec:eval}.
+its effect on what the critic catches is measured end-to-end in \cref{sec:eval}.
 
 Three gaps in the vocabulary are worth naming. The spatial vocabulary has no ``on top of'' relation, so such claims
 degrade to a general judgment; the plan-based path has no dedicated sound-event
@@ -1494,8 +1492,8 @@ answers. Scoring follows \cref{sec:bench-spec}.
 \textbf{System} & \textbf{Flaws caught} & \textbf{Before collapsing} & \textbf{Calls} \\
  & of 286 & duplicates, of 304 & per clip \\
 \midrule
-Plan-based critic & \textbf{197} \ (\textbf{68.9\%}) & 197 \ (64.8\%) & 13.2 \\
-Per-claim verification, one claim at a time & 179 \ (62.6\%) & 179 \ (58.9\%) & 12.3 \\
+Plan-based critic & \textbf{197} \ (\textbf{68.9\%}) & 197 \ (64.8\%) & 13.0 \\
+Per-claim verification, one claim at a time & 179 \ (62.6\%) & 179 \ (58.9\%) & 12.1 \\
 \bottomrule
 \end{tabular}
 \caption{Paired results on 149 clips of the evaluation core. Scoring is over distinct
@@ -1508,8 +1506,12 @@ the matching protocol, which sits outside the critic.}
 The plan-based critic catches \textbf{18 more flaws}, $6.3$ points of recall, for about
 one extra call per clip. Resampling whole clips with a fixed seed puts that difference
 at $95\%$ confidence in $[+8,+28]$, so it is a real difference on this set rather than
-sampling noise. This set is the optimization set, so it measures fit, not
-generalization.
+sampling noise.
+
+Two qualifications bound what the number means. It is a trade of accuracy against cost,
+not a dominance result: the plan-based path spends about $7\%$ more calls per clip, and
+no run holds the two systems to an equal call budget. And this set is the set the system
+was developed against, so the figure describes fit to it rather than generalization.
 
 \paragraph{Where the misses come from.} Of the $89$ flaws the plan-based critic missed,
 two were never decomposed---no claim in the plan covered them. Eight were flagged but not
@@ -1550,8 +1552,8 @@ each will be given the same claim decomposition where it accepts one.
 \toprule
 \textbf{Evaluator} & \textbf{Output it produces} & \textbf{Caught} & \textbf{Recall} & \textbf{Calls} \\
 \midrule
-This work, plan-based & localized allegation & 197 & 68.9\% & 13.2 \\
-Per-claim verification & localized allegation & 179 & 62.6\% & 12.3 \\
+This work, plan-based & localized allegation & 197 & 68.9\% & 13.0 \\
+Per-claim verification & localized allegation & 179 & 62.6\% & 12.1 \\
 Question-decomposition scoring~\cite{tifa2023,dsg2024} & per-question answers & --- & --- & --- \\
 Alignment scoring~\cite{vqascore2024,clipscore2021} & clip-level scalar & --- & --- & --- \\
 Learned quality scoring~\cite{videoscore2024,videoscore2_2025} & clip-level scalar & --- & --- & --- \\
@@ -1665,9 +1667,10 @@ video-diffusion control branch; a human-annotated benchmark that localizes real
 flaws in space, time, and prompt reference; and an auditable multi-tool critic
 that decomposes a prompt, routes each claim to an open specialist returning
 evidence only, and combines the evidence deterministically into a three-valued
-verdict. We have described each component and its implementation status
-and specified the human-label protocol under which the critic---and eventually the
-loop that lets it refine the generator---will be measured. Closing the loop is the next milestone.
+verdict. Against human labels, the compiled-plan critic recovers more localized flaws
+than verifying each claim on its own, at a slightly higher call count; an equal-cost
+comparison and a held-out set remain to be run. Closing the loop that lets the critic
+refine the generator is the next milestone.
 
 % =====================================================================
 \appendix
