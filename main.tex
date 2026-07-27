@@ -177,7 +177,31 @@ video-diffusion model with a native control branch, run through the
 \code{WanVACEPipeline} interface; because the two expert stacks exceed the memory
 of a single 80\,GB accelerator, the experts are CPU-offloaded during generation.
 Generation takes four inputs: the pre-computed control video, a mask, the text
-prompt, and one scalar conditioning strength.
+prompt, and one scalar conditioning strength. Nothing about appearance is taken
+from the simulation: the control video decides where surfaces are and how they move,
+while the prompt alone decides material, colour, lighting and setting
+(\cref{fig:genpipe}).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{fig_generation_pipeline.pdf}
+  \caption{Physics-guided generation, shown on real frames of one bouncing-ball
+  clip. \textbf{Top:} the depth control video rendered from the rigid-body
+  simulation, the only geometric input the backbone receives. \textbf{Bottom:}
+  the clip generated from it, where the text prompt supplies appearance alone.
+  Both rows are sampled at the same five timestamps of the same
+  $5.06$\,s, $16$\,fps, $848{\times}480$ clip; the timestamps are chosen by
+  tracking the ball and taking the turning points of its vertical path, so the
+  columns show the drop, the floor contact and the rebound rather than five
+  evenly spaced instants. Tracking the ball independently in
+  each row, the generated path follows the control's with a correlation of
+  $1.0000$ horizontally and $0.9997$ vertically over all $81$ frames, and a
+  median positional disagreement of $0.7$ pixels across the frame and $4.7$
+  pixels down. The tick beside each control frame marks the ball's measured
+  centre height; the frames themselves are unaltered.}
+  \label{fig:genpipe}
+\end{figure}
+
 
 The mask decides which parts of the frame are held fixed and which are
 synthesised. Dark mask regions mark content to be preserved as given; bright
@@ -793,7 +817,22 @@ One served vision-language model---Qwen3-VL-30B-A3B-Instruct~\cite{qwen3vl2025},
 BF16 weights (no quantization), tensor-parallel over two GPUs---performs the
 decomposition and grounding and runs three reasoner-mediated hard sub-checks
 (\cref{sec:reasoner-checks}). It is the only learned component that reasons over
-the whole prompt.
+the whole prompt. \Cref{fig:criticpipe} shows how it sits between the prompt and the
+specialists that supply the evidence.
+
+\begin{figure}[tp]
+  \centering
+  \input{figs/fig_critic_pipeline}
+  \caption{The critic. A reasoner turns the prompt into checkable claims and
+  writes down the measurements that would settle each one; the plan is
+  type-checked before any tool runs; a general verifier reading the frames
+  densely decides whether things are present and events happen, while frozen
+  specialists supply the quantities it cannot produce. Every call returns
+  evidence only, and fixed rules --- not a second model --- turn that evidence
+  into the verdict and the trace beside it. Shaded boxes are learned components;
+  outlined boxes are deterministic.}
+  \label{fig:criticpipe}
+\end{figure}
 
 \subsection{Perception specialists}\label{sec:arms}
 Each claim is routed to a frozen open specialist that measures one thing and
