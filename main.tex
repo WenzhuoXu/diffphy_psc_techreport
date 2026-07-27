@@ -70,14 +70,9 @@ evaluation core (\cref{sec:eval}). Generation is assessed qualitatively---by ins
 and by adherence to the control signal---with one measured study of when the control may
 be released. External evaluators, cost-matched comparisons and any result on a held-out
 set are not yet run.
-
-\smallskip
-\textbf{Status vocabulary.}
-\built{}~present and exercised in the codebase; \partialb{}~present with
-limited semantics; \stub{}~present but inactive; \notintegrated{}~built but not
-wired into the full loop; \proposed{}~designed, not implemented.
 \end{scopebox}
 
+\smallskip
 % ---------------------------------------------------------------------
 \begin{abstract}
 \noindent
@@ -95,11 +90,12 @@ into a per-frame depth (or silhouette) control video and passed to the native
 control branch of a Wan~2.2-VACE video-diffusion backbone, so that scene geometry
 and motion are driven by the simulation while the text prompt supplies
 appearance. Second, a \textbf{human-annotated flaw benchmark}: 1{,}500
-AI-generated clips carry human misalignment annotations---each with a severity,
-a time span, a box track over the flagged interval, the violated prompt fragment, and a
-free-text rationale---from which we derive a frozen, physics-focused evaluation
-set. Third, an \textbf{auditable multi-tool critic}: a served vision-language
-reasoner decomposes a prompt into checkable claims, routes each to a frozen
+AI-generated clips carry human misalignment annotations---each with a severity, the
+violated prompt fragment and a free-text rationale, and, where present,
+a time span and a box track over the flagged interval---from which we derive a
+frozen, physics-focused evaluation set. Third, an \textbf{auditable multi-tool critic}: a served vision-language
+reasoner decomposes a prompt into checkable claims, routes those naming a measurable
+quantity to a frozen
 open perception specialist that returns localized evidence only, and combines
 the outcomes with deterministic rules into a three-valued verdict
 (\emph{plausible}, \emph{implausible}, \emph{abstain}). The evaluation target is
@@ -152,10 +148,12 @@ intended to compose.
   1{,}500-clip corpus of AI-generated video with localized human misalignment
   labels, and a frozen physics-focused subset used as the evaluation target.
   \item \textbf{An auditable multi-tool critic} (\cref{sec:critic}) that
-  decomposes a prompt into claims, routes each to an open perception specialist
-  returning evidence only, and combines the evidence deterministically into a
-  three-valued verdict.
-  \item \textbf{A verification plan in which the video's own timeline is the
+  decomposes a prompt into claims, types each one, routes those asking for a
+  quantity, an interval, an outline or a transcription to an open perception
+  specialist returning evidence only, and combines the evidence deterministically
+  into a three-valued verdict.
+
+  Its distinguishing mechanism is that \textbf{the video's own timeline is the
   wiring} (\cref{sec:chaining}). Measurements are not a flat list dispatched in
   parallel: one measurement's answer decides whether a second is run, where in the
   clip it is run, and what its result is allowed to mean. An event's occurrence is
@@ -801,8 +799,8 @@ T2V-CompBench~\cite{t2vcompbench2024}, score a model over their own fixed prompt
 which makes them instruments for ranking generators rather than for scoring a detector on
 someone else's clips.
 
-Here the judgement attaches to the words of the prompt that failed, and where the
-annotator could supply them, to a time span and a box track. That is what makes a
+Here the judgement attaches to the words of the prompt that failed, and, where present,
+to a time span and a box track. That is what makes a
 detector's output matchable rather than merely correlatable, and it is what supports the
 miss attribution of \cref{sec:eval}. A clip-level score offers nothing to align an
 individual accusation against.
@@ -838,8 +836,12 @@ specialists that supply the evidence.
 \end{figure}
 
 \subsection{Perception specialists}\label{sec:arms}
-Each claim is routed to a frozen open specialist that measures one thing and
-returns only that measurement (\cref{tab:arms}). Two qualifications apply to
+Each claim is typed, and a claim whose type names a measurable quantity---a count, an
+interval, an outline, a depth ordering, a track, a transcription, a sound---is routed to a
+frozen open specialist that measures that one thing and returns only the measurement
+(\cref{tab:arms}). Claims that merely assert something occurs are put to the reasoner reading the frames.
+On the evaluation data those dominate, so most executed checks are settled without a
+specialist (\cref{sec:eval}). Two qualifications apply to
 the table. First, some adapters \emph{declare} a stronger primary backend that is
 not the one actually executed; we list the backend that runs. Second, there is no
 holistic scoring tool in the verdict path by design: a learned holistic video
@@ -1026,9 +1028,9 @@ this trace---and its aggregate size is not established here.
 
 \paragraph{Ordering is composed, never assumed.} For a claim that one event precedes
 or falls inside another, both events must first be confirmed to occur by a backend
-able to observe them---the dense-frame model for anything visible, and nothing on this
-path for an event that is only audible, which is why such an event yields a refusal
-rather than a window. If either event is judged absent, the ordered claim is
+able to observe them---the dense-frame model for anything visible, the sound-event
+detector for anything audible---so a sound can be ordered against something seen. An
+event no available backend can observe yields a refusal rather than a window. If either event is judged absent, the ordered claim is
 contradicted outright; if either cannot be placed in time, the claim is left
 unresolved. Only once both are confirmed do the specialist's time windows decide the
 order, and they do so with a tolerance rather than a fixed threshold: the boundary
@@ -1461,8 +1463,7 @@ Density of measurement is a property of the plan, not of the verdict it produces
 its effect on what the critic catches is measured end-to-end in \cref{sec:eval}.
 
 Three gaps in the vocabulary are worth naming. The spatial vocabulary has no ``on top of'' relation, so such claims
-degrade to a general judgment; the plan-based path has no dedicated sound-event
-check, so audio claims are judged rather than measured there; and negated
+degrade to a general judgment; and negated
 measurements are unsupported by design. Out-of-vocabulary calls appear
 occasionally; the validator converts them into charged fallbacks rather than
 accepting them silently.
@@ -1475,7 +1476,7 @@ through a tool server, and a check reaches one only when the plan names a measur
 occurrence-style claims route to the dense-frame generalist by design, which is why
 measurements account for a minority of executed checks (\cref{sec:eval}). Global plan
 selection among alternative tool recipes, and a value-of-information loop that spawns
-follow-up measurements, remain \proposed{}.
+follow-up measurements, are not implemented.
 
 % =====================================================================
 \section{The Intended Refinement Loop}\label{sec:loop}
@@ -1530,20 +1531,22 @@ answers. Scoring follows \cref{sec:bench-spec}.
 \begin{table}[t]
 \centering\small
 \setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.18}
-\begin{tabular}{@{}p{5.6cm} c c c@{}}
+\begin{tabular}{@{}p{5.1cm} c c c c@{}}
 \toprule
-\textbf{System} & \textbf{Flaws caught} & \textbf{Before collapsing} & \textbf{Calls} \\
- & of 286 & duplicates, of 304 & per clip \\
+\textbf{System} & \textbf{Flaws caught} & \textbf{Before collapsing} & \textbf{Allegations} & \textbf{Calls} \\
+ & of 286 & duplicates, of 304 & that landed & per clip \\
 \midrule
-Plan-based critic & \textbf{197} \ (\textbf{68.9\%}) & 197 \ (64.8\%) & 13.0 \\
-Per-claim verification, one claim at a time & 179 \ (62.6\%) & 179 \ (58.9\%) & 12.1 \\
+Plan-based critic & \textbf{197} \ (\textbf{68.9\%}) & 197 \ (64.8\%) & 40.1\% & 13.0 \\
+Per-claim verification, one claim at a time & 179 \ (62.6\%) & 179 \ (58.9\%) & 40.2\% & 12.1 \\
 \bottomrule
 \end{tabular}
 \caption{Paired results on the 149 clips of the evaluation core that both systems
 completed; the one missing clip is an infrastructure loss. Those clips carry $304$ of the
 core's $306$ flaw entries, which collapse to $286$ distinct spans (\cref{sec:bench-spec}); the second column repeats the same allegations
-against the uncollapsed flaw list. Calls count model and tool invocations and exclude
-the matching protocol, which sits outside the critic.}
+against the uncollapsed flaw list. ``Allegations that landed'' is the share of each system's accusations
+that the matching protocol linked to a human flaw; it is reported because recall alone
+rewards over-flagging. Calls count model and tool invocations and exclude the matching
+protocol, which sits outside the critic.}
 \label{tab:results}
 \end{table}
 
@@ -1748,8 +1751,8 @@ models~\cite{llmdet2025,countgd2024,countvid2026,tapnext2025,tapvid2022,timelens
 \subsection{Flaw and preference datasets}
 Prior video benchmarks largely provide clip-level physical-commonsense or
 preference labels~\cite{videophy2024,videophy2_2025,phygenbench2024}. Our benchmark
-instead provides \emph{localized} human flaw annotations---severity, time span,
-a box track, the violated prompt fragment, and a rationale---so that a
+instead provides \emph{localized} human flaw annotations---severity, the violated prompt
+fragment, a rationale, and, where present, a time span and a box track---so that a
 detector can be scored not only on whether a clip is flawed but on whether it
 found the specific, spatially and temporally located error a person marked.
 
