@@ -107,7 +107,11 @@ human labels, and no closed or proprietary model produces the critic's verdict.
 
 On the evaluation core, compiling a prompt into a plan and executing it recovers
 $68.9\%$ of localized flaws against $62.6\%$ for verifying each claim independently,
-at a slightly higher call count. The intended end state is a loop in which the critic
+at a slightly higher call count. Scored against human $1$--$5$ ratings on VideoPhy-2
+under a purpose-trained judge's own protocol, the critic ranks clips for prompt match
+better than that judge (rank correlation $0.465$ against $0.327$, and $0.460$ against
+$0.151$ on the hard slice) while matching the exact human integer slightly less often;
+it does not yet emit a physical-commonsense score. The intended end state is a loop in which the critic
 supplies the reward that refines the generator; that loop is future work.
 \end{abstract}
 
@@ -1575,14 +1579,83 @@ specialists, and those clips set the wall-clock rather than the typical one.
 
 \paragraph{What this does not cover.} The paired set is 149 of the 150 benchmark clips.
 The cost-matched comparison in both directions and per-clip GPU-second accounting remain
-unrun, as does every external comparison in \cref{tab:external}.
+unrun, as does every flaw-level external comparison in \cref{tab:external}; the
+rating-level comparison of \cref{sec:vs2} is separate and has been run.
 
-\subsection{Comparison against published evaluators}
-The evaluators closest to this work in \cref{sec:related} score prompt-to-video
-agreement in ways that are not directly commensurate with flaw recall: several produce
-a clip-level scalar rather than an allegation that can be matched to a localized human
-flaw, and several are image-centric. \Cref{tab:external} fixes the comparison we intend
-to run, so that the protocol is stated before the numbers exist. Each will be scored on
+\subsection{Agreement with human ratings, against a purpose-trained judge}
+\label{sec:vs2}
+Flaw recall is not commensurate with what most published evaluators emit, which is a
+clip-level scalar rather than an allegation that can be matched to a localized human
+flaw. There is, however, common ground: both kinds of system can be asked to rate a clip
+on the scale a human used. VideoScore2~\cite{videoscore2_2025} is the natural opponent
+there---a judge trained for exactly this task, with a published evaluation script.
+
+The comparison follows that script rather than a protocol of our own. On a sample of
+VideoPhy-2~\cite{videophy2_2025} test clips, each judge emits an integer $1$--$5$ per
+dimension; agreement with the human rating is scored as exact accuracy, accuracy within
+one point, and the linear and rank correlations (PLCC and SRCC), with unparsed
+predictions excluded pairwise. The sample is $200$ clips drawn uniformly with a fixed
+seed, and the sample, the score definition and the metrics were registered before any
+result existed; nothing in the scoring function is fitted to these clips. Of the $200$,
+$55$ carry the benchmark's \emph{hard} flag.
+
+\begin{table}[t]
+\centering\small
+\setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.18}
+\begin{tabular}{@{}p{4.35cm} c c c c c c@{}}
+\toprule
+ & \multicolumn{4}{c}{\textbf{All 200 clips}} & \multicolumn{2}{c}{\textbf{Hard 55}} \\
+\cmidrule(lr){2-5}\cmidrule(lr){6-7}
+\textbf{Judge} & \textbf{exact} & \textbf{$\pm1$} & \textbf{PLCC} & \textbf{SRCC}
+ & \textbf{PLCC} & \textbf{SRCC} \\
+\midrule
+\multicolumn{7}{@{}l}{\emph{Prompt match} (against the human semantic-adherence rating)}\\
+VideoScore2~\cite{videoscore2_2025} & \textbf{33.0\%} & \textbf{83.0\%} & 0.353 & 0.327 & 0.239 & 0.151 \\
+This work & 31.0\% & 76.0\% & \textbf{0.464} & \textbf{0.465} & \textbf{0.480} & \textbf{0.460} \\
+\addlinespace[2pt]
+\multicolumn{7}{@{}l}{\emph{Physical commonsense} (against the human physics rating)}\\
+VideoScore2~\cite{videoscore2_2025} & \textbf{27.5\%} & \textbf{77.0\%} & \textbf{0.234} & \textbf{0.221} & \textbf{0.116} & \textbf{0.115} \\
+This work & 13.0\% & 52.0\% & $-0.001$ & $-0.026$ & $-0.156$ & $-0.195$ \\
+\bottomrule
+\end{tabular}
+\caption{Agreement with human $1$--$5$ ratings on $200$ pre-registered VideoPhy-2 test
+clips, scored with VideoScore2's own evaluation script. The critic emits a single score
+per clip, entered in both dimensions, so its physical-commonsense row is that same
+prompt-match score compared against a label it was not built to predict.}
+\label{tab:vs2}
+\end{table}
+
+The two dimensions say opposite things, and both belong in the record.
+
+On \textbf{prompt match}, the purpose-trained judge is slightly better at landing on the
+exact integer a human chose---$33.0\%$ against $31.0\%$, and $83.0\%$ against $76.0\%$
+within one point---while the critic orders clips substantially better, $0.464$ against
+$0.353$ linear and $0.465$ against $0.327$ rank. The two measure different things: exact
+accuracy rewards matching the human's absolute point on the scale, correlation rewards
+ranking clips in the human's order. The separation widens on the hard slice, where
+VideoScore2's rank correlation falls to $0.151$ while the critic's holds at $0.460$.
+Evidence assembled per claim degrades more gracefully on difficult clips than a learned
+scalar, which is what a decomposed critic ought to buy.
+
+On \textbf{physical commonsense} the critic has no signal at all: PLCC $-0.001$, SRCC
+$-0.026$, and mildly negative on the hard slice. This is not a broken measurement but a
+missing one. The scoring head converts the fraction of a clip's claims that were
+alleged into one number, and that number is entered in both columns; the critic does not
+yet produce a separate physics judgement, so the physics column scores a prompt-match
+quantity against a physics label. A physics head that consumes the kinematic and
+trajectory checks separately is the obvious next step, and until it exists this work has
+no claim on physical-commonsense rating---the dimension its own generator pillar cares
+about most.
+
+Two limits on reading \cref{tab:vs2}. It is one sample of $200$ clips, without
+confidence intervals on the correlations. And the two judges are not cost-matched: the
+critic runs a decomposition and a set of tool calls per clip, VideoScore2 a single
+forward pass.
+
+\subsection{The intended flaw-level comparison}
+The rating comparison above does not settle the flaw-level question, because a clip-level
+scalar cannot be matched to a localized human flaw. \Cref{tab:external} fixes that
+comparison, so that the protocol is stated before the numbers exist. Each will be scored on
 the same frozen set, against the same human labels, with the same matching protocol, and
 each will be given the same claim decomposition where it accepts one.
 
