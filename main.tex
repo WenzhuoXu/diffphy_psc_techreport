@@ -5,12 +5,6 @@
 %  Compile: pdflatex main -> bibtex main -> pdflatex main x2
 %  (compiles unchanged under lualatex/xelatex; we build with tectonic)
 %
-%  Every quantitative descriptor of an artifact (clip counts, flaw
-%  counts, generation config, model identifiers) is grounded in the
-%  codebase. This report makes system-design and dataset claims; it does
-%  NOT report critic accuracy / coverage as a performance result, and it
-%  does not claim the closed generator-critic loop exists yet. Figures
-%  and comparative results are deferred by design.
 % =====================================================================
 \documentclass[11pt,letterpaper]{article}
 \usepackage{adobe-techreport}
@@ -67,19 +61,15 @@ simulation into photorealistic video through a depth/structure control
 channel; (2)~a human-annotated benchmark of prompt-versus-video flaws; and
 (3)~an auditable multi-tool critic that detects such flaws. The three are
 designed to compose into a loop in which the critic's judgment refines the
-generator; \textbf{that closed loop is future work and is not evaluated here}
-(\cref{sec:loop}).
+generator (\cref{sec:loop}).
 
 \smallskip
-\textbf{What is and is not reported.} We report the design of each component
-and the measured \emph{descriptive} statistics of the artifacts (clip counts,
-flaw counts, generation configuration, model identifiers). We do \emph{not}
-report critic accuracy, flaw coverage, false-alarm rates, a comparison between
-critic variants, or a learned video-quality score for the generator; those are
-performance claims deferred to a dedicated evaluation. Generator validation in
-this report is qualitative (visual inspection and adherence to the control
-signal), not a quantitative quality metric. \Cref{sec:eval} states the
-measurement protocol these results will follow.
+\textbf{What is reported.} The design of each component; the benchmark's contents and
+statistics; and a paired comparison of the critic against per-claim verification on the
+evaluation core (\cref{sec:eval}). Generation is assessed qualitatively---by inspection
+and by adherence to the control signal---with one measured study of when the control may
+be released. External evaluators, cost-matched comparisons and any result on a held-out
+set are not yet run.
 
 \smallskip
 \textbf{Status vocabulary.}
@@ -175,60 +165,12 @@ intended to compose.
 
 \noindent The end state (\cref{sec:loop}) is a closed loop: the benchmark
 trains and evaluates the critic, and the critic's verdict becomes the reward
-that refines the generator. \emph{That loop is future work}; this report builds
-and characterizes its three parts.
+that refines the generator (\cref{sec:loop}).
 
-\subsection{Non-claims}
-We do not claim the closed generator--critic loop exists or that the critic has
-yet improved any generated video. We do not report critic accuracy, flaw
-coverage, false-alarm rate, or a comparison between critic variants; those await
-the evaluation of \cref{sec:eval}. We do not report a learned video-quality
-score for the generator---its validation here is qualitative. And we claim
-novelty for none of the individual building blocks (structure-conditioned
-generation, prompt decomposition, specialist routing, three-valued
-abstention); the contribution is their integration toward physical
-faithfulness, and in particular the chaining of \cref{sec:chaining}, which we
-present as a mechanism the reader can inspect rather than as a demonstrated
-accuracy advantage.
 
 % =====================================================================
 \section{Physics-Guided Video Generation}\label{sec:generation}
 % =====================================================================
-
-\subsection{Method summary}
-The generator answers a specific question: can a video-diffusion model be made
-to follow the \emph{geometry and motion} of a known physical scene, while a text
-prompt supplies only appearance? The method is three steps. A rigid-body
-simulation is run once and, at each output frame, the simulator's own depth
-buffer and object-segmentation buffer are read, giving two pixel-aligned control
-videos: a grayscale depth field in which near surfaces are bright, and a binary
-silhouette of the moving bodies. One of those videos is handed to the video
-backbone through its native control branch, together with an all-white mask that
-declares the whole frame to be generated under the control's guidance, and a text
-prompt. Nothing about appearance is taken from the simulation: the prompt alone
-decides material, colour, lighting and setting, while the control video decides
-where surfaces are and how they move (\cref{fig:genpipe}). Validation of this
-pillar is qualitative throughout (\cref{sec:gen-quality}).
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\linewidth]{fig_generation_pipeline.pdf}
-  \caption{Physics-guided generation, shown on real frames of one bouncing-ball
-  clip. \textbf{Top:} the depth control video rendered from the rigid-body
-  simulation, the only geometric input the backbone receives. \textbf{Bottom:}
-  the clip generated from it, where the text prompt supplies appearance alone.
-  Both rows are sampled at the same five timestamps of the same
-  $5.06$\,s, $16$\,fps, $848{\times}480$ clip; the timestamps are chosen by
-  tracking the ball and taking the turning points of its vertical path, so the
-  columns show the drop, the floor contact and the rebound rather than five
-  evenly spaced instants. Tracking the ball independently in
-  each row, the generated path follows the control's with a correlation of
-  $1.0000$ horizontally and $0.9997$ vertically over all $81$ frames, and a
-  median positional disagreement of $0.7$ pixels across the frame and $4.7$
-  pixels down. The tick beside each control frame marks the ball's measured
-  centre height; the frames themselves are unaltered.}
-  \label{fig:genpipe}
-\end{figure}
 
 \subsection{Backbone and control mechanism}
 The backbone is Wan~2.2-VACE-Fun-14B, a two-expert mixture-of-experts
@@ -401,7 +343,15 @@ checkpoint provides a pre-flight sanity gate and is not used for final clips.}
   \label{fig:gencases}
 \end{figure}
 
-\subsection{The scene set is not only balls}\label{sec:gen-breadth}
+\subsection{Design choices}\label{sec:gen-design}
+Two choices define the deployed recipe. \textbf{Native control rather than source
+re-synthesis:} a control branch consuming a pre-computed depth video keeps the
+generator from importing the rendered source's synthetic look, which re-synthesizing
+the simulation frames directly does not avoid. \textbf{No reference image:} the
+pipeline accepts an optional appearance reference, but the deployed recipe omits it,
+because including it degraded single-object trajectories under inspection.
+
+\subsection{Scene library and coverage}\label{sec:gen-breadth}
 The two cases above are single rigid bodies because those are the scenes whose
 trajectory can be checked against a closed-form path. The scene set itself is
 much wider: $1{,}314$ scenes across $66$ kinds. Before any of them was rendered
@@ -457,26 +407,17 @@ than the phenomenon for exactly this reason.
 \end{figure}
 
 
-\subsection{What it achieves, and how we validated it}\label{sec:gen-quality}
-Generation was validated \emph{qualitatively}: by visual inspection of the
-output clips and by a lightweight color-blob trajectory tracker that checks
-whether the generated object follows the control's path (\cref{fig:gencases}).
-There is no learned or
-quantitative video-quality score (no FVD, no human-preference model, no critic
-score) applied to this line, and we make no such claim. Under this qualitative
-bar, single-object scenes---a bouncing ball, a projectile arc---render cleanly
-with the object following the simulated trajectory. Multi-object interaction
-(e.g.\ a billiards break) is \emph{not} solved: neither the deployed backbone
-nor the evaluated alternates produce a clean multi-object collision, and we
-report it as an open problem rather than a result.
+\subsection{What the generator achieves}\label{sec:gen-quality}
+Single-object scenes---a bouncing ball, a projectile arc, a swinging pendulum---render
+cleanly, with the generated object following the simulated trajectory
+(\cref{fig:gencases}). Multi-object interaction, such as a billiards break, remains
+open: neither the deployed backbone nor the alternates tried against it produce a
+clean multi-object collision.
 
-\subsection{Design choices}\label{sec:gen-design}
-Two choices define the deployed recipe and are stated as design decisions.
-(1)~\textbf{Native control over source re-synthesis.} A control branch that
-consumes a pre-computed depth video keeps the generator from importing a
-rendered source's synthetic look. (2)~\textbf{No reference image.} The pipeline
-supports an optional appearance reference, but the deployed recipe omits it;
-including it degraded single-object trajectories in our inspection.
+These judgments are qualitative. They rest on visual inspection of the output clips
+and on a color-blob trajectory tracker that checks whether the generated object
+follows the control's path. No learned or quantitative video-quality score---FVD, a
+human-preference model, or a critic score---is applied to this line.
 
 \subsection{When the control can be released}\label{sec:gen-release}
 The control does not have to be applied for the whole of denoising. A diffusion
@@ -618,28 +559,26 @@ which the generated ball is genuinely tiny and low-contrast against the grass, n
 clips in which the tracker mis-fired, but either way the confidence intervals at
 the late release points are too wide to place the transition sharply.
 
-\paragraph{Scope.} One limit governs how far these numbers carry. The runs measured
-here condition the backbone by carrying a rendered source video through the
-denoising process and releasing it partway, rather than through the dedicated
-control branch that \cref{sec:generation} describes as the deployed route. The
-question---at what noise level does the low-frequency motion commit, and what
-breaks when the guidance is let go before then---is the same question in both
-cases, and the schedule is the same schedule; but these are measurements of the
-source-carrying route, and we do not claim the release point transfers unchanged
-to the control branch. Beyond that: these are single moving rigid bodies --- a ball
-thrown across a field, a ball dropped onto a floor, a ball rolling off a ramp ---
-at one resolution and frame count. The seeded
-part of the measurement covers one release point in depth ($16$ seeds), and the
-shape of the curve across release points rests on one seed per point for three
-scenes plus three seeds per point for one scene. Nothing here measures a
-multi-object collision, and nothing here measures the deformable and granular
-scenes of \cref{sec:gen-breadth}, whose objects the tracker cannot follow as a
-single path. We also do not separate the release itself from the sampler-history
-reset that accompanies it in one of the two variants: the two variants are
-statistically indistinguishable on every window and direction we measured (the
-largest per-seed difference is $0.04$ horizontally over the whole clip, $95\%$ CI
-$-0.04$ to $0.13$, $n=16$), which is consistent with the reset doing nothing once
-the motion has committed, but is not a demonstration that it never matters.
+\paragraph{Scope.} These numbers characterize one conditioning route. The runs
+condition the backbone by carrying a rendered source video through the denoising
+process and releasing it partway, rather than through the dedicated control branch of
+\cref{sec:generation}. The question and the noise schedule are the same in both cases,
+but the release point measured here is a property of the source-carrying route, and its
+transfer to the control branch is untested.
+
+The scenes are single moving rigid bodies---a ball thrown across a field, a ball dropped
+onto a floor, a ball rolling off a ramp---at one resolution and frame count. Deformable
+and granular scenes (\cref{sec:gen-breadth}) are outside the study, because the tracker
+cannot follow their objects as a single path. Statistical depth is uneven: one release
+point carries $16$ seeds, while the shape of the curve across release points rests on one
+seed per point for three scenes and three seeds per point for a fourth.
+
+One factor is not isolated. In one of the two variants the release is accompanied by a
+sampler-history reset, and the study does not separate the two. The variants are
+statistically indistinguishable on every window and direction measured---the largest
+per-seed difference is $0.04$ horizontally over the whole clip, $95\%$ CI $-0.04$ to
+$0.13$, $n=16$---which is what one expects if the reset does nothing once the motion has
+committed, but it does not establish that it never matters.
 
 % =====================================================================
 \section{A Human-Annotated Video-Flaw Benchmark}\label{sec:dataset}
@@ -848,38 +787,6 @@ failure a detector found, and where, needs this one.
 
 \section{The Auditable Multi-Tool Critic}\label{sec:critic}
 % =====================================================================
-
-\subsection{Method summary}
-The critic takes a prompt and a video and returns one of three answers---plausible,
-implausible, or abstain---together with the trace that produced it: the claims it
-checked, what each tool measured, and the rule that combined those measurements. The
-method has four stages (\cref{fig:criticpipe}). A served vision-language model reads the prompt only, splits
-it into small separately checkable claims, and writes down, for each claim, which
-measurements would settle it. Those requested measurements are type-checked as a
-program before anything runs. Each surviving measurement is then executed by a frozen
-open perception specialist that is contractually allowed to report only what it
-measured---a box, a count, a track, a time window, a depth---and never whether the
-prompt was satisfied. Finally a deterministic layer turns the measurements into
-per-claim outcomes and the per-claim outcomes into the clip answer, by fixed rules
-with no learned component. A single holistic ``is this plausible?'' score is
-deliberately absent from that path, because it would hide which observation drove the
-answer and would let photorealism stand in for prompt satisfaction. The learned parts
-are the reasoner and the specialists; everything that combines evidence is
-deterministic and inspectable.
-
-\begin{figure}[tp]
-  \centering
-  \input{figs/fig_critic_pipeline}
-  \caption{The critic. A reasoner turns the prompt into checkable claims and
-  writes down the measurements that would settle each one; the plan is
-  type-checked before any tool runs; a general verifier reading the frames
-  densely decides whether things are present and events happen, while frozen
-  specialists supply the quantities it cannot produce. Every call returns
-  evidence only, and fixed rules --- not a second model --- turn that evidence
-  into the verdict and the trace beside it. Shaded boxes are learned components;
-  outlined boxes are deterministic.}
-  \label{fig:criticpipe}
-\end{figure}
 
 \subsection{The reasoner}
 One served vision-language model---Qwen3-VL-30B-A3B-Instruct~\cite{qwen3vl2025},
@@ -1140,18 +1047,23 @@ over evidence a tool has already localized, under the same asymmetric gate. We
 name them explicitly rather than imply a pipeline that is more symbolic than it
 is.
 
-\subsection{Compiling claims into an executable measurement plan}\label{sec:compiler}
-Routing could be a flat claim-to-tool table. To make the orchestration
-inspectable, we instead compile each prompt into a \emph{verification plan}: a
-small, checkable program that names the measurements the claims require. The plan
-is validated before any tool runs, equivalent measurements are executed once, and
-the resulting evidence is combined by fixed rules. This subsection describes how a
-plan is written, checked, routed, and shared. It concerns \emph{plan construction
-only}: nothing here tests video verdicts, flaw coverage, or false accusations, and
-nothing here bears on whether plan-based execution outperforms independent
-per-claim verification (\cref{sec:eval}).
+\section{Compiling Claims into Executable Measurement Plans}\label{sec:compiler}
+Routing a claim to a tool could be a flat lookup table. Instead, each prompt is
+compiled into a \emph{verification plan}: a small, typed program that names the
+measurements its claims require and how their results combine. The plan is written
+before any frame is read, validated before any tool runs, and executed so that
+equivalent measurements are computed once and shared. Because the plan is an
+explicit artifact, the orchestration itself can be inspected, replayed and
+criticized---which of the two events was timed, which frames a measurement was
+scoped to, and which rule turned the evidence into a verdict.
 
-\subsubsection{A restricted language for measurement plans}
+The payoff is not bookkeeping. A plan lets one claim's result gate another's, lets
+a measured interval narrow where a later measurement looks, and lets a check
+decline to answer when its inputs cannot separate the alternatives
+(\cref{sec:chaining}). \Cref{sec:eval} measures what this buys against verifying
+each claim on its own.
+
+\subsection{A restricted language for measurement plans}\label{sec:plan-lang}
 Each claim is represented by \textbf{one line of code} in a small, typed
 language---the code-as-plan idea used in visual programming
 systems~\cite{vipergpt2023,visprog2023}, here narrowed to a verification
@@ -1217,7 +1129,7 @@ file that was never listened to cannot supply evidence of absence.}
   \label{fig:graphconstruct}
 \end{figure}
 
-\subsubsection{How a plan is constructed}\label{sec:plan-construction}
+\subsection{How a plan is constructed}\label{sec:plan-construction}
 Whatever surface the planner writes, the plan the executor consumes is a small set
 of linked tables: the things the prompt talks about, the separate occurrences of
 the events it asserts, the measurements to be made, the typed checks over those
@@ -1270,7 +1182,7 @@ whether an event occurrence is bound to a participant that was actually named. A
 group inspected on its own cannot be checked for any of it, so group-by-group
 checking would accept every group and still admit an incoherent plan. Alongside
 those references the whole-plan
-check enforces the same typing described in \cref{sec:compiler}: each kind of check
+check enforces the same typing described in \cref{sec:plan-lang}: each kind of check
 must be fed measurements of the kinds that can settle it, relations must come from
 the fixed vocabularies, a stated quantity must be present, and a directed-motion
 check must carry a target. Each complaint the check produces is then traced back to
@@ -1314,7 +1226,7 @@ folding them into the plan's measurements. Whether this construction procedure h
 a verdict, or costs less than any alternative, is not established here; the
 comparison that would settle it is the one specified in \cref{sec:eval}.
 
-\subsubsection{Validating a plan before it runs}
+\subsection{Validating a plan before it runs}
 Because the plan is code, it can be checked mechanically before any tool is
 invoked. Each line is parsed; a line that does not parse, or that is not of the
 form \code{check(cN, \dots)}, is rejected rather than guessed at. Only calls from
@@ -1349,7 +1261,7 @@ claims fell back, which terms were salvaged.
   \label{fig:plangraph}
 \end{figure}
 
-\subsubsection{Several checks per claim, and negation}
+\subsection{Several checks per claim, and negation}
 A claim rarely reduces to a single test (\cref{fig:plangraph}). Because an expression may join several
 calls, each conjunct becomes its own sub-claim with its own measurement, and the
 claim's outcome is composed from theirs by a fixed rule: \textbf{if any part is
@@ -1377,7 +1289,7 @@ only an occurrence check cannot express that.
   \label{fig:planexample}
 \end{figure}
 
-\subsubsection{How the video's timeline wires the plan together}\label{sec:chaining}
+\subsection{How the video's timeline wires the plan together}\label{sec:chaining}
 The plan is not a list of independent questions answered in parallel and then
 tallied. What makes it a graph is that measurements are wired to one another
 through the clip's own timeline: one measurement decides whether a second runs,
@@ -1436,7 +1348,7 @@ figure shows the arithmetic as the compiler applied it.
   \label{fig:planchain}
 \end{figure}
 
-\subsubsection{Routing by what the claim says}
+\subsection{Routing by what the claim says}
 Which measurement a claim receives is decided by its content rather than by a
 blanket rule. A numeral introduces a count check alongside the occurrence
 judgment; spatial prepositions introduce a spatial relation; directed or shaped
@@ -1459,7 +1371,7 @@ output as proof of occurrence; it does not make absence judgments infallible.
 Composite claims combine the two: an ordering claim is first confirmed as two
 occurrences by the verifier, and only then ordered using the specialist's windows.
 
-\subsubsection{Executing equivalent measurements once}
+\subsection{Executing equivalent measurements once}
 Sharing happens at two levels, and we keep them distinct. Within a plan, repeated
 references may share one internal description, so a prompt mentioning the same
 object in five claims does not describe it five times. At execution, two
@@ -1474,7 +1386,7 @@ evaluation, not a claim made here. Temporal relations remain directional and
 tolerance-scaled, following a subset of Allen's interval
 algebra~\cite{allen1983intervals}.
 
-\subsubsection{What the planner does not change}
+\subsection{What the planner does not change}
 The planner is deliberately the only part that changes: a deterministic translator
 translates its lines into exactly the plan representation the compiler already
 consumes, so the compiler, the sharing rules, the measurement contracts, the
@@ -1482,9 +1394,11 @@ execution layer, and the division between measuring and judging are untouched. T
 separation is intended to keep the planner replaceable and to prevent a change of
 planning style from silently altering how evidence is interpreted.
 
-\subsubsection{Validation status and known gaps}\label{sec:planner-gaps}
-The planner has been checked \emph{at the planning stage only}: real model calls,
-no video, no tools. We define a claim as \emph{measurement-carrying} when its
+\subsection{How often a plan asks for a measurement}\label{sec:planner-gaps}
+Before considering verdicts, one property of a plan can be read off the plan
+itself: how often it asks for a measurement rather than a general judgment. This
+was checked with real model calls at the planning stage, without video or tools. A
+claim is \emph{measurement-carrying} when its
 validated plan contains at least one non-generalist operation that survives
 validation without being salvaged or falling back; a claim combining a general
 judgment with a count counts once, and salvaged terms never count.
@@ -1501,31 +1415,26 @@ spatial, and ordering flaws, and 10/10 on synthetic counting prompts. Those
 diagnostic sets probe the routing rules; they are not an estimate of coverage or
 verdict accuracy on the evaluation benchmark.
 
-This does not show that verdicts improve. No video was processed, so it
-establishes that plans are valid, typed, compilable, and denser in measurements
----\emph{not} that any verdict improves. Effects on flaw coverage, on false
-accusations, and on cost are \emph{unmeasured}; they are decided by the controlled
-end-to-end comparison of \cref{sec:eval}, which contrasts plan-based execution with
-independent per-claim verification under matched cost accounting. A comparison
-between planners alone would not answer that question.
+Density of measurement is a property of the plan, not of the verdict it produces;
+whether it changes what the critic catches is settled end-to-end in
+\cref{sec:eval}.
 
-Known gaps: the spatial vocabulary has no ``on top of'' relation, so such claims
+Three gaps in the vocabulary are worth naming. The spatial vocabulary has no ``on top of'' relation, so such claims
 degrade to a general judgment; the plan-based path has no dedicated sound-event
-check, so audio claims are not audio measurements on that path; negated
-measurements are unsupported by design; and outside the reported set, testing has
-exposed occasional out-of-vocabulary calls, which the validator converts into
-charged fallbacks rather than silently accepting.
+check, so audio claims are judged rather than measured there; and negated
+measurements are unsupported by design. Out-of-vocabulary calls appear
+occasionally; the validator converts them into charged fallbacks rather than
+accepting them silently.
 
-\paragraph{Where specialists actually run.} We distinguish two configurations. In
-the \emph{routed} configuration each claim is dispatched to its dedicated
-specialist (\cref{tab:arms}) and those tools run as executable stages. In the
-\emph{plan-based} configuration the compiler and its typed checks run against a
-tool server that exposes the same specialists; in the runs completed so far, that
-path resolved most checks through the dense-frame generalist, both because
-occurrence-style claims route there by design and because the earlier planner
-rarely requested measurements---the specific limitation the planner described here
-is intended to address. Global plan selection among alternative tool recipes, and a
-value-of-information loop that spawns follow-up measurements, remain \proposed{}.
+\paragraph{Where specialists run.} Two configurations expose the same specialists by
+different routes. In the \emph{routed} configuration each claim is dispatched to its
+dedicated specialist (\cref{tab:arms}), which runs as an executable stage. In the
+\emph{plan-based} configuration the compiler's typed checks call those specialists
+through a tool server, and a check reaches one only when the plan names a measurement;
+occurrence-style claims route to the dense-frame generalist by design, which is why
+measurements account for a minority of executed checks (\cref{sec:eval}). Global plan
+selection among alternative tool recipes, and a value-of-information loop that spawns
+follow-up measurements, remain \proposed{}.
 
 % =====================================================================
 \section{The Intended Refinement Loop}\label{sec:loop}
@@ -1533,19 +1442,18 @@ value-of-information loop that spawns follow-up measurements, remain \proposed{}
 The three components are meant to close a loop: the benchmark trains and
 evaluates the critic; the critic scores generated clips; and the critic's
 verdict becomes a reward that fine-tunes or guides the generator toward physical
-faithfulness. \textbf{This loop is not yet built.} The generator and the critic
-today run on disjoint data---the generator on simulation-driven clips, the critic
-on the human-annotated benchmark---and no reward-driven generation run exists.
-Prerequisites are a critic whose reward is trustworthy on the frozen human
-labels (\cref{sec:eval}) and a decision about where the reward enters generation
-(preference optimization, guidance, or data selection). We state the loop as the
-organizing goal and as explicit future work, not as a result.
+faithfulness. \textbf{This loop is future work.} The generator and the critic run on
+disjoint data---the generator on simulation-driven clips, the critic on the
+human-annotated benchmark---and no reward-driven generation run exists. Two
+prerequisites remain: a critic whose reward is trustworthy on the frozen human labels
+(\cref{sec:eval}), and a decision about where the reward enters generation---preference
+optimization, guidance, or data selection.
 
 % =====================================================================
 \section{Evaluation Protocol and Measurement}\label{sec:eval}
 % =====================================================================
-This section states how the critic is measured and reports the results obtained so far.
-A dash marks a measurement that has not been run.
+This section states how the critic is measured and reports what those measurements
+returned. A dash marks a measurement that has not been run.
 
 \paragraph{Target and ground truth.} The evaluation core of \cref{sec:dataset}, scored
 under the conventions of \cref{sec:bench-spec}. Human labels are the only ground truth.
@@ -1570,7 +1478,7 @@ Because a detector call, a tracker call and a full vision-language judgement do 
 the same, cost is reported as model and tool calls per clip. Uncertainty is estimated by
 resampling whole clips, because flaws within a clip are not independent.
 
-\subsection{Results so far}
+\subsection{Results}
 \Cref{tab:results} reports the paired comparison completed to date: the plan-based
 critic against per-claim verification, on the 149 clips of the evaluation core both
 systems have scored. Both receive the same claim texts and the same matching protocol,
@@ -1730,11 +1638,9 @@ found the specific, spatially and temporally located error a person marked.
 \section{Limitations}\label{sec:limitations}
 % =====================================================================
 
-\paragraph{Generation.} Validation is qualitative (visual inspection plus a
-trajectory tracker); there is no learned quality metric for this line.
-Multi-object interaction is unsolved. The control signal comes from a simulator,
-so scene diversity is bounded by what is simulated, and the mapping from
-simulation to prompt appearance is not itself verified for physical consistency.
+\paragraph{Generation.} The control signal comes from a simulator, so scene diversity is
+bounded by what is simulated, and the mapping from simulation to prompt appearance is not
+itself verified for physical consistency.
 
 \paragraph{Benchmark.} The corpus is recall-only (no clean clips), so precision is
 not directly measurable; flaws are single-annotator with no inter-annotator
@@ -1749,9 +1655,6 @@ enforces symbolic identifier consistency but cannot guarantee that heterogeneous
 tools localized the same physical instance; and the reasoner-mediated sub-checks
 reduce but do not remove semantic opacity.
 
-\paragraph{Loop.} The generator--critic loop is unbuilt, and critic quality on the
-frozen labels is the gate before any reward-driven generation is attempted.
-
 % =====================================================================
 \section{Conclusion}\label{sec:conclusion}
 % =====================================================================
@@ -1764,9 +1667,7 @@ that decomposes a prompt, routes each claim to an open specialist returning
 evidence only, and combines the evidence deterministically into a three-valued
 verdict. We have described each component and its implementation status
 and specified the human-label protocol under which the critic---and eventually the
-loop that lets it refine the generator---will be measured. The comparative
-numbers, and the closed loop itself, are the next milestones, not claims of this
-report.
+loop that lets it refine the generator---will be measured. Closing the loop is the next milestone.
 
 % =====================================================================
 \appendix
