@@ -116,7 +116,7 @@ the outcomes with deterministic rules into a three-valued verdict
 human labels, and no closed or proprietary model produces the critic's verdict.
 
 The intended end state is a loop in which the critic supplies the reward that
-refines the generator. We describe each component and its honest implementation
+refines the generator. We describe each component and its implementation
 status, and we specify the human-label evaluation protocol under which the
 critic and the loop will be measured; comparative performance numbers are
 deferred to that evaluation.
@@ -643,68 +643,57 @@ the motion has committed, but is not a demonstration that it never matters.
 
 % =====================================================================
 \section{A Human-Annotated Video-Flaw Benchmark}\label{sec:dataset}
-
-
-\subsection{Method summary}
-The benchmark starts from a corpus of AI-generated clips in which a person watched
-each clip against its prompt and wrote down every place the video failed to deliver
-what the text asked for, marking each failure with a severity, a confidence, the time
-range it occupies, a box track locating it in the frame, the exact prompt fragment it
-violates, and a sentence of reasoning. From that corpus we derive the evaluation
-target in three filtering steps, all recorded and re-runnable: keep the clips whose
-prompt or whose flagged failures describe motion and dynamics rather than, say,
-subtitle typography; keep the individual failures a video-only critic could in
-principle see, discarding the ones that are complaints about sound; and draw a
-smaller frozen core by stratified sampling under a fixed seed so that every
-experiment is scored against exactly the same target. The human-written fields are
-the ground truth. The coarse type tags used for reporting are assigned by models,
-not by the annotator, and are labelled as such wherever they appear.
 % =====================================================================
+The benchmark is a corpus of $1{,}500$ AI-generated clips in which a person watched each
+clip against its prompt and wrote down every place the video failed to deliver what the
+text asked for. Every clip carries at least one such record. The generating model is not
+recorded in the data, and no clip is attributed to a specific system. The human-written
+fields are the ground truth throughout this report.
 
-\subsection{The corpus}
-The benchmark is built from a corpus of \textbf{1{,}500 AI-generated video
-clips}, each carrying human annotations of where the video fails to match its
-prompt. The clips are AI-generated; the generating model is not recorded in the
-data, and we do not attribute them to a specific system. Every clip has at least
-one human-flagged flaw (\cref{tab:datastats}). This corpus is distinct from
-existing physical-commonsense benchmarks such as VideoPhy and its action-centric
-successor~\cite{videophy2024,videophy2_2025}, which we treat as separate transfer
-targets rather than as the annotation source here.
+\subsection{What a flaw record contains}\label{sec:bench-spec}
+A flaw is a localized record with six fields. Four are always present: the
+\textbf{violated fragment}, the words of the prompt the video fails, quoted verbatim; a
+free-text \textbf{rationale}; a \textbf{severity}; and the annotator's
+\textbf{confidence}. Two are present when the annotator could supply them: a
+\textbf{time span}, the first and last frame in which the failure is visible, and a
+\textbf{box track}, boxes at the start, middle and end of that span, one per object
+involved, in normalized coordinates. \Cref{tab:flawfields} gives each field's measured
+coverage across the evaluation core, and \cref{fig:benchanatomy} shows one record in
+full. Each clip additionally carries an overall severity and a short list of the objects,
+actions and relations its prompt calls for.
 
-\subsection{Human annotation schema}
-Each human flaw is a localized record with six fields (\cref{fig:benchanatomy}). The annotator gives a
-\textbf{severity} and a \textbf{confidence}, each on a five-point scale; a
-\textbf{time span}, as a start and end frame index bounding the interval in which
-the flaw is visible; a \textbf{box track} locating it in the frame, recorded as
-labelled boxes at the beginning, middle and end of the flagged interval, in
-normalized image coordinates, with one box per object involved; the exact
-\textbf{prompt fragment} the video violates, quoted verbatim from the prompt; and a
-free-text \textbf{rationale} saying what went wrong. Each clip additionally carries
-an overall severity for the whole video and a short list of the objects, actions and
-relations the prompt calls for.
+Two coarse tags support grouping and reporting: a \emph{modality} tag saying whether the
+complaint concerns what is seen, what is heard, or both, and a \emph{type} tag naming the
+dominant kind of complaint from a fixed ten-item list. Neither is written by the
+annotator. Both are assigned by three language models classifying each flaw from its
+quoted fragment and rationale at temperature zero under a fixed seed, resolved by
+majority; a three-way disagreement resolves to ``both'' for modality and ``other'' for
+type, and a flaw receiving no usable vote falls back to a frozen keyword rule. They are
+labelled machine-assigned wherever they appear and are never treated as ground truth.
+Annotation is single-annotator: the corpus carries one annotation per flaw, so no
+inter-annotator agreement figure is available.
 
-This is a richer object than a clip-level preference score: it says \emph{what} is
-wrong, \emph{where} in the frame, \emph{when} in time, and \emph{against which part
-of the prompt}. Not every field is filled on every flaw, and we state how often rather
-than assume: every flaw carries a quoted prompt fragment and a rationale, about seven in
-eight carry a frame range, and about three in four carry a box track---the
-remainder are explicitly marked as having no box, typically because the complaint is
-about the clip as a whole or about something absent rather than something visible in
-a particular place.
-
-These human fields are the ground truth for everything in this report. Two coarse
-tags used for grouping and reporting---a \emph{modality} tag saying whether the
-complaint is about what is seen, what is heard, or both, and a \emph{type} tag naming
-the dominant kind of complaint from a fixed ten-item list---are \emph{not} written by
-the annotator. They are assigned by asking three language models to classify each
-flaw from its quoted prompt fragment and rationale at temperature zero with a fixed
-seed, and taking the majority; a three-way disagreement on modality resolves to
-``both'', a three-way disagreement on type resolves to ``other'', and a flaw that
-receives no usable vote falls back to a frozen keyword rule. We label these two
-fields as machine-assigned wherever they are used and never treat them as ground
-truth. Annotations are single-annotator: the corpus does not carry multiple
-independent annotations of the same flaw, so no inter-annotator-agreement figure is
-available and none is claimed.
+\begin{table}[t]
+\centering\small
+\setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.18}
+\begin{tabular}{@{}p{3.5cm} p{6.1cm} c@{}}
+\toprule
+\textbf{Field} & \textbf{What it holds} & \textbf{Coverage} \\
+\midrule
+violated fragment & the words of the prompt the video fails, quoted verbatim; median $8$ words & 306/306 \\
+rationale & free text saying what went wrong instead; median $25$ words & 306/306 \\
+severity & $1$--$5$; the distribution is centred at $3$ and $4$ & 306/306 \\
+confidence & $1$--$5$; $239$ of $306$ are marked $4$ or $5$ & 306/306 \\
+time span & first and last frame in which the failure is visible & 237/306 \\
+box track & boxes at the start, middle and end of that span, one per object involved, in normalized coordinates & 208/306 \\
+\bottomrule
+\end{tabular}
+\caption{The six fields of a flaw record and how often each is filled across the 150-clip
+core. The first four are always present; timing and boxes are not, and a flaw carrying
+neither is one whose complaint is about the clip as a whole or about something that never
+appears.}
+\label{tab:flawfields}
+\end{table}
 
 \begin{figure}[t]
   \centering
@@ -718,55 +707,41 @@ available and none is claimed.
   \label{fig:benchanatomy}
 \end{figure}
 
-\subsection{The physics-focused evaluation set}
-The critic is evaluated not on all 1{,}500 clips but on a frozen, physics-focused
-subset. Selection runs in three recorded stages, and we state each because the
-denominator of every later measurement depends on them.
+\subsection{How the evaluation set is derived}
+Selection runs in three recorded stages, and the denominator of every later measurement
+depends on them. \Cref{tab:datastats} gives the counts and \cref{fig:benchcomp} the same
+derivation as a sequence of steps.
 
-\emph{Stage one, clip selection.} A clip enters the pool if its video file is
-actually retrievable and if it shows signs of dynamics. The dynamics test is a fixed
-vocabulary of motion words---falling, bouncing, rolling, colliding, pouring, toppling,
-and so on---applied to the prompt and, separately, to each flaw's rationale and quoted
-prompt fragment. A clip is kept when its prompt contains at least one such word, or
-when one of its flaws does, or when it has a time-windowed flaw against an
-action-typed object. The test is a keyword rule, and we treat it as one: it selects
-for prompts and complaints that \emph{talk about} motion, which is a proxy for, not a
-guarantee of, a flaw whose adjudication needs physical reasoning. This stage keeps
-\textbf{606} of the 1{,}500 clips, carrying \textbf{1{,}171} human flaws; most of the
-loss is clips the rule judges non-dynamic, with a smaller number dropped for having no
-retrievable video.
+\emph{Stage one, clip selection.} A clip enters the pool if its video is retrievable and
+it shows signs of dynamics. The dynamics test is a fixed vocabulary of motion
+words---falling, bouncing, rolling, colliding, pouring, toppling---applied to the prompt
+and, separately, to each flaw's rationale and quoted fragment; a clip is kept when its
+prompt contains one, or one of its flaws does, or it has a time-windowed flaw against an
+action-typed object. The test is a keyword rule and selects for prompts and complaints
+that \emph{talk about} motion, which is a proxy for, not a guarantee of, a flaw whose
+adjudication needs physical reasoning. This stage keeps $606$ of the $1{,}500$ clips,
+carrying $1{,}171$ flaws.
 
-\emph{Stage two, flaw selection.} Within those clips, a flaw is a usable detection
-target only if a critic that sees only pixels could in principle find it. We therefore
-keep the flaws whose modality tag is ``seen'' or ``both'' and drop the ones that are
-purely complaints about sound, which removes \textbf{64} flaws and leaves
-\textbf{1{,}107} as the full evaluation set. Three properties make the surviving
-records usable as targets rather than as opinions: the complaint is anchored to a
-verbatim prompt fragment, so what was promised is unambiguous; it is bounded in time,
-so a detector's claim can be checked against the interval a person marked; and it
-carries a severity, so misses can be reported by how much they mattered instead of
-counted flat.
+\emph{Stage two, flaw selection.} Within those clips, a flaw is a usable detection target
+only if a critic seeing only pixels could in principle find it. Flaws tagged ``seen'' or
+``both'' are kept and purely audible complaints dropped, which removes $64$ flaws and
+leaves $1{,}107$ as the full evaluation set.
 
-\emph{Stage three, the frozen core.} From the full evaluation set a smaller core of
-\textbf{150 clips with 306 flaws} is drawn for routine measurement. The draw is
-deterministic and its contract is recorded rather than left to a library default: a
-fixed seed; strata formed by crossing overall clip severity, number of flaws per clip,
-and clip duration; a largest-remainder proportional allocation across strata; within
-each stratum, candidates ordered lexicographically and then shuffled once by a single
-generator whose call sequence is fixed; and a replacement rule, drawing from the same
-stratum's queue first, for any clip that cannot be downloaded or decoded. A
-continuity-focused stratum of 29 clips and 85 flaws is carried inside the core so that
-measurements remain comparable to earlier work on the same clips, and it is exempt from
-replacement. Every clip that enters the core is verified end to end---downloaded and
-decoded---before the core is written, and the selection, the strata, and any
-replacements are stored with the set. \Cref{tab:datastats} summarizes the counts, and \cref{fig:benchcomp} shows the same derivation as a
-sequence of steps. We are explicit that the evaluation set is the 606-clip /
-1{,}107-flaw derivative (with a frozen 150-clip / 306-flaw core), not the full
-1{,}500-clip corpus; conflating the two would overstate the evaluation. We are also explicit that the 150-clip / 306-flaw core
-is used as an \emph{optimization set}: system and prompt decisions are repeatedly
-made against it, so coverage on it measures fit to that core rather than
-generalization, and a generalization claim requires a separately sequestered
-held-out set that has not influenced system design, which is future work.
+\emph{Stage three, the frozen core.} A core of $150$ clips with $306$ flaws is drawn for
+routine measurement. The draw is deterministic and its contract recorded: a fixed seed;
+strata crossing overall clip severity, flaw count per clip and clip duration;
+largest-remainder proportional allocation across strata; within each stratum, candidates
+ordered lexicographically then shuffled once by a generator whose call sequence is fixed;
+and a replacement rule drawing from the same stratum for any clip that cannot be
+downloaded or decoded. A continuity-focused stratum of $29$ clips and $85$ flaws sits
+inside the core and is exempt from replacement. Every clip is downloaded and decoded
+before the core is written, and the selection, strata and replacements are stored with
+the set.
+
+The core is an \emph{optimization set}: system and prompt decisions are made against it,
+so results on it measure fit to that core, and a generalization claim requires a set that
+has not influenced system design. A separate pool of $711$ annotated clips is held
+disjoint from both frozen sets for any learning that consumes this data.
 
 \begin{figure}[t]
   \centering
@@ -803,122 +778,27 @@ pool. The training pool excludes every clip in the frozen evaluation sets.}
 \label{tab:datastats}
 \end{table}
 
-\subsection{What the benchmark contains, precisely}\label{sec:bench-spec}
-This section states the contents exactly, because a benchmark is only useful to someone
-else if they can tell in advance what it will and will not measure for them.
+\subsection{What is in the evaluation core}
+The core is $150$ clips, median $8.0$\,s long (range $5.0$--$10.3$\,s), mostly at
+$24$\,fps ($118$ of $150$; the rest at 16, 25, 30 or 32). The prompts are not one-line
+captions: a median prompt is $42$ words and the longest $188$, and many specify a shot
+list, a count, an ordering, an on-screen string and a sound in one paragraph. Sixty-six
+of the $150$ clips carry flaws of more than one kind, so a single number per clip cannot
+say which of them a detector found.
 
-\paragraph{The clips.} The routine evaluation core is 150 AI-generated clips, median
-$8.0$\,s long (range $5.0$--$10.3$\,s), mostly at 24\,fps ($118$ of $150$; the rest at
-16, 25, 30 or 32). Their prompts are not one-line captions: a median prompt is $42$
-words and the longest is $188$, and many specify a shot list, a count, an ordering, an
-on-screen string and a sound in the same paragraph. That is what makes a single
-clip-level score inadequate---$66$ of the $150$ clips carry flaws of more than one
-kind, so one number per clip cannot say which of them a detector found.
+Its $306$ flaws, a median of two per clip, group by machine-assigned type as: actions
+that do not happen or happen wrongly, $139$; wrong counts, $36$; wrong or missing
+objects, $30$; garbled on-screen text, $25$; wrong spatial arrangement, $19$; wrong
+ordering in time, $17$; wrong attributes such as colour or material, $16$; camera and
+style, $10$; physical motion, $7$; and a residual $7$. The largest category is whether
+the requested action occurred at all, so this is not a physics benchmark in the narrow
+sense. Counting, text and spatial arrangement together account for $80$ flaws, each a
+question a general-purpose model answers poorly and a dedicated measurement answers well.
 
-\paragraph{The flaws.} $306$ human-marked flaws, a median of two per clip. Each is a
-record with six fields, and \cref{tab:flawfields} gives their measured coverage rather
-than their nominal presence---a field that is filled four times in five is a different
-proposition from one that is always filled, and a user should know which is which
-before designing against it.
-
-\begin{table}[t]
-\centering\small
-\setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.18}
-\begin{tabular}{@{}p{3.5cm} p{6.1cm} c@{}}
-\toprule
-\textbf{Field} & \textbf{What it holds} & \textbf{Coverage} \\
-\midrule
-violated fragment & the words of the prompt the video fails, quoted verbatim; median $8$ words & 306/306 \\
-rationale & free text saying what went wrong instead; median $25$ words & 306/306 \\
-severity & $1$--$5$; the distribution is centred at $3$ and $4$ & 306/306 \\
-confidence & $1$--$5$; $239$ of $306$ are marked $4$ or $5$ & 306/306 \\
-time span & first and last frame in which the failure is visible & 237/306 \\
-box track & boxes at the start, middle and end of that span, one per object involved, in normalized coordinates & 208/306 \\
-\bottomrule
-\end{tabular}
-\caption{The six fields of a flaw record and how often each is filled across the 150-clip
-core. The first four are always present; timing and boxes are not, and a flaw carrying
-neither is one whose complaint is about the clip as a whole or about something that never
-appears.}
-\label{tab:flawfields}
-\end{table}
-
-\paragraph{What the flaws are about.} Grouping the $306$ by the machine-assigned tag of
-\cref{sec:dataset}: actions that do not happen or happen wrongly dominate at $139$,
-followed by wrong counts ($36$), wrong or missing objects ($30$), garbled on-screen text
-($25$), wrong spatial arrangement ($19$), wrong ordering in time ($17$), wrong attributes
-such as colour or material ($16$), camera and style failures ($10$), physical-motion
-failures ($7$) and a residual $7$. Two properties of that distribution matter to anyone
-adopting it. First, it is \emph{not} a physics benchmark in the narrow sense---the
-largest category by far is whether the requested action occurred at all. Second, the tail
-is where the specialist tooling earns its place: counting, text and spatial arrangement
-together are $80$ flaws, and each is a question a general-purpose model answers badly and
-a dedicated measurement answers well.
-
-\paragraph{Where in the clip they are.} Of the $237$ flaws carrying a time span, the
-flagged window covers a median of $62\%$ of the clip, but the distribution is bimodal:
-$57$ are confined to a quarter of the clip or less, and $95$ run for at least nine-tenths
-of it. A detector therefore needs both a way to look closely at a moment and a way to
-judge a whole clip; tuning only for one loses a large block of the other.
-
-\paragraph{Two properties that will bite a new user.} They are stated here rather than in
-a limitations section because they change how the benchmark must be scored.
-\emph{Every clip carries at least one flaw.} There are no clean clips, so recall is
-directly measurable and precision is not; a detector that flags everything scores
-perfectly on recall alone, which is why any result on this set should be reported
-alongside the rate at which its accusations land on a real flaw. And \emph{identical
-spans repeat}: twelve clips record the same failure two or three times under different
-identifiers, eighteen duplicate entries in all. Because a single accusation can be
-credited to at most one flaw, those duplicates are uncatchable by construction, and
-identical spans on a clip should be collapsed before scoring (\cref{sec:eval}).
-
-\paragraph{What it offers that a clip-level score does not.} Because each flaw names the
-prompt fragment it violates, a detector's output can be matched against a specific human
-complaint rather than correlated against a number. That supports three things a scalar
-cannot: measuring recall over failures rather than agreement over scores; attributing a
-miss to a stage---never decomposed, checked and cleared, or flagged but unmatched---which
-is what \cref{sec:eval} does; and reporting per-category performance, so a system that is
-strong on actions and weak on counting is visible as such rather than averaged into a
-single figure.
-
-\subsection{How this differs from existing video benchmarks}\label{sec:bench-vs}
-The closest relative is VideoPhy-2~\cite{videophy2_2025}, and the difference is worth
-stating precisely because it decides what each benchmark can measure. There, three
-annotators rate each clip on two five-point scales---semantic adherence and physical
-commonsense---and additionally mark each candidate physical rule as violated, followed
-or undetermined, with scores averaged and rules resolved by majority. The judgement is
-attached to the clip and to a predefined rule; annotators do not mark frames, spans or
-regions. Benchmarks built around per-dimension automatic metrics, such as
-VBench~\cite{vbench2024} and T2V-CompBench~\cite{t2vcompbench2024}, are further still
-from this: they score a model over their own fixed prompt suite, which makes them
-instruments for ranking generators rather than for scoring a detector on someone else's
-clips.
-
-Ours attaches the judgement to \emph{the words of the prompt that failed}, and where the
-annotator could, to a time span and a box track. That is what makes a detector's output
-matchable rather than merely correlatable, and it is why the failure attribution of
-\cref{sec:eval}---never decomposed, checked and cleared, or flagged but unmatched---is
-possible at all. A clip-level score cannot support that analysis, because there is
-nothing to align an individual accusation against.
-
-The trade runs the other way too, and we state it plainly rather than leave a reader to
-find it. VideoPhy-2's three annotators with majority resolution give redundancy this
-benchmark does not have: ours records one annotation per flaw, so there is no
-inter-annotator agreement figure and none is claimed. A user who needs a label whose
-noise is characterised should prefer the redundant benchmark; a user who needs to know
-\emph{which} failure a detector found, and where, needs this one. The two are
-complementary, and nothing here supersedes that work.
-
-\subsection{Recall-oriented evaluation and a held-out training pool}
-Two properties of the core shape how a detector must behave (\cref{fig:benchdist}).
-Because every clip in the pool carries at least one flaw and there are no clean
-clips, the benchmark measures \emph{recall}---did the critic find the human
-flaws---and cannot on its own measure precision or false-alarm rate; a
-``flag-everything'' detector would score perfectly on recall. We state this
-limitation plainly and address false alarms in the protocol of \cref{sec:eval}.
-For any learning that consumes this data, a training pool of 711 clips is held
-strictly disjoint from the frozen evaluation sets, so the evaluation core is
-never trained on.
+Of the $237$ flaws carrying a time span, the flagged window covers a median of $62\%$ of
+the clip, and the distribution is bimodal: $57$ are confined to a quarter of the clip or
+less, and $95$ run for at least nine-tenths of it (\cref{fig:benchdist}). A detector
+needs both a way to look closely at a moment and a way to judge a whole clip.
 
 \begin{figure}[t]
   \centering
@@ -933,7 +813,39 @@ never trained on.
   \label{fig:benchdist}
 \end{figure}
 
-% =====================================================================
+\subsection{Scoring conventions}
+Every clip carries at least one flaw. With no clean clips, recall is directly measurable
+and precision is not: a detector that flags everything scores perfectly on recall alone,
+so results on this set are reported alongside the rate at which accusations land on a
+real flaw.
+
+Scoring is over \emph{distinct} flaw spans. Twelve clips record the same failure two or
+three times under different identifiers, eighteen duplicate entries across the core, and
+an accusation can be credited to at most one flaw; identical spans on a clip are
+therefore one flaw, giving $286$ distinct flaws against $304$ entries.
+
+\subsection{Relation to existing video benchmarks}\label{sec:bench-vs}
+The closest relative is VideoPhy-2~\cite{videophy2_2025}, where three annotators rate
+each clip on two five-point scales---semantic adherence and physical commonsense---and
+mark each candidate physical rule as violated, followed or undetermined, with scores
+averaged and rules resolved by majority. The judgement attaches to the clip and to a
+predefined rule; annotators do not mark frames, spans or regions. Benchmarks built around
+per-dimension automatic metrics, such as VBench~\cite{vbench2024} and
+T2V-CompBench~\cite{t2vcompbench2024}, score a model over their own fixed prompt suite,
+which makes them instruments for ranking generators rather than for scoring a detector on
+someone else's clips.
+
+Here the judgement attaches to the words of the prompt that failed, and where the
+annotator could supply them, to a time span and a box track. That is what makes a
+detector's output matchable rather than merely correlatable, and it is what supports the
+miss attribution of \cref{sec:eval}. A clip-level score offers nothing to align an
+individual accusation against.
+
+The trade runs the other way as well. VideoPhy-2's three annotators with majority
+resolution give a redundancy this benchmark lacks. A user who needs a label whose noise
+is characterised should prefer the redundant benchmark; a user who needs to know which
+failure a detector found, and where, needs this one.
+
 \section{The Auditable Multi-Tool Critic}\label{sec:critic}
 % =====================================================================
 
@@ -978,7 +890,7 @@ the whole prompt.
 
 \subsection{Perception specialists}\label{sec:arms}
 Each claim is routed to a frozen open specialist that measures one thing and
-returns only that measurement (\cref{tab:arms}). Two honesty notes are built into
+returns only that measurement (\cref{tab:arms}). Two qualifications apply to
 the table. First, some adapters \emph{declare} a stronger primary backend that is
 not the one actually executed; we list the backend that runs. Second, there is no
 holistic scoring tool in the verdict path by design: a learned holistic video
@@ -1589,7 +1501,7 @@ spatial, and ordering flaws, and 10/10 on synthetic counting prompts. Those
 diagnostic sets probe the routing rules; they are not an estimate of coverage or
 verdict accuracy on the evaluation benchmark.
 
-We are explicit about what this does \emph{not} show. No video was processed, so it
+This does not show that verdicts improve. No video was processed, so it
 establishes that plans are valid, typed, compilable, and denser in measurements
 ---\emph{not} that any verdict improves. Effects on flaw coverage, on false
 accusations, and on cost are \emph{unmeasured}; they are decided by the controlled
@@ -1632,17 +1544,11 @@ organizing goal and as explicit future work, not as a result.
 % =====================================================================
 \section{Evaluation Protocol and Measurement}\label{sec:eval}
 % =====================================================================
-This section specifies how the critic is measured, reports the results obtained so
-far, and marks with a dash every cell whose run has not been completed. Nothing in a
-dashed cell should be read as a small number; it is an unrun measurement.
+This section states how the critic is measured and reports the results obtained so far.
+A dash marks a measurement that has not been run.
 
-\paragraph{Target and ground truth.} The frozen physics-focused set of
-\cref{sec:dataset} (150 clips / 306 flaws for routine measurement, 606 clips /
-1{,}107 flaws for full sweeps). Human labels are the only ground truth. The
-150-clip / 306-flaw core is the optimization set: because design decisions are
-repeatedly made against it, reported coverage measures fit to that core rather
-than generalization, and a generalization claim requires a separately sequestered
-held-out set that has not influenced system design.
+\paragraph{Target and ground truth.} The evaluation core of \cref{sec:dataset}, scored
+under the conventions of \cref{sec:bench-spec}. Human labels are the only ground truth.
 
 \paragraph{Matching is outside the critic.} To decide whether a critic output
 corresponds to a human-flagged flaw, a separate protocol uses two judge models (a
@@ -1651,73 +1557,18 @@ GPT-family and a Gemini-family model, majority over runs). These judges perform
 its verdict, and are not treated as ground truth. Any ``majority-of-three'' in
 this project refers to such a model-vote protocol, never to human annotators.
 
-\paragraph{Recall, and the false-alarm gap.} Because the benchmark has no clean
-clips, the primary measurable quantity is recall of the human flaws. A meaningful
-false-alarm or precision number requires either clean clips or per-allegation
-adjudication of the critic's non-matching outputs; we specify that adjudication as
-part of the protocol and do not substitute a recall number for it.
-
 \paragraph{Dense-frame requirement.} The critic must observe the video densely.
 The evaluated components extract frames densely under a logged sampling policy,
 and any measurement obtained from a sparsely sampled input is excluded. A re-run
 counts only if it uses the dense path on the unchanged frozen target with BF16
 tools at pinned revisions.
 
-\paragraph{The frozen confirmatory comparison.} We evaluate the orchestration
-design on the 150-clip optimization set, which carries all 306 human-labeled
-flaws. The primary paired comparison estimates the joint effect of structured
-execution---shared measurements, routing to capabilities, composition across
-measurements, and conflict resolution---relative to a wording-controlled per-claim
-baseline on the same complete set. Because verification questions can be phrased in
-ways that produce different verifier behavior, the per-claim baseline uses fixed
-wording. An auxiliary control runs the per-claim baseline's exact claim texts
-through the plan machinery; in the current build those claim texts are
-byte-identical, so this control measures added plan cost and run-to-run serving
-variability and cannot test a decomposition effect. A separate test of
-decomposition would require distinct claim texts and is deferred.
-
-Because a detector call, a tracker call, and a full vision-language judgment have
-different costs, we record model and tool calls, processed frames, and GPU-seconds
-rather than counting every invocation as equally costly. We report each system at
-its uncapped operating cost and make cost-matched comparisons in both directions:
-the structured system is capped at the per-claim baseline's cost, and the per-claim
-baseline is extended to the structured system's uncapped cost, using a priority
-policy fixed in advance. Allegations that do not match a human-labeled flaw count as
-\emph{review burden}, not false positives, in the frozen-benchmark score; any
-separate adjudication of those allegations is reported only as an analysis of
-possible omissions in the benchmark labels, and does not expand the frozen labels or
-alter the frozen-benchmark score. We estimate uncertainty by resampling whole clips,
-because flaws within the same clip are dependent.
-
-\subsection{The evaluation data}
-\Cref{tab:evaldata} states exactly what is scored against. Every count is taken from
-the released annotation files.
-
-\begin{table}[t]
-\centering\small
-\setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.18}
-\begin{tabular}{@{}p{6.5cm} r r p{3.4cm}@{}}
-\toprule
-\textbf{Set} & \textbf{Clips} & \textbf{Flaws} & \textbf{Role} \\
-\midrule
-Annotated corpus & 1{,}500 & 2{,}582 & source \\
-Physics-relevant pool & 606 & 1{,}171 & selection stage \\
-Frozen evaluation set & 606 & 1{,}107 & full sweeps \\
-\quad routine evaluation core & 150 & 306 & optimization set \\
-\quad\quad continuity stratum within it & 29 & 85 & reported separately \\
-Disjoint training pool & 711 & --- & never scored \\
-\midrule
-\multicolumn{4}{@{}l}{\emph{Of the 306 flaws in the routine core:}} \\
-\quad carrying a start and end frame & --- & 237 & timing available \\
-\quad carrying a box track as well & --- & 208 & localized in frame \\
-\quad carrying neither & --- & 69 & prompt fragment only \\
-\bottomrule
-\end{tabular}
-\caption{The evaluation data. Human labels are the only ground truth. The routine
-core is an optimization set: design decisions are made against it, so coverage on it
-measures fit to that core rather than generalization.}
-\label{tab:evaldata}
-\end{table}
+\paragraph{The comparison.} The critic is compared against per-claim verification: the
+same claims, verified one at a time by the general verifier, with the question phrased as
+the critic phrases it, since the phrasing alone changes how readily a verifier answers.
+Because a detector call, a tracker call and a full vision-language judgement do not cost
+the same, cost is reported as model and tool calls per clip. Uncertainty is estimated by
+resampling whole clips, because flaws within a clip are not independent.
 
 \subsection{Results so far}
 \Cref{tab:results} reports the paired comparison completed to date: the plan-based
@@ -1725,19 +1576,7 @@ critic against per-claim verification, on the 149 clips of the evaluation core b
 systems have scored. Both receive the same claim texts and the same matching protocol,
 and the per-claim baseline is wording-controlled---asked its questions in the form the
 plan-based critic uses, because the phrasing alone changes how readily a verifier
-answers.
-
-\paragraph{One correction to the denominator.} Twelve clips record the same flaw span
-two or three times under different identifiers---one clip notes ``two salmon emerge
-from the water at the same moment'' three times---for eighteen duplicate entries in
-all. Because the scoring loop credits an allegation to at most one flaw, a critic that
-makes the right accusation once is credited once and the duplicates count as misses:
-they are uncatchable by construction, since the only way to catch them would be to say
-the same thing three times. We therefore collapse identical spans on the same clip to a
-single flaw before scoring. A flaw an annotator noted twice is one flaw. The correction
-applies to every system equally and required no model call---the accusations were
-already recorded, and only the mapping from allegation to flaw changed. Both
-denominators are shown so the effect is visible rather than absorbed.
+answers. Scoring follows \cref{sec:bench-spec}.
 
 \begin{table}[t]
 \centering\small
@@ -1751,12 +1590,10 @@ Plan-based critic & \textbf{197} \ (\textbf{68.9\%}) & 197 \ (64.8\%) & 13.2 \\
 Per-claim verification, one claim at a time & 179 \ (62.6\%) & 179 \ (58.9\%) & 12.3 \\
 \bottomrule
 \end{tabular}
-\caption{Paired results on 149 clips of the evaluation core. The left column collapses
-identical flaw spans on the same clip to a single flaw; the right column is the same
-allegations scored against the uncollapsed list, for comparison. Collapsing lowers the
-denominator from 304 to 286 and lifts every system equally---it removes misses that were
-uncatchable by construction rather than changing what any critic did. Calls count model
-and tool invocations and exclude the matching protocol, which sits outside the critic.}
+\caption{Paired results on 149 clips of the evaluation core. Scoring is over distinct
+flaw spans (\cref{sec:bench-spec}); the second column repeats the same allegations
+against the uncollapsed flaw list. Calls count model and tool invocations and exclude
+the matching protocol, which sits outside the critic.}
 \label{tab:results}
 \end{table}
 
@@ -1766,25 +1603,19 @@ at $95\%$ confidence in $[+8,+28]$, so it is a real difference on this set rathe
 sampling noise. This set is the optimization set, so it measures fit, not
 generalization.
 
-\paragraph{Why the misses are missed.} The uncaught flaws are more informative than the
-caught ones, and they do not say what one might expect. Of the $89$ flaws the plan-based
-critic missed, only \emph{two} were never decomposed---that is, only two had no claim in
-the plan covering them at all. Eight were flagged by the critic but not linked to the
-human flaw by the matching protocol. The remaining seventy-nine were \emph{checked and
-cleared}: a claim covered the flaw and the critic judged the video fine. And of those
-seventy-nine, seventy-six were decided by a yes-or-no judgement with \emph{no
-measurement attached}---not by a specialist returning a wrong number.
+\paragraph{Where the misses come from.} Of the $89$ flaws the plan-based critic missed,
+two were never decomposed---no claim in the plan covered them. Eight were flagged but not
+linked to the human flaw by the matching protocol. The remaining seventy-nine were
+checked and cleared: a claim covered the flaw and the critic judged the video fine, and
+seventy-six of those were decided by a yes-or-no judgement with no measurement attached
+rather than by a specialist returning a wrong number.
 
-That is the diagnosis this evaluation supports, and it is not the one the design
-anticipated. Decomposition is not the bottleneck, and neither, mostly, is specialist
-accuracy. The bottleneck is measurement \emph{coverage}: only $14.1\%$ of the checks
-actually executed are measurements, and the rest are occurrence or existence judgements
-made by the general verifier. Of $1{,}917$ executed checks, $1{,}414$ ask whether an
-event occurs and $233$ whether something exists, against $22$ spatial relations, $19$
-trajectories, $18$ orderings, $18$ text reads and $16$ counts. The plan's machinery is
-real and it works, but on this data the claims rarely ask it to measure anything.
-Raising that share is the obvious next lever, and it is a question about how claims are
-typed rather than about how well any tool performs.
+The bottleneck is therefore measurement coverage rather than decomposition or specialist
+accuracy. Of $1{,}917$ executed checks, $1{,}414$ ask whether an event occurs and $233$
+whether something exists, against $22$ spatial relations, $19$ trajectories, $18$
+orderings, $18$ text reads and $16$ counts: $14.1\%$ are measurements. The claims this
+data produces rarely ask the plan to measure anything, which makes claim typing, not tool
+accuracy, the next lever.
 
 \paragraph{Cost.} Per-clip wall time over the 149 clips has a median of $102$\,s and a
 mean of $373$\,s; the ninetieth percentile is $1{,}087$\,s and the maximum $6{,}119$\,s.
@@ -1931,7 +1762,7 @@ video-diffusion control branch; a human-annotated benchmark that localizes real
 flaws in space, time, and prompt reference; and an auditable multi-tool critic
 that decomposes a prompt, routes each claim to an open specialist returning
 evidence only, and combines the evidence deterministically into a three-valued
-verdict. We have described each component and its honest implementation status
+verdict. We have described each component and its implementation status
 and specified the human-label protocol under which the critic---and eventually the
 loop that lets it refine the generator---will be measured. The comparative
 numbers, and the closed loop itself, are the next milestones, not claims of this
