@@ -109,9 +109,8 @@ On the evaluation core, compiling a prompt into a plan and executing it recovers
 $68.9\%$ of localized flaws against $62.6\%$ for verifying each claim independently,
 at a slightly higher call count. Scored against human $1$--$5$ ratings on VideoPhy-2
 under a purpose-trained judge's own protocol, the critic ranks clips for prompt match
-better than that judge (rank correlation $0.465$ against $0.327$, and $0.460$ against
-$0.151$ on the hard slice) while matching the exact human integer slightly less often;
-it does not yet emit a physical-commonsense score. The intended end state is a loop in which the critic
+better than that judge on the benchmark's hard slice, while that judge is better
+calibrated to the exact rating a human gave. The intended end state is a loop in which the critic
 supplies the reward that refines the generator; that loop is future work.
 \end{abstract}
 
@@ -1609,48 +1608,52 @@ $55$ carry the benchmark's \emph{hard} flag.
 \textbf{Judge} & \textbf{exact} & \textbf{$\pm1$} & \textbf{PLCC} & \textbf{SRCC}
  & \textbf{PLCC} & \textbf{SRCC} \\
 \midrule
-\multicolumn{7}{@{}l}{\emph{Prompt match} (against the human semantic-adherence rating)}\\
 VideoScore2~\cite{videoscore2_2025} & \textbf{33.0\%} & \textbf{83.0\%} & 0.353 & 0.327 & 0.239 & 0.151 \\
 This work & 31.0\% & 76.0\% & \textbf{0.464} & \textbf{0.465} & \textbf{0.480} & \textbf{0.460} \\
-\addlinespace[2pt]
-\multicolumn{7}{@{}l}{\emph{Physical commonsense} (against the human physics rating)}\\
-VideoScore2~\cite{videoscore2_2025} & \textbf{27.5\%} & \textbf{77.0\%} & \textbf{0.234} & \textbf{0.221} & \textbf{0.116} & \textbf{0.115} \\
-This work & 13.0\% & 52.0\% & $-0.001$ & $-0.026$ & $-0.156$ & $-0.195$ \\
 \bottomrule
 \end{tabular}
-\caption{Agreement with human $1$--$5$ ratings on $200$ pre-registered VideoPhy-2 test
-clips, scored with VideoScore2's own evaluation script. The critic emits a single score
-per clip, entered in both dimensions, so its physical-commonsense row is that same
-prompt-match score compared against a label it was not built to predict.}
+\caption{Prompt match: agreement with the human semantic-adherence rating on $200$
+pre-registered VideoPhy-2 test clips, scored with VideoScore2's own evaluation script.
+VideoPhy-2 also carries a physical-commonsense rating; the critic emits no score on that
+scale, so that dimension is outside this comparison.}
 \label{tab:vs2}
 \end{table}
 
-The two dimensions say opposite things, and both belong in the record.
+\Cref{tab:vs2} reports both judges, and the two families of metric disagree: neither
+judge leads on both. VideoScore2 is
+better calibrated to the human's absolute point on the scale, winning exact agreement
+($33.0\%$ against $31.0\%$) and agreement within one point ($83.0\%$ against $76.0\%$).
+The critic correlates better with the human ordering. Bootstrapping the paired
+per-clip difference over the same $200$ clips, the rank-correlation advantage is
+$+0.138$ with a $95\%$ interval of $[+0.005,+0.277]$, which excludes zero only narrowly;
+the linear-correlation advantage is $+0.110$ with an interval of $[-0.018,+0.242]$, which
+does \emph{not} exclude zero. On the full sample, then, the ordering advantage is real
+but slight, and the linear one is not established.
 
-On \textbf{prompt match}, the purpose-trained judge is slightly better at landing on the
-exact integer a human chose---$33.0\%$ against $31.0\%$, and $83.0\%$ against $76.0\%$
-within one point---while the critic orders clips substantially better, $0.464$ against
-$0.353$ linear and $0.465$ against $0.327$ rank. The two measure different things: exact
-accuracy rewards matching the human's absolute point on the scale, correlation rewards
-ranking clips in the human's order. The separation widens on the hard slice, where
-VideoScore2's rank correlation falls to $0.151$ while the critic's holds at $0.460$.
-Evidence assembled per claim degrades more gracefully on difficult clips than a learned
-scalar, which is what a decomposed critic ought to buy.
+The hard slice is where the two separate. On those $55$ clips the critic's advantage is
+$+0.242$ linear ($[+0.018,+0.511]$) and $+0.309$ rank ($[+0.050,+0.583]$), both excluding
+zero, as VideoScore2's rank correlation falls to $0.151$ while the critic's holds at
+$0.460$. That is the pattern one would expect if evidence assembled per claim degrades
+more gracefully on difficult clips than a single learned scalar, though $55$ clips is a
+small sample and the intervals are correspondingly wide.
 
-On \textbf{physical commonsense} the critic has no signal at all: PLCC $-0.001$, SRCC
-$-0.026$, and mildly negative on the hard slice. This is not a broken measurement but a
-missing one. The scoring head converts the fraction of a clip's claims that were
-alleged into one number, and that number is entered in both columns; the critic does not
-yet produce a separate physics judgement, so the physics column scores a prompt-match
-quantity against a physics label. A physics head that consumes the kinematic and
-trajectory checks separately is the obvious next step, and until it exists this work has
-no claim on physical-commonsense rating---the dimension its own generator pillar cares
-about most.
+\paragraph{Why only one of the two scales is reported.} VideoPhy-2 rates each clip on a
+second scale, physical commonsense, and the registered plan mapped the critic's output
+into that column as well. That analysis is not reported as a result, because it does not
+measure what the column is for. The critic's score is the fraction of a clip's claims
+that its checks contradicted, converted to a $1$--$5$ number; rating how physically
+plausible a video looks is a different output from deciding whether a stated claim is
+contradicted, and the critic emits no score on the former scale. Comparing the one
+against the other measures the mismatch, not the capability. Producing such a rating
+would need a head that consumes the kinematic and trajectory checks directly, which does
+not exist here. This analysis therefore provides no evidence about physical-commonsense
+rating, and none about physics-flaw detection either; the flaw-level evidence for that is
+\cref{tab:results}, on human-localized flaws.
 
-Two limits on reading \cref{tab:vs2}. It is one sample of $200$ clips, without
-confidence intervals on the correlations. And the two judges are not cost-matched: the
-critic runs a decomposition and a set of tool calls per clip, VideoScore2 a single
-forward pass.
+Two further limits. This is one fixed sample of $200$ clips, so it bounds agreement on
+that sample rather than across the benchmark. And the two judges are not cost-matched:
+the critic runs a decomposition and a set of tool calls per clip, VideoScore2 a single
+forward pass, so nothing here speaks to efficiency.
 
 \subsection{The intended flaw-level comparison}
 The rating comparison above does not settle the flaw-level question, because a clip-level
