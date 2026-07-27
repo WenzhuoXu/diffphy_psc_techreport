@@ -758,9 +758,10 @@ so results on this set are reported alongside the rate at which accusations land
 real flaw.
 
 Scoring is over \emph{distinct} flaw spans. Twelve clips record the same failure two or
-three times under different identifiers, eighteen duplicate entries across the core, and
-an accusation can be credited to at most one flaw; identical spans on a clip are
-therefore one flaw, giving $286$ distinct flaws against $304$ entries.
+three times under different identifiers---eighteen duplicate entries across the core---and
+an accusation can be credited to at most one flaw, so identical spans on a clip count as
+one flaw. The core's $306$ entries are therefore $288$ distinct flaws. A run that covers a
+subset of clips carries its own share of both counts; \cref{sec:eval} states them.
 
 \subsection{Relation to existing video benchmarks}\label{sec:bench-vs}
 The closest relative is VideoPhy-2~\cite{videophy2_2025}, where three annotators rate
@@ -1496,8 +1497,9 @@ Plan-based critic & \textbf{197} \ (\textbf{68.9\%}) & 197 \ (64.8\%) & 13.0 \\
 Per-claim verification, one claim at a time & 179 \ (62.6\%) & 179 \ (58.9\%) & 12.1 \\
 \bottomrule
 \end{tabular}
-\caption{Paired results on 149 clips of the evaluation core. Scoring is over distinct
-flaw spans (\cref{sec:bench-spec}); the second column repeats the same allegations
+\caption{Paired results on the 149 clips of the evaluation core that both systems
+completed; the one missing clip is an infrastructure loss. Those clips carry $304$ of the
+core's $306$ flaw entries, which collapse to $286$ distinct spans (\cref{sec:bench-spec}); the second column repeats the same allegations
 against the uncollapsed flaw list. Calls count model and tool invocations and exclude
 the matching protocol, which sits outside the critic.}
 \label{tab:results}

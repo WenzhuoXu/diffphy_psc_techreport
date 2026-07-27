@@ -4,7 +4,7 @@ All figures recomputed from raw per-clip rows by `analysis/techreport_results.py
 
 ## Headline
 
-Paired clip by clip on **149 clips**. The benchmark records 304 flaw entries, but 18 of them are duplicates (12 clips list the same span two or three times under different ids). The scoring loop credits one accusation to at most one flaw, so duplicates are uncatchable by construction; collapsing identical spans gives **286 distinct flaws**. Both denominators are shown — the correction applies to every system equally and does not move the comparison.
+Paired clip by clip on **149 clips** — the 149 of the 150-clip evaluation core that both systems completed. Those clips carry 304 of the core's 306 flaw entries. Eighteen of the 304 are duplicates (12 clips list the same span two or three times under different ids), and the scoring loop credits one accusation to at most one flaw, so duplicates are uncatchable by construction; collapsing identical spans gives **286 distinct flaws**. (Core-wide the same collapse gives 288 distinct flaws of 306.) Both denominators are shown — the correction applies to every system equally and does not move the comparison.
 
 | System | Flaws caught | Recall | As scored (with duplicates) | Calls/clip | Alleg. hit rate |
 |---|---|---|---|---|---|
