@@ -1,0 +1,56 @@
+% DiffPHY-specific additions layered on the Arceus adobe_research class.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{diffphy-support}[2026/07/26 DiffPHY report support]
+
+\RequirePackage{amsmath,amssymb}
+\RequirePackage{array}
+\RequirePackage{multirow}
+\RequirePackage{enumitem}
+\setlist{itemsep=2pt,topsep=3pt,parsep=0pt}
+\RequirePackage{listings}
+
+% Compatibility names used by the project-local TikZ sources.
+\colorlet{adobeink}{adobefg}
+\colorlet{adobegray}{adobefg!65}
+
+\lstset{
+  basicstyle=\footnotesize\ttfamily,
+  keywordstyle=\color{adobered}\bfseries,
+  commentstyle=\color{adobefg!65}\itshape,
+  stringstyle=\color{adobefg},
+  breaklines=true,
+  columns=fullflexible,
+  showstringspaces=false,
+  frame=leftline,
+  rulecolor=\color{adobered},
+  framesep=6pt,
+  xleftmargin=8pt,
+}
+
+\newtcolorbox{placeholder}[1][]{
+  colback=adobered!5, colframe=adobered, boxrule=0.6pt,
+  left=6pt,right=6pt,top=4pt,bottom=4pt,
+  fonttitle=\sffamily\bfseries\color{adobered},
+  title={Placeholder --- to be completed}, #1}
+
+\newtcolorbox{notebox}[1][]{
+  colback=black!3, colframe=adobefg!65, boxrule=0.5pt,
+  left=6pt,right=6pt,top=4pt,bottom=4pt, #1}
+
+\newcommand{\statusbadge}[2]{{\sffamily\bfseries\footnotesize
+  \setlength{\fboxsep}{2pt}\colorbox{#1}{\textcolor{white}{\,#2\,}}}}
+\newcommand{\built}{\statusbadge{adobefg}{BUILT}}
+\newcommand{\partialb}{\statusbadge{adobefg!65}{PARTIAL}}
+\newcommand{\stub}{\statusbadge{adobefg!65}{STUB}}
+\newcommand{\notintegrated}{\statusbadge{adobefg!65}{NOT INTEGRATED}}
+\newcommand{\proposed}{\statusbadge{adobered}{PROPOSED}}
+\newcommand{\invalidated}{\statusbadge{adobered}{RESULT INVALIDATED}}
+
+\newtcolorbox{scopebox}[1][]{
+  colback=adobebg!45, colframe=adobered, boxrule=0.8pt,
+  left=8pt,right=8pt,top=6pt,bottom=6pt, arc=2pt,
+  fonttitle=\sffamily\bfseries\color{white},
+  coltitle=white, colbacktitle=adobered,
+  title={REPORT STATUS AND SCOPE}, #1}
+
+\endinput

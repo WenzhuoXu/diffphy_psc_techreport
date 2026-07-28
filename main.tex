@@ -1,20 +1,61 @@
 % =====================================================================
-%  Adobe Technical Report -- Toward physics-faithful video generation:
+%  Adobe Research Technical Report -- Toward physics-faithful video generation:
 %  a depth-guided generator, a human-annotated flaw benchmark, and an
 %  auditable multi-tool critic.
 %  Compile: pdflatex main -> bibtex main -> pdflatex main x2
-%  (compiles unchanged under lualatex/xelatex; we build with tectonic)
+%
+%  The document uses the adobe_research class and assets from the Arceus
+%  technical-report project (69fad61ed0f1a0808bc0f18f).
 %
 % =====================================================================
-\documentclass[11pt,letterpaper]{article}
-\usepackage{adobe-techreport}
+\documentclass{adobe_research}
+\usepackage{diffphy-support}
 
-\reporttitle{Toward Physics-Faithful Video Generation}
-\reportsubtitle{A depth-guided generator, a human-annotated flaw benchmark,
-and an auditable multi-tool critic}
-\reportauthor{Adobe Research}
-\reportdate{July 2026}
-\reportnumber{}
+\title{Toward Physics-Faithful Video Generation:\\
+\large A Depth-Guided Generator, a Human-Annotated Flaw Benchmark,
+and an Auditable Multi-Tool Critic}
+\author[]{Adobe Research}
+\date{July 2026}
+\hypersetup{
+  pdftitle={Toward Physics-Faithful Video Generation},
+  pdfauthor={Adobe Research},
+  pdfsubject={Physics-faithful video generation technical report}
+}
+
+\abstract{
+Text-to-video generators produce clips of high visual quality that
+nonetheless violate physical common sense---objects interpenetrate, motion
+ignores gravity, quantities fail to conserve---and often simply fail to depict
+what the prompt requested. Making generated video \emph{physically faithful}
+requires three things at once: a generator that can be steered by physical
+structure rather than appearance alone; a way to measure, reliably and
+auditably, when a clip is wrong; and ground-truth data about the flaws real
+generators make. This report presents one component for each.
+
+First, a \textbf{physics-guided generator}: a rigid-body simulation is rendered
+into a per-frame depth (or silhouette) control video and passed to the native
+control branch of a Wan~2.2-VACE video-diffusion backbone, so that scene geometry
+and motion are driven by the simulation while the text prompt supplies
+appearance. Second, a \textbf{human-annotated flaw benchmark}: 1{,}500
+AI-generated clips carry human misalignment annotations---each with a severity, the
+violated prompt fragment and a free-text rationale, and, where present,
+a time span and a box track over the flagged interval---from which we derive a
+frozen, physics-focused evaluation set. Third, an \textbf{auditable multi-tool
+critic}: a served vision-language reasoner decomposes a prompt into checkable
+claims, routes those naming a measurable quantity to a frozen
+open perception specialist that returns localized evidence only, and combines
+the outcomes with deterministic rules into a three-valued verdict
+(\emph{plausible}, \emph{implausible}, \emph{abstain}). The evaluation target is
+human labels, and no closed or proprietary model produces the critic's verdict.
+
+On the evaluation core, compiling a prompt into a plan and executing it recovers
+$68.9\%$ of localized flaws against $62.6\%$ for verifying each claim independently,
+at a slightly higher call count. Scored against human $1$--$5$ ratings on VideoPhy-2
+under a purpose-trained judge's own protocol, the critic ranks clips for prompt match
+better than that judge on the benchmark's hard slice, while that judge is better
+calibrated to the exact rating a human gave. The intended end state is a loop in which
+the critic supplies the reward that refines the generator; that loop is future work.
+}
 
 % convenience macros
 \newcommand{\code}[1]{\texttt{\small #1}}
@@ -38,7 +79,7 @@ and an auditable multi-tool critic}
 % the document. The fractions below simply let a page carry more float and
 % less text than the article-class defaults, which are tuned for far fewer
 % figures than this report has.
-\usepackage[section]{placeins}
+\pretocmd{\section}{\FloatBarrier}{}{}
 \renewcommand{\topfraction}{0.92}
 \renewcommand{\bottomfraction}{0.75}
 \renewcommand{\textfraction}{0.06}
@@ -48,7 +89,7 @@ and an auditable multi-tool critic}
 \setcounter{totalnumber}{4}
 
 \begin{document}
-\makeadobetitle
+\maketitle
 
 % ---------------------------------------------------------------------
 % FRONT-MATTER SCOPE NOTE
@@ -71,44 +112,6 @@ and by adherence to the control signal---with one measured study of when the con
 be released. External evaluators, cost-matched comparisons and any result on a held-out
 set are not yet run.
 \end{scopebox}
-
-\smallskip
-% ---------------------------------------------------------------------
-\begin{abstract}
-\noindent
-Text-to-video generators produce clips of high visual quality that
-nonetheless violate physical common sense---objects interpenetrate, motion
-ignores gravity, quantities fail to conserve---and often simply fail to depict
-what the prompt requested. Making generated video \emph{physically faithful}
-requires three things at once: a generator that can be steered by physical
-structure rather than appearance alone; a way to measure, reliably and
-auditably, when a clip is wrong; and ground-truth data about the flaws real
-generators make. This report presents one component for each.
-
-First, a \textbf{physics-guided generator}: a rigid-body simulation is rendered
-into a per-frame depth (or silhouette) control video and passed to the native
-control branch of a Wan~2.2-VACE video-diffusion backbone, so that scene geometry
-and motion are driven by the simulation while the text prompt supplies
-appearance. Second, a \textbf{human-annotated flaw benchmark}: 1{,}500
-AI-generated clips carry human misalignment annotations---each with a severity, the
-violated prompt fragment and a free-text rationale, and, where present,
-a time span and a box track over the flagged interval---from which we derive a
-frozen, physics-focused evaluation set. Third, an \textbf{auditable multi-tool critic}: a served vision-language
-reasoner decomposes a prompt into checkable claims, routes those naming a measurable
-quantity to a frozen
-open perception specialist that returns localized evidence only, and combines
-the outcomes with deterministic rules into a three-valued verdict
-(\emph{plausible}, \emph{implausible}, \emph{abstain}). The evaluation target is
-human labels, and no closed or proprietary model produces the critic's verdict.
-
-On the evaluation core, compiling a prompt into a plan and executing it recovers
-$68.9\%$ of localized flaws against $62.6\%$ for verifying each claim independently,
-at a slightly higher call count. Scored against human $1$--$5$ ratings on VideoPhy-2
-under a purpose-trained judge's own protocol, the critic ranks clips for prompt match
-better than that judge on the benchmark's hard slice, while that judge is better
-calibrated to the exact rating a human gave. The intended end state is a loop in which the critic
-supplies the reward that refines the generator; that loop is future work.
-\end{abstract}
 
 % =====================================================================
 \section{Introduction}\label{sec:intro}
@@ -984,7 +987,6 @@ event \emph{is} present and placeable. What it does establish is the asymmetry t
 design turns on: a backend that cannot decline will answer an unanswerable question, and
 an invented window is indistinguishable from a measured one downstream.
 
-\label{sec:refusal}
 Permitting refusal is not free, and one traced case shows both the cost and the reason to
 pay it. A claim asserted that a sound coincided with each impact. Asked to place that sound
 in time, the reasoner declined, stating that the frames carry no audio and that the question
@@ -1349,7 +1351,7 @@ speak. If either event is judged not to occur, the ordered claim is contradicted
 outright and the timings are never consulted; if either cannot be placed in time,
 the claim is left unresolved. This ordering of operations is what keeps a returned
 interval from becoming backdoor evidence that an event happened---the failure mode
-of \cref{sec:refusal}, where a timing model asked about an absent event returns a
+of \cref{sec:semantics}, where a timing model asked about an absent event returns a
 confident interval anyway. Timings compose an order; they never establish
 existence.
 
@@ -1803,7 +1805,8 @@ and revision manifest; and the pre-registered evaluation manifest.
 \end{placeholder}
 
 % =====================================================================
-\bibliographystyle{plainnat}
+\renewcommand{\bibfont}{\footnotesize}
+\bibliographystyle{assets/plainnat}
 \bibliography{references}
 
 \end{document}
