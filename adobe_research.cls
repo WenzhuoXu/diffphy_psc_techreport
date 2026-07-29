@@ -84,6 +84,7 @@
 
 \DeclareFontFamily{T1}{optimistic}{}
 \DeclareFontShape{T1}{optimistic}{m}{n}{<-> s * [0.88] assets/optimistic}{}
+\DisableLigatures{encoding = T1, family = optimistic}
 \ifdefined\pdfmapline
   \pdfmapline{+optimistic < assets/Optimistic.ttf <T1-WGL4.enc}
   \renewcommand{\sfdefault}{optimistic}
