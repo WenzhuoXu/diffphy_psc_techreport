@@ -70,19 +70,17 @@
   % Full-width rows sit on the x=0 axis; the two-column rows are anchored to
   % the full-width box above them, so every left and right edge lines up.
 
-  % ---------------- reasoner (learned), fed by the prompt and the video ----
+% ---------------- planner (learned), fed only by the prompt ---------------
   % This row plus its two input wings is the widest thing in the picture, so
   % its width is what keeps the whole figure inside the report's text width.
   \node[cflearn, text width=9.4cm, anchor=north] (reasoner) at (0,0)
-    {\textbf{Reasoner}\\[1.5pt]
-     \cfsub{breaks the prompt into small checkable claims and writes down,\\
-     for each claim, the measurements that would settle it ---\\
-     without looking at the video yet}};
+    {\textbf{Text-only planner}\\[1.5pt]
+     \cfsub{extracts prompt-grounded claims and writes a surface plan\\
+     specifying the checks that would settle them ---\\
+     before any video frame is read}};
 
   \node[cfdata, text width=1.25cm, anchor=east]
     (prompt) at ($(reasoner.west)+(-0.62,0.20)$) {\textbf{Prompt}};
-  \node[cfdata, text width=1.25cm, anchor=west]
-    (video)  at ($(reasoner.east)+( 0.62,0.20)$) {\textbf{Video}};
 
   % ---------------- the check that precedes execution (accented) -----------
   \node[cfgate, text width=13.6cm, anchor=north]
@@ -93,15 +91,17 @@
      plan's cost rather than treated as free}};
 
   % ---------------- execution: two ways of looking at the video -----------
-  \coordinate (fanA) at ($(gate.south)+(0,-0.40)$);
+  \node[cfdata, text width=1.25cm, anchor=north east]
+    (video) at ($(gate.south east)+(-0.15,-0.18)$) {\textbf{Video}};
+  \coordinate (fanA) at ($(gate.south)+(0,-1.15)$);
   \node[cflearn, text width=5.6cm, anchor=north west]
-    (verifier) at ($(gate.south west)+(0,-0.80)$)
-    {\textbf{General verifier}\\[1.5pt]
+    (verifier) at ($(gate.south west)+(0,-1.55)$)
+    {\textbf{Semantic verifier}\\[1.5pt]
      \cfsub{reads the frames densely and decides\\ whether a thing is there and
      whether\\ an event happens}};
   \node[cflearn, text width=7.0cm, anchor=north east]
-    (specialists) at ($(gate.south east)+(0,-0.80)$)
-    {\textbf{Perception specialists}\\[1.5pt]
+    (specialists) at ($(gate.south east)+(0,-1.55)$)
+    {\textbf{Specialist instruments}\\[1.5pt]
      \cfsub{one frozen model per measurement: detection,\\ counting, point
      tracking, the time window of\\ an event, segmentation masks with depth}};
 
@@ -109,10 +109,10 @@
   \coordinate (mergeA) at ($(verifier.south)+(0,-0.50)$);
   \node[cfdet, text width=13.6cm, anchor=north west]
     (evidence) at ($(verifier.north west |- mergeA)+(0,-0.40)$)
-    {\textbf{Evidence only}\\[1.5pt]
-     \cfsub{a call returns what it measured --- a box, a count, a track, a time
-     window, a depth --- tied to the\\ prompt fragment that asked for it, and
-     never whether the prompt was satisfied}};
+    {\textbf{Typed execution records}\\[1.5pt]
+     \cfsub{specialists return measurements --- boxes, counts, tracks, windows,
+     and depths; learned base-predicate\\ states are explicitly tagged; every
+     record is tied to the prompt fragment that requested it}};
 
   % ---------------- deterministic composition ----------------------------
   \node[cfdet, text width=13.6cm, anchor=north west]
@@ -137,10 +137,10 @@
 
   % ---------------- edges ------------------------------------------------
   \draw[cfarr] (prompt.east) -- (reasoner.west);
-  \draw[cfarr] (video.west)  -- (reasoner.east);
   \draw[cfarr] (reasoner.south) -- (reasoner.south |- gate.north);
 
   \draw[cfline] (gate.south) -- (fanA);
+  \draw[cfarr] (video.south) |- (fanA);
   \draw[cfline] (verifier.north |- fanA) -- (specialists.north |- fanA);
   \draw[cfarr]  (verifier.north |- fanA) -- (verifier.north);
   \draw[cfarr]  (specialists.north |- fanA) -- (specialists.north);

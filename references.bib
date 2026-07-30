@@ -1,6 +1,8 @@
 % =====================================================================
 % references.bib
-% Titles / authors / arXiv IDs checked against arXiv/DBLP (2026-07-23).
+% Titles / authors / arXiv IDs checked against arXiv/DBLP (2026-07-23;
+% Related Work additions and corrections checked against primary sources
+% on 2026-07-29).
 % A small number of venue strings and DOIs were compiled from established
 % knowledge (live lookup was blocked for those) and are owed one final
 % confirmation pass before camera-ready; see the report cover note.
@@ -10,7 +12,7 @@
 
 @article{diffphy2025,
   title  = {Think Before You Diffuse: Infusing Physical Rules into Video Diffusion},
-  author = {Zhang, Ke and Xiao, Cihang and Xu, Yiqun and Mei, Jiebo and Patel, Vishal M.},
+  author = {Zhang, Ke and Xiao, Cihan and Xu, Jiacong and Mei, Yiqun and Patel, Vishal M.},
   journal= {arXiv preprint arXiv:2505.21653},
   year   = {2025},
   note   = {The parent ``DiffPhy'' work this project extends. Title as verified
@@ -80,7 +82,170 @@
   note   = {V-JEPA intuitive physics: violation-of-expectation in a learned latent beats pixel/text-space.}
 }
 
+@inproceedings{motioncraft2024,
+  title    = {MotionCraft: Physics-Based Zero-Shot Video Generation},
+  author   = {Montanaro, Antonio and Savant Aira, Luca and Aiello, Emanuele and Valsesia, Diego and Magli, Enrico},
+  booktitle= {NeurIPS},
+  year     = {2024}
+}
+
+@inproceedings{physgen2024,
+  title    = {PhysGen: Rigid-Body Physics-Grounded Image-to-Video Generation},
+  author   = {Liu, Shaowei and Ren, Zhongzheng and Gupta, Saurabh and Wang, Shenlong},
+  booktitle= {ECCV},
+  pages    = {360--378},
+  year     = {2024}
+}
+
+@inproceedings{phyt2v2025,
+  title    = {PhyT2V: LLM-Guided Iterative Self-Refinement for Physics-Grounded Text-to-Video Generation},
+  author   = {Xue, Qiyao and Yin, Xiangyu and Yang, Boyuan and Gao, Wei},
+  booktitle= {CVPR},
+  pages    = {18826--18836},
+  year     = {2025},
+  note     = {arXiv:2412.00596.}
+}
+
+@inproceedings{vlipp2025,
+  title    = {VLIPP: Towards Physically Plausible Video Generation with Vision and Language Informed Physical Prior},
+  author   = {Yang, Xindi and Li, Baolu and Zhang, Yiming and Yin, Zhenfei and Bai, Lei and Ma, Liqian and
+              Wang, Zhiyong and Cai, Jianfei and Wong, Tien-Tsin and Lu, Huchuan and Jia, Xu},
+  booktitle= {ICCV},
+  pages    = {12360--12370},
+  year     = {2025},
+  note     = {arXiv:2503.23368.}
+}
+
+@inproceedings{phyco2026,
+  title    = {PhyCo: Learning Controllable Physical Priors for Generative Motion},
+  author   = {Narayanan, Sriram and Jiang, Ziyu and Narasimhan, Srinivasa and Chandraker, Manmohan},
+  booktitle= {CVPR},
+  pages    = {41892--41902},
+  year     = {2026},
+  note     = {arXiv:2604.28169.}
+}
+
+@inproceedings{psivg2026,
+  title    = {Physical Simulator In-the-Loop Video Generation},
+  author   = {Foo, Lin Geng and Huang, Mark He and Lattas, Alexandros and Moschoglou, Stylianos and
+              Beeler, Thabo and Theobalt, Christian},
+  booktitle= {CVPR},
+  pages    = {4301--4311},
+  year     = {2026},
+  note     = {arXiv:2603.06408.}
+}
+
+@inproceedings{moregen2026,
+  title    = {MoReGen: Multi-Agent Motion-Reasoning Engine for Code-based Text-to-Video Synthesis},
+  author   = {Bai, Xiangyu and Liang, He and Galoaa, Bishoy and Nandi, Utsav and Moezzi, Shayda and
+              He, Yuhang and Ostadabbas, Sarah},
+  booktitle= {CVPR},
+  pages    = {7632--7642},
+  year     = {2026},
+  note     = {arXiv:2512.04221.}
+}
+
+@article{aifeedback2024,
+  title  = {Improving Dynamic Object Interactions in Text-to-Video Generation with AI Feedback},
+  author = {Furuta, Hiroki and Zen, Heiga and Schuurmans, Dale and Faust, Aleksandra and Matsuo, Yutaka and
+            Liang, Percy and Yang, Sherry},
+  journal= {arXiv preprint arXiv:2412.02617},
+  year   = {2024}
+}
+
+@inproceedings{videot1_2025,
+  title    = {Video-T1: Test-Time Scaling for Video Generation},
+  author   = {Liu, Fangfu and Wang, Hanyang and Cai, Yimo and Zhang, Kaiyan and Zhan, Xiaohang and Duan, Yueqi},
+  booktitle= {ICCV},
+  pages    = {18671--18681},
+  year     = {2025}
+}
+
+@inproceedings{videorepair2026,
+  title    = {Self-Correcting Text-to-Video Generation with Misalignment Detection and Localized Refinement},
+  author   = {Lee, Daeun and Yoon, Jaehong and Cho, Jaemin and Bansal, Mohit},
+  booktitle= {Findings of ACL},
+  pages    = {36464--36489},
+  year     = {2026},
+  doi      = {10.18653/v1/2026.findings-acl.1817}
+}
+
+@article{videogeneval2025,
+  title  = {VideoGen-Eval: Agent-based System for Video Generation Evaluation},
+  author = {Yang, Yuhang and Fan, Ke and Sun, Shangkun and Li, Hongxiang and Zeng, Ailing and Han, FeiLin and
+            Zhai, Wei and Liu, Wei and Cao, Yang and Zha, Zheng-Jun},
+  journal= {arXiv preprint arXiv:2503.23452},
+  year   = {2025}
+}
+
+@article{phycobench2025,
+  title  = {A Physical Coherence Benchmark for Evaluating Video Generation Models via Optical Flow-guided Frame Prediction},
+  author = {Chen, Yongfan and Zhu, Xiuwen and Li, Tianyu},
+  journal= {arXiv preprint arXiv:2502.05503},
+  year   = {2025}
+}
+
+@inproceedings{phyworldbench2026,
+  title    = {PhyWorldBench: A Comprehensive Evaluation of Physical Realism in Text-to-Video Models},
+  author   = {Gu, Jing and Liu, Xian and Zeng, Yu and Nagarajan, Ashwin and Zhu, Fangrui and Hong, Daniel and
+              Fan, Yue and Yan, Qianqi and Zhou, Kaiwen and Liu, Ming-Yu and Wang, Xin Eric},
+  booktitle= {ICLR},
+  year     = {2026},
+  note     = {Oral; arXiv:2507.13428.}
+}
+
+@article{physioneval2026,
+  title  = {Physion-Eval: Evaluating Physical Realism in Generated Video via Human Reasoning},
+  author = {Zhang, Qin and Jing, Peiyu and Yu, Hong-Xing and Ding, Fangqiang and Nie, Fan and Wang, Weimin and
+            Du, Yilun and Zou, James and Wu, Jiajun and Shuai, Bing},
+  journal= {arXiv preprint arXiv:2603.19607},
+  year   = {2026}
+}
+
 % ---------- B. LLM tool-use, visual programs, plan-execute DAGs ----------
+
+@inproceedings{react2023,
+  title    = {ReAct: Synergizing Reasoning and Acting in Language Models},
+  author   = {Yao, Shunyu and Zhao, Jeffrey and Yu, Dian and Du, Nan and Shafran, Izhak and
+              Narasimhan, Karthik and Cao, Yuan},
+  booktitle= {ICLR},
+  year     = {2023},
+  note     = {arXiv:2210.03629.}
+}
+
+@inproceedings{toolformer2023,
+  title    = {Toolformer: Language Models Can Teach Themselves to Use Tools},
+  author   = {Schick, Timo and Dwivedi-Yu, Jane and Dessi, Roberto and Raileanu, Roberta and
+              Lomeli, Maria and Hambro, Eric and Zettlemoyer, Luke and Cancedda, Nicola and Scialom, Thomas},
+  booktitle= {NeurIPS},
+  year     = {2023},
+  note     = {arXiv:2302.04761.}
+}
+
+@inproceedings{gpt4tools2023,
+  title    = {GPT4Tools: Teaching Large Language Model to Use Tools via Self-instruction},
+  author   = {Yang, Rui and Song, Lin and Li, Yanwei and Zhao, Sijie and Ge, Yixiao and Li, Xiu and Shan, Ying},
+  booktitle= {NeurIPS},
+  year     = {2023},
+  note     = {arXiv:2305.18752.}
+}
+
+@inproceedings{reflexion2023,
+  title    = {Reflexion: Language Agents with Verbal Reinforcement Learning},
+  author   = {Shinn, Noah and Cassano, Federico and Gopinath, Ashwin and Narasimhan, Karthik and Yao, Shunyu},
+  booktitle= {NeurIPS},
+  year     = {2023},
+  note     = {arXiv:2303.11366.}
+}
+
+@inproceedings{critic2024,
+  title    = {CRITIC: Large Language Models Can Self-Correct with Tool-Interactive Critiquing},
+  author   = {Gou, Zhibin and Shao, Zhihong and Gong, Yeyun and Shen, Yelong and Yang, Yujiu and
+              Duan, Nan and Chen, Weizhu},
+  booktitle= {ICLR},
+  year     = {2024},
+  note     = {arXiv:2305.11738.}
+}
 
 @inproceedings{visprog2023,
   title    = {Visual Programming: Compositional Visual Reasoning without Training},
@@ -191,12 +356,13 @@
 
 % ---------- C. Modular / agentic video QA & reasoning ----------
 
-@article{proviq2023,
-  title  = {Zero-Shot Video Question Answering with Procedural Programs},
-  author = {Choudhury, Rohan and Niinuma, Koichiro and Kitani, Kris M. and Jeni, L{\'a}szl{\'o} A.},
-  journal= {arXiv preprint arXiv:2312.00937},
-  year   = {2023},
-  note   = {The video analogue of ViperGPT.}
+@inproceedings{proviq2023,
+  title    = {Video Question Answering with Procedural Programs},
+  author   = {Choudhury, Rohan and Niinuma, Koichiro and Kitani, Kris M. and Jeni, L{\'a}szl{\'o} A.},
+  booktitle= {ECCV},
+  pages    = {315--332},
+  year     = {2024},
+  note     = {arXiv:2312.00937; the video analogue of ViperGPT.}
 }
 
 @inproceedings{morevqa2024,
@@ -230,6 +396,38 @@
   booktitle= {CVPR},
   year     = {2025},
   note     = {arXiv:2405.19209.}
+}
+
+@article{caviar2025,
+  title  = {CAViAR: Critic-Augmented Video Agentic Reasoning},
+  author = {Menon, Sachit and Iscen, Ahmet and Nagrani, Arsha and Weyand, Tobias and Vondrick, Carl and Schmid, Cordelia},
+  journal= {arXiv preprint arXiv:2509.07680},
+  year   = {2025}
+}
+
+@inproceedings{lenswalk2026,
+  title    = {LensWalk: Agentic Video Understanding by Planning How You See in Videos},
+  author   = {Li, Keliang and Li, Yansong and Shen, Hongze and Liu, Mengdi and Chang, Hong and Shan, Shiguang},
+  booktitle= {CVPR},
+  pages    = {19518--19528},
+  year     = {2026},
+  note     = {arXiv:2603.24558.}
+}
+
+@inproceedings{neusv2025,
+  title    = {Neuro-Symbolic Evaluation of Text-to-Video Models using Formal Verification},
+  author   = {Sharan, S P and Choi, Minkyu and Shah, Sahil and Goel, Harsh and Omama, Mohammad and Chinchali, Sandeep},
+  booktitle= {CVPR},
+  pages    = {8395--8405},
+  year     = {2025},
+  note     = {arXiv:2411.16718.}
+}
+
+@article{neuse2025,
+  title  = {We'll Fix it in Post: Improving Text-to-Video Generation with Neuro-Symbolic Feedback},
+  author = {Choi, Minkyu and Sharan, S P and Goel, Harsh and Shah, Sahil and Chinchali, Sandeep},
+  journal= {arXiv preprint arXiv:2504.17180},
+  year   = {2025}
 }
 
 % ---------- D. Perception specialists (the arms) + DMD ----------

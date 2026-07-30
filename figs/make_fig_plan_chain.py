@@ -114,7 +114,7 @@ def main():
             fontsize=7.6, ha="center", va="center", color=INK, linespacing=1.35)
 
     box(ax, 0.300, ytop, 0.210, hbox, fc="white", ec=RED)
-    ax.text(0.405, ytop + hbox / 2, "one ordering check\n(strictly before)",
+    ax.text(0.405, ytop + hbox / 2, "one ordering check\n(before, with slack)",
             fontsize=7.6, ha="center", va="center", color=INK, linespacing=1.35)
 
     box(ax, 0.560, ytop + 0.050, 0.428, 0.052, fc="white", ec=INK)
@@ -194,13 +194,13 @@ def main():
             "how the order was decided", fontsize=7.4, color=GRAY, va="top", ha="left")
     ax.text(0.026, 0.118,
             f"tolerance = 25% of the shorter window = {TOL:.2f} s.   "
-            f"does A end before B starts?   "
+            f"A before B iff A_end ≤ B_start + tolerance.\n"
             f"{EV_A[2]:.2f} ≤ {EV_B[1]:.2f} + {TOL:.2f}   →   yes, so the claim is supported.",
-            fontsize=7.2, color=INK, va="top", ha="left")
-    ax.text(0.026, 0.076,
-            "had the two windows overlapped within that tolerance, the order would carry no "
-            "answer and the claim would be left unresolved\nrather than decided by a tie.",
-            fontsize=7.0, color=GRAY, va="top", ha="left", linespacing=1.4)
+            fontsize=7.0, color=INK, va="top", ha="left", linespacing=1.25)
+    ax.text(0.026, 0.052,
+            "if neither direction passes, the windows carry no order and the claim "
+            "remains unresolved.",
+            fontsize=6.9, color=GRAY, va="top", ha="left")
 
     for ext in ("pdf", "png"):
         out = HERE / f"fig_plan_chain.{ext}"

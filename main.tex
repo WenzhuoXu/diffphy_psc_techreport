@@ -11,50 +11,63 @@
 \documentclass{adobe_research}
 \usepackage{diffphy-support}
 
-\title{Toward Physics-Faithful Video Generation:\\
-\large A Depth-Guided Generator, a Human-Annotated Flaw Benchmark,
-and an Auditable Multi-Tool Critic}
-\author[]{Adobe Research}
+% Canonical method-name symbol. Use this command for every typeset mention.
+\DeclareRobustCommand{\PhyReAct}{{\fontfamily{lmtt}\selectfont PhyReAct}}
+\pdfstringdefDisableCommands{%
+  \def\PhyReAct{PhyReAct}%
+}
+
+%\title{Toward Physics-Faithful Video Generation:\\
+%\large A Depth-Guided Generator, a Human-Annotated Flaw Benchmark,
+%and an Auditable Multi-Tool Critic}
+\title{\PhyReAct: Agentic Physical Reasoning for Video Evaluation and Refinement}
+\author[\S]{Wenzhuo Xu}
+\author[]{Yuchen Zhu}
+\author[]{Chongjian Ge}
+\author[]{Jing Shi}
+\author[]{Jason Kuen}
+\author[]{Tong Sun}
+\author[\S\dagger]{Jiuxiang Gu}
+
+
+\affiliation[]{\textbf{Adobe Research}}
+
+% \contribution[*]{Equal Contribution}
+\contribution[\S]{Core Contribution}
+\contribution[\dagger]{Project Lead}
 \date{July 2026}
 \hypersetup{
-  pdftitle={Toward Physics-Faithful Video Generation},
+  pdftitle={\PhyReAct: Agentic Physical Reasoning for Video Evaluation and Refinement},
   pdfauthor={Adobe Research},
-  pdfsubject={Physics-faithful video generation technical report}
+  pdfsubject={Agentic physical reasoning for video evaluation and refinement}
 }
 
 \abstract{
-Text-to-video generators produce clips of high visual quality that
-nonetheless violate physical common sense---objects interpenetrate, motion
-ignores gravity, quantities fail to conserve---and often simply fail to depict
-what the prompt requested. Making generated video \emph{physically faithful}
-requires three things at once: a generator that can be steered by physical
-structure rather than appearance alone; a way to measure, reliably and
-auditably, when a clip is wrong; and ground-truth data about the flaws real
-generators make. This report presents one component for each.
-
-First, a \textbf{physics-guided generator}: a rigid-body simulation is rendered
-into a per-frame depth (or silhouette) control video and passed to the native
-control branch of a Wan~2.2-VACE video-diffusion backbone, so that scene geometry
-and motion are driven by the simulation while the text prompt supplies
-appearance. Second, a \textbf{human-annotated flaw benchmark}: 1{,}500
-AI-generated clips carry human misalignment annotations---each with a severity, the
-violated prompt fragment and a free-text rationale, and, where present,
-a time span and a box track over the flagged interval---from which we derive a
-frozen, physics-focused evaluation set. Third, an \textbf{auditable multi-tool
-critic}: a served vision-language reasoner decomposes a prompt into checkable
-claims, routes those naming a measurable quantity to a frozen
-open perception specialist that returns localized evidence only, and combines
-the outcomes with deterministic rules into a three-valued verdict
-(\emph{plausible}, \emph{implausible}, \emph{abstain}). The evaluation target is
-human labels, and no closed or proprietary model produces the critic's verdict.
-
-On the evaluation core, compiling a prompt into a plan and executing it recovers
-$68.9\%$ of localized flaws against $62.6\%$ for verifying each claim independently,
-at a slightly higher call count. Scored against human $1$--$5$ ratings on VideoPhy-2
-under a purpose-trained judge's own protocol, the critic ranks clips for prompt match
-better than that judge on the benchmark's hard slice, while that judge is better
-calibrated to the exact rating a human gave. The intended end state is a loop in which
-the critic supplies the reward that refines the generator; that loop is future work.
+Generated videos can look convincing while violating prompt-specific physical
+obligations, yet clip-level learned scorers compress failures into opaque scores
+and offer little evidence for correction. We present \PhyReAct, an
+agentic framework for auditable evaluation of generated video and a foundation
+for verification-guided refinement. \PhyReAct{} compiles a prompt into
+prompt-grounded claims with typed checks and an executable measurement plan. A
+vision-language reasoner performs semantic
+decomposition and dense-frame judgments, while frozen open specialists supply
+counts, tracks, masks, depth, text, and audio evidence. The video's timeline
+structures execution: occurrence gates timing, localized intervals select frames
+for later checks, and fixed rules compute relations. Specialists return
+measurements, not verdicts; deterministic rules combine validated records into
+\emph{supported}, \emph{contradicted}, or \emph{unknown} claim states and a
+\emph{plausible}, \emph{implausible}, or \emph{abstain} clip decision. This
+separation preserves provenance and keeps unresolved checks from becoming
+implicit successes.
+To ground evaluation in real failures, we introduce a 1{,}500-clip
+human-annotated corpus with prompt-linked flaw rationales and, where available,
+temporal spans and box tracks, from which we freeze a motion-enriched evaluation
+core. On 149 completed core clips, plan-based execution recovers 197 of 286
+localized flaws ($68.9\%$), versus 179 ($62.6\%$) for one-at-a-time per-claim
+verification, at 13.0 versus 12.1 calls per clip. We also instantiate a
+simulation-conditioned generator as a controllable refinement testbed.
+\PhyReAct's evidence traces are designed to support future critic-guided
+refinement; closed-loop generator optimization remains future work.
 }
 
 % convenience macros
@@ -91,84 +104,105 @@ the critic supplies the reward that refines the generator; that loop is future w
 \begin{document}
 \maketitle
 
-% ---------------------------------------------------------------------
-% FRONT-MATTER SCOPE NOTE
-% ---------------------------------------------------------------------
-\begin{scopebox}
-\small
-\textbf{Scope.} This report describes three components built toward
-physics-faithful video generation: (1)~a generator that renders a physics
-simulation into photorealistic video through a depth/structure control
-channel; (2)~a human-annotated benchmark of prompt-versus-video flaws; and
-(3)~an auditable multi-tool critic that detects such flaws. The three are
-designed to compose into a loop in which the critic's judgment refines the
-generator (\cref{sec:loop}).
-
-\smallskip
-\textbf{What is reported.} The design of each component; the benchmark's contents and
-statistics; and a paired comparison of the critic against per-claim verification on the
-evaluation core (\cref{sec:eval}). Generation is assessed qualitatively---by inspection
-and by adherence to the control signal---with one measured study of when the control may
-be released. External evaluators, cost-matched comparisons and any result on a held-out
-set are not yet run.
-\end{scopebox}
-
 % =====================================================================
 \section{Introduction}\label{sec:intro}
 % =====================================================================
 
-\subsection{Physical faithfulness as the goal}
-State-of-the-art text-to-video models render strikingly realistic clips that
-still break physical common sense and often omit or distort what the prompt
-asked for. Physics-IQ quantifies the first problem directly: strong visual
-realism coexists with a large gap in physical understanding on its evaluated
-models and tasks~\cite{physicsiq2025}. Closing that gap is our long-term
-objective, and it decomposes into three coupled needs.
+Text-to-video systems can now produce clips with striking appearance and smooth
+local motion, yet visual fluency is not physical reliability. A generated video
+may preserve style and identity while omitting a requested object, reversing the
+order of two events, violating a contact outcome, or producing a trajectory
+inconsistent with the described scene. Recent benchmarks expose this gap
+between perceptual quality, prompt adherence, and physical
+commonsense~\cite{videophy2024,videophy2_2025,phygenbench2024,physicsiq2025}.
+For evaluation that can eventually support refinement, however, a scalar score
+is not enough. The system must recover the prompt-conditioned physical
+obligations---over entities, events, motion, contact, space, quantity, and
+time---and identify the evidence for each decision. This raises a first
+question: \emph{can a video evaluator turn a generation request into checkable
+physical obligations and ground every decision in localized, inspectable
+evidence?}
 
-\begin{itemize}
-  \item \textbf{A steerable generator.} A model that follows \emph{physical
-  structure}---the geometry and motion of a scene---rather than reproducing the
-  surface statistics of its training data.
-  \item \textbf{A reliable, auditable detector of flaws.} A measurement
-  instrument that says when a clip is wrong \emph{and} shows why, at the level
-  of individual evidence---because that judgment is the reward signal any
-  improvement loop consumes.
-  \item \textbf{Ground truth about real flaws.} A benchmark of the mistakes
-  real generators make, annotated by people, against which any detector is
-  measured.
-\end{itemize}
+Existing approaches provide complementary parts of this capability. Learned
+video judges estimate holistic quality or alignment
+scores~\cite{videoscore2024,videoscore2_2025}; question and proposition
+decomposition make prompt requirements more explicit~\cite{tifa2023,dsg2024};
+and visual-programming or modular video-QA systems show how language models can
+compose perception modules~\cite{visprog2023,vipergpt2023,proviq2023,morevqa2024}.
+Physical verification nevertheless places these ideas under a demanding
+measurement contract. Counting objects, localizing an event, following a
+trajectory, estimating depth order, reading text, and detecting sound require
+different instruments and expose different failure modes. A high-level model
+must decide which evidence is needed and how later measurements depend on
+earlier ones, while low-level specialists must report what they observe without
+silently converting uncertain measurements into confident judgments. This
+leads to a second question: \emph{can high-level reasoning coordinate
+heterogeneous measurements over time, preserve unresolved evidence, and produce
+feedback suitable for video refinement?}
 
-\subsection{Three contributions and the loop they form}
-This report contributes one component for each need and states how they are
-intended to compose.
+To address these coupled questions, we present \PhyReAct{}, an agentic physical
+reasoning framework for evaluating and refining generated video. Rather than
+treating physics as a single global impression, \PhyReAct{} compiles a prompt
+into verifiable claims and typed checks. Before inspecting the video, a high-level
+vision-language reasoner writes an executable plan whose operations and
+dependencies are checked by a mechanical validator. At execution time, a
+dense-frame reasoner establishes whether relevant objects and events occur, and
+frozen specialist models provide targeted measurements for count, tracking,
+segmentation, depth, rendered text, and audio. This division lets semantic
+reasoning select and connect the evidence while keeping specialist outputs
+available for inspection.
 
-\begin{enumerate}
-  \item \textbf{A physics-guided video generator} (\cref{sec:generation}) that
-  converts a rigid-body simulation into a depth or silhouette control video and
-  drives a Wan~2.2-VACE diffusion backbone's native control branch, separating
-  physical structure (from the simulation) from appearance (from the prompt).
-  \item \textbf{A human-annotated flaw benchmark} (\cref{sec:dataset}): a
-  1{,}500-clip corpus of AI-generated video with localized human misalignment
-  labels, and a frozen physics-focused subset used as the evaluation target.
-  \item \textbf{An auditable multi-tool critic} (\cref{sec:critic}) that
-  decomposes a prompt into claims, types each one, routes those asking for a
-  quantity, an interval, an outline or a transcription to an open perception
-  specialist returning evidence only, and combines the evidence deterministically
-  into a three-valued verdict.
+The central mechanism is a timeline-conditioned evidence chain. An event must
+first be observed before its time interval can support another operation; that
+interval then restricts the frames examined by a more expensive specialist; and
+temporal relations are evaluated from the resulting intervals using fixed
+rules. Consequently, evidence is not collected as an unordered set of model
+answers: earlier observations determine which later measurements are valid and
+where they should be made. Specialists return evidence rather than final
+prompt-satisfaction labels, after which deterministic composition maps each
+claim to \supported{}, \contradicted{}, or \unknownv{} and the clip to
+\emph{plausible}, \emph{implausible}, or \abstain{}. The output is therefore a
+claim-level trace that identifies what was checked, where the evidence arose,
+and which conclusion followed from it.
 
-  Its distinguishing mechanism is that \textbf{the video's own timeline is the
-  wiring} (\cref{sec:chaining}). Measurements are not a flat list dispatched in
-  parallel: one measurement's answer decides whether a second is run, where in the
-  clip it is run, and what its result is allowed to mean. An event's occurrence is
-  settled first and gates whether its timing may speak at all; a located interval
-  becomes the explicit list of frames a later, costlier measurement reads; and the
-  composition rule that turns two measured intervals into an order is arithmetic,
-  with a tolerance, that declines rather than breaks a tie.
-\end{enumerate}
+Evaluating such a critic requires ground truth at the same level of detail. We
+therefore assemble 1{,}500 generated clips with 2{,}582 human-written flaw
+records. Each record identifies the exact prompt fragment that was violated and
+includes a rationale, severity, confidence, and, when available, a temporal
+span or object track. A recorded selection procedure yields a motion-enriched
+evaluation set and a 150-clip core for routine experiments. Unlike a single
+clip-level quality score, these annotations allow each allegation made by the
+critic to be matched to the particular failure marked by a person.
 
-\noindent The end state (\cref{sec:loop}) is a closed loop: the benchmark
-trains and evaluates the critic, and the critic's verdict becomes the reward
-that refines the generator (\cref{sec:loop}).
+The same structured trace also provides a natural interface to refinement:
+contradicted claims identify what should change, while their localized evidence
+indicates when and where an intervention is needed. As a controlled testbed for
+this direction, we render MuJoCo simulations as depth or silhouette control
+videos for a Wan~2.2-VACE generator~\cite{todorov2012mujoco,wan2025,vace2025}.
+The simulation specifies geometry and motion, while the text prompt controls
+appearance. The present study evaluates the critic and this controllable
+generator separately; using critic feedback to update generation closes the
+intended loop and remains future work.
+
+On the 149 development-core clips completed by both systems, \PhyReAct{}
+recovers 197 of 286 localized flaws ($68.9\%$), compared with 179
+($62.6\%$) for wording-controlled, one-at-a-time claim verification. This gain
+of 18 recovered flaws has a whole-clip bootstrap interval of $[+8,+28]$, while
+requiring 13.0 rather than 12.1 model and tool calls per clip. These results
+support planned, timeline-aware evidence collection over isolated per-claim
+verification at a modest additional call cost; because the core was used during
+system development, they characterize the current system rather than held-out
+generalization.
+
+Our contributions are threefold. First, we introduce \PhyReAct{}, an agentic
+critic that combines typed planning, heterogeneous visual and audiovisual
+measurements, timeline-conditioned execution, and deterministic three-valued
+reasoning in a single inspectable trace. Second, we provide a 1{,}500-clip
+benchmark with localized, prompt-grounded human flaw records and a paired
+flaw-level evaluation that isolates the benefit and cost of plan-based
+execution. Third, we connect structured criticism to a simulation-conditioned
+generation testbed, establishing a concrete interface for future
+critic-guided video refinement.
 
 
 % =====================================================================
@@ -266,7 +300,23 @@ polarity the control branch was trained to read. The mapping's endpoints are
 robust percentiles---the first and the ninety-seventh---of the depth values in the
 scene, computed after discarding the far-clip constant that the background sky
 writes into the buffer, so that a single distant constant cannot compress the whole
-range into a few grey levels.
+range into a few grey levels. Formally, for depth frame $D_t$ over pixel domain
+$\Omega$ and $t\in\{0,\ldots,T-1\}$, let
+\begin{equation}
+\begin{split}
+\mathcal{D}
+  &= \{D_t(u):t\in\{0,\ldots,T-1\},\ u\in\Omega,\ D_t(u)\neq d_{\mathrm{far}}\},\\
+d_- &= Q_{0.01}(\mathcal{D}),\qquad
+d_+ = Q_{0.97}(\mathcal{D}),\\
+C_t(u)
+  &= 1-\operatorname{clip}\!\left(
+       \frac{D_t(u)-d_-}{d_+-d_-},\,0,\,1\right).
+\end{split}
+\label{eq:global-depth-control}
+\end{equation}
+Here $d_{\mathrm{far}}$ is the renderer's background constant and $C_t$ is the
+grayscale control frame before boundary smoothing. If $d_+=d_-$, the depth map
+is degenerate and the silhouette control described below is used instead.
 
 \paragraph{Why the mapping is fixed for the whole clip.} The endpoints are computed
 once over all frames of the clip, not per frame. This is a substantive choice, not
@@ -792,335 +842,108 @@ one flaw. The core's $306$ entries are therefore $288$ distinct flaws. A run tha
 subset of clips carries its own share of both counts; \cref{sec:eval} states them.
 
 \subsection{Relation to existing video benchmarks}\label{sec:bench-vs}
-The closest relative is VideoPhy-2~\cite{videophy2_2025}, where three annotators rate
-each clip on two five-point scales---semantic adherence and physical commonsense---and
-mark each candidate physical rule as violated, followed or undetermined, with scores
-averaged and rules resolved by majority. The judgement attaches to the clip and to a
-predefined rule; annotators do not mark frames, spans or regions. Benchmarks built around
-per-dimension automatic metrics, such as VBench~\cite{vbench2024} and
-T2V-CompBench~\cite{t2vcompbench2024}, score a model over their own fixed prompt suite,
-which makes them instruments for ranking generators rather than for scoring a detector on
-someone else's clips.
+The closest annotated resource is Physion-Eval~\cite{physioneval2026}, which pairs
+generated clips with real-world reference processes and provides expert reasoning traces
+containing temporally localized glitches, a physical-failure category, and an
+explanation. VideoPhy-2~\cite{videophy2_2025} instead has three annotators rate semantic
+adherence and physical commonsense, and mark predefined physical rules as violated,
+followed, or undetermined. Per-dimension suites such as VBench~\cite{vbench2024} and
+T2V-CompBench~\cite{t2vcompbench2024} primarily support comparison among generators on
+fixed prompt collections.
 
-Here the judgement attaches to the words of the prompt that failed, and, where present,
-to a time span and a box track. That is what makes a
-detector's output matchable rather than merely correlatable, and it is what supports the
-miss attribution of \cref{sec:eval}. A clip-level score offers nothing to align an
-individual accusation against.
+Our corpus targets a complementary, prompt-grounded detector protocol. Each record
+attaches a failure to the exact words of the generation prompt and permits a time span
+and box track, so an allegation can be matched to a particular annotated failure rather
+than only correlated with a clip-level score. Unlike Physion-Eval, this protocol does
+not require a matched real-world reference video; unlike VideoPhy-2, it uses
+open-vocabulary flaw statements rather than a fixed candidate-rule list. These choices
+make claim-level miss attribution possible in \cref{sec:eval}, but they do not improve
+annotation reliability: the present corpus is single-annotator and contains only flawed
+clips, whereas VideoPhy-2 provides redundant judgments and majority resolution.
 
-The trade runs the other way as well. VideoPhy-2's three annotators with majority
-resolution give a redundancy this benchmark lacks. A user who needs a label whose noise
-is characterised should prefer the redundant benchmark; a user who needs to know which
-failure a detector found, and where, needs this one.
-
-\section{The Auditable Multi-Tool Critic}\label{sec:critic}
+\section{\PhyReAct{}: Auditable Physical Verification}\label{sec:critic}
+\label{sec:compiler}
 % =====================================================================
 
-\subsection{The reasoner}
-One served vision-language model---Qwen3-VL-30B-A3B-Instruct~\cite{qwen3vl2025},
-BF16 weights (no quantization), tensor-parallel over two GPUs---performs the
-decomposition and grounding and runs three reasoner-mediated hard sub-checks
-(\cref{sec:reasoner-checks}). It is the only learned component that reasons over
-the whole prompt. \Cref{fig:criticpipe} shows how it sits between the prompt and the
-specialists that supply the evidence.
+\subsection{Problem formulation and system overview}
+A generated clip is paired with the prompt $p$ that requested it. We represent
+the decoded video by its own container clock,
+\begin{equation}
+\mathcal{V}
+  = \{(I_t,\tau_t)\}_{t\in\mathcal{T}_{\mathcal V}},
+\qquad
+\mathcal{T}_{\mathcal V}=\{0,\ldots,T_{\mathcal V}-1\},
+\qquad
+0\leq\tau_0<\cdots<\tau_{T_{\mathcal V}-1}\leq D_{\mathcal V},
+\label{eq:video-clock}
+\end{equation}
+where $I_t$ is frame $t$, $\tau_t$ is its timestamp, and $D_{\mathcal V}$ is
+the clip duration. The explicit range on $t$ separates a frame index from time
+in seconds and also permits nonuniform decode timestamps. An audio track, when
+present, is addressed on the same clock.
+
+\PhyReAct{} has four roles. A \emph{text-only planner} decomposes the full prompt
+and writes a verification program before seeing any frame. A \emph{video-aware
+semantic verifier} reads timestamped frames densely for predicates such as
+existence and event occurrence. \emph{Specialist instruments} return targeted
+measurements such as counts, tracks, masks, depths, text, and sound intervals.
+Finally, a \emph{deterministic aggregator} applies typed predicates and
+three-valued composition. The planner and semantic verifier may use the same
+served checkpoint, but they are separate calls with different inputs and
+responsibilities.
+
+The planner produces exact prompt-grounded claims and a surface plan,
+\begin{equation}
+\mathcal{C}(p)
+  = \{c_i=(s_i,\phi_i)\}_{i=1}^{N_p},
+\qquad s_i\sqsubseteq p,
+\qquad
+(\mathcal{C},\widetilde{\Pi})=\Pi_{\theta}(p),
+\label{eq:claims-and-plan}
+\end{equation}
+where $s_i$ is a verbatim span of $p$ and $\phi_i$ is the checkable assertion
+attached to it. The relation $s_i\sqsubseteq p$ is enforced, not inferred after
+execution. Types belong to the plan's operations and checks rather than to an
+unverifiable free-form claim label.
+
+\Cref{fig:criticpipe} summarizes the resulting dataflow. Planning is
+\emph{global with respect to the prompt}: the naming pass sees the whole prompt
+and all later claim groups share that vocabulary. Execution can be
+\emph{local in time}: a declared interval may gate or scope a later declared
+action. This is static plan-then-execute orchestration, not global search over
+alternative plans and not an online ReAct loop. Observations may activate,
+skip, or localize nodes already in the program; they do not invent a new tool
+recipe during execution.
 
 \begin{figure}[tp]
   \centering
   \input{figs/fig_critic_pipeline}
-  \caption{The critic. A reasoner turns the prompt into checkable claims and
-  writes down the measurements that would settle each one; the plan is
-  type-checked before any tool runs; a general verifier reading the frames
-  densely decides whether things are present and events happen, while frozen
-  specialists supply the quantities it cannot produce. Every call returns
-  evidence only, and fixed rules --- not a second model --- turn that evidence
-  into the verdict and the trace beside it. Shaded boxes are learned components;
-  outlined boxes are deterministic.}
+  \caption{\PhyReAct{} dataflow. The text-only planner receives the prompt and
+  writes claims and a surface plan; the compiler expands and validates it
+  before the video reaches execution. The video-aware verifier emits explicitly
+  learned base-predicate states, whereas specialists emit typed measurements.
+  Only the final claim and clip aggregation is wholly deterministic. Shaded
+  boxes are learned components; outlined boxes are deterministic.}
   \label{fig:criticpipe}
 \end{figure}
 
-\subsection{Perception specialists}\label{sec:arms}
-Each claim is typed, and a claim whose type names a measurable quantity---a count, an
-interval, an outline, a depth ordering, a track, a transcription, a sound---is routed to a
-frozen open specialist that measures that one thing and returns only the measurement
-(\cref{tab:arms}). Claims that merely assert something occurs are put to the reasoner reading the frames.
-On the evaluation data those dominate, so most executed checks are settled without a
-specialist (\cref{sec:eval}). Two qualifications apply to
-the table. First, some adapters \emph{declare} a stronger primary backend that is
-not the one actually executed; we list the backend that runs. Second, there is no
-holistic scoring tool in the verdict path by design: a learned holistic video
-scorer is kept out so that the verdict is built from localized evidence and
-deterministic rules, though such a scorer could still serve as an external
-baseline.
+\subsection{Prompt claims and text-only plan synthesis}
+\label{sec:plan-construction}
+Claim extraction preserves both the exact source span $s_i$ and its normalized
+assertion $\phi_i$. A first pass over the whole prompt assigns stable identifiers
+to every distinct entity and to every separately asserted event occurrence.
+The claims are then planned in groups of at most four. Each group sees the full
+prompt, the shared names, and only its assigned claims; its local identifiers
+are renamed mechanically before all groups are assembled. This construction
+prevents two groups from silently referring to the same entity by different
+names or to different occurrences by one name.
 
-\begin{table}[t]
-\centering
-\small
-\setlength{\tabcolsep}{5pt}
-\renewcommand{\arraystretch}{1.22}
-\begin{tabular}{@{}p{2.5cm} p{5.4cm} p{4.6cm}@{}}
-\toprule
-\textbf{Capability} & \textbf{Open backend} & \textbf{Evidence returned} \\
-\midrule
-Object presence & LLMDet open-vocabulary detector~\cite{llmdet2025} & presence; bounding box \\
-Object count & CountGD-Box counter~\cite{countgd2024,countvid2026} (SAM~2.1 internal) & cardinality of a named set \\
-Kinematics & point tracking, TAPNext-style~\cite{tapnext2025} $+$ kinematic predicates & per-frame positions; static/moving, direction, speed \\
-Action timing & the reasoner over timestamped frames (a dedicated temporal grounder~\cite{timelens_grounding2025} remains available on request) & time window of a named event, or a stated refusal \\
-Spatial relation & unified SAM~3 masks~\cite{sam3_2025} $+$ monocular depth $+$ reasoning & depth-ordered / image-plane relations \\
-Rendered text & an optical character recognition engine, over the frames where the surface is on screen & the characters actually printed, compared to the demanded string \\
-Holistic & \emph{no tool by design}~\cite{videoscore2_2025} & --- \\
-Audio\textsuperscript{$\dagger$} & FlexSED sound-event detection~\cite{flexsed2025} & sound events with timestamps \\
-\bottomrule
-\end{tabular}
-\caption{Perception specialists and the open backend wired to each. In the routed
-configuration the object, count, kinematics, action, and spatial-relation
-backends execute as stages; the object and count adapters declare stronger
-primaries that are not on the executed path, so the running backend is shown. The
-relation capability is served by a unified mask-plus-depth reasoning arm, and no
-holistic scoring tool is used in the verdict path by design.
-\textsuperscript{$\dagger$}The audio detector answers sound claims on the clip's
-own audio track, and returns the time spans in which it heard the queried sound, so a
-sound can be ordered against something seen.}
-\label{tab:arms}
-\end{table}
-
-\subsection{Evidence-only tool contract}\label{sec:contract}
-Specialists are frozen, and what they are permitted to say is fixed by a schema
-rather than by convention. A specialist reports \emph{what it measured}---a box, a
-count, a track, a time window, a depth---and never \emph{whether the prompt is
-satisfied}. The schema is enforced by a validator that refuses, rather than repairs,
-anything off-contract, so an off-contract output cannot enter the accepted evidence
-record at all. The complete rule set is:
-
-\begin{itemize}
-  \item \textbf{Judgment-shaped fields are refused by name.} A fixed list of field
-  names is rejected anywhere in a measurement, at any nesting depth---among them
-  \emph{label}, \emph{judgment}, \emph{decision}, \emph{plausible}, \emph{reasoning},
-  \emph{rationale}, \emph{ground truth}, \emph{human label}, and \emph{flaw}---as is
-  any field name containing \emph{mismatch} or \emph{verdict}, and any name that
-  starts like an evaluation label.
-  \item \textbf{Renaming does not evade the rule.} Field names are normalized before
-  the check: case and separators are stripped and camel-case is split, so a rejected
-  name cannot be smuggled in by rewriting it.
-  \item \textbf{Numbers must be real numbers.} Measurements are validated as strict
-  data: no infinities, no not-a-number, no duplicate keys, no values outside the
-  serialisable types. A measurement that cannot be canonically serialised is refused.
-  \item \textbf{Every measurement is tied to the text that asked for it.} A record
-  carries the clip identifier, the full prompt, and the exact claim fragment being
-  checked, and that fragment is required to occur \emph{verbatim} in the prompt---a
-  paraphrase is a validation failure. This is what makes a measurement attributable
-  after the fact.
-  \item \textbf{Not-measuring is a first-class, and separate, outcome.} A record's
-  status is exactly one of measured, abstained, or errored. A measured record must
-  carry measurements and may carry neither an abstention reason nor an error message;
-  an abstention must carry a reason and no error; an error must carry a message and no
-  abstention reason. The three cannot be blurred.
-  \item \textbf{Heavy evidence is content-addressed.} Any file a specialist produces
-  is referenced by path plus a hash of its bytes, and the measurement payload itself
-  carries a hash of the tool's native output, so a record can be checked later against
-  the artifact it claims to describe.
-  \item \textbf{Cost travels with evidence.} Every record carries its own accounting:
-  accelerator seconds and tool calls are required; wall time, price, and token counts
-  are optional. Cost is therefore auditable per measurement rather than reconstructed
-  afterwards.
-  \item \textbf{The contract is versioned.} Each record names the schema version it
-  was written against, and a reader refuses a version it does not implement.
-\end{itemize}
-
-The guarantee this buys is narrow and worth stating precisely: no specialist
-\emph{emits} the verdict, and every measurement that reaches the deterministic layer
-is attributable to a prompt fragment and to a hashed artifact. It does not make a
-learned measurement semantically neutral, and it cannot detect a measurement that is
-confidently wrong; a wrong number inside a well-formed record will mislead the rule
-that consumes it.
-
-\subsection{Three-valued semantics and deterministic roll-up}\label{sec:semantics}
-Every claim resolves to \supported{}, \contradicted{}, or \unknownv{}, and
-\unknownv{} is first-class: it is what the critic reports when the evidence it
-actually obtained does not settle the question. The rules that produce those three
-values are fixed and are stated here in full, because which of them applies is the
-whole substance of the critic's answer.
-
-\paragraph{A measurement that looked and did not find is evidence, not silence.} When
-a specialist is asked about something over the whole clip and reports that it is not
-there, that is treated as a measurement and it contradicts the claim; it does not
-become \unknownv{}. Concretely: a stated count that does not match the measured count
-contradicts; a spatial claim whose two participants are never both visible with usable
-outlines contradicts, because the asserted arrangement was never realised anywhere; an
-asserted approach or departure whose subject cannot be followed at all contradicts;
-and a claim that something enters a container is contradicted both when it is never
-inside and when it is inside from the first observed frame with no crossing ever seen.
-
-\paragraph{Existence and occurrence are decided by the dense-frame model, not by the
-specialists.} A detector that returns a box, or a temporal grounder that returns a
-window, is not by itself evidence that the queried thing exists: those interfaces
-return their best candidate for a query whether or not the query has a referent. So
-whether an object is present at all, and whether a named event happens at all, are
-routed to the vision-language model watching the frames densely, and the specialists
-supply the quantities, windows, outlines, depths and tracks it cannot produce. A
-detector's box remains an \emph{input} to measurements---seeding a track, naming the
-participants of a spatial relation, feeding a count---and in that role its
-looked-and-absent report still contradicts. A measurement whose only consumers were
-existence or occurrence questions is not executed at all, which keeps unused
-perception out of the cost.
-
-This is not a precaution against a hypothetical failure. Asked to time eleven events
-that a human viewer had confirmed do \emph{not} occur in their clips, a dedicated
-temporal grounding model returned a confident time window for all eleven---placing
-tigers crouching across seven seconds of an eight-second clip, and a candle going out
-in a clip where the flame burns to the end---while the same reasoner that watches the
-frames, asked the same eleven questions in a form that permits refusal, said the event
-was absent in seven of them. On a control set of six events that do occur in the same
-clips, the reasoner found five and the grounder six, so the difference is not a
-reasoner that refuses everything. Where a window \emph{was} readable the grounder
-ordered events perfectly; its failures were unusable output presented as measurement.
-Consequently the event-timing question is now put to the reasoner over frames labelled
-with their timestamps, in a form whose permitted answers include \emph{absent} and
-\emph{present but not placeable in time}; the dedicated grounder remains available
-when a caller asks for it. Two windows that begin at the same instant, or that each
-span the whole clip, are marked as carrying no order and the ordered claim is left
-unresolved rather than decided by a tie.
-
-The comparison is small---eleven absent events and six present ones, on clips a single
-viewer had annotated---so it fixes the routing of one question rather than ranking two
-models in general, and it says nothing about how often either backend is right when an
-event \emph{is} present and placeable. What it does establish is the asymmetry the
-design turns on: a backend that cannot decline will answer an unanswerable question, and
-an invented window is indistinguishable from a measured one downstream.
-
-Permitting refusal is not free, and one traced case shows both the cost and the reason to
-pay it. A claim asserted that a sound coincided with each impact. Asked to place that sound
-in time, the reasoner declined, stating that the frames carry no audio and that the question
-could not be answered from them. The ordering was left unresolved, and a catch was lost: the
-previous backend had returned a window for the same query without any audio evidence, and
-that unsupported estimate produced a flag matching a human-labelled mismatch.
-
-\paragraph{A reader that cannot be fluent.} The same asymmetry decides who reads text on
-screen. Generated video often renders lettering that is shaped like writing but is not
-writing, and that is precisely the defect a claim quoting a sign or a slogan is asking
-about. A generative model reading those pixels supplies the missing letters from its
-language prior: shown a crop of one camera body, the vision-language model returned
-\emph{``sound and colour, for film and sound recording''}, and---once told what the
-prompt had asked for---\emph{``shoot the camera to the front and enjoy the moment''}.
-Neither sentence is on the camera. A recognition engine given the same crop returned
-\emph{``RRVLE''}, \emph{``ToeFan''}, \emph{``ao Gony Raa um''}, which is what is
-actually printed there. On two clips where a human annotator had typed out the garbled
-lettering by hand, the engine's transcript matched theirs character for character. So the
-reading is done by an engine that transcribes glyphs and cannot compose a plausible
-sentence, and the comparison against the demanded string is ordinary text comparison.
-The distinction is not stylistic: a fluent reader would have reported the prompt's own
-words back and the claim would have been marked satisfied.
-
-Silence from that engine is then split by cause rather than treated as one outcome. If
-the engine itself fails, the claim is unresolved---that is a statement about the
-instrument. If the surface was on screen, and large and sharp enough that legible
-lettering would have survived, and nothing legible was read, the claim is contradicted:
-illegible lettering is the defect, not an absence of evidence about it. If the pictures
-were too small or too smeared for any text to survive, the claim is unresolved, which is
-the only remaining genuine abstention.
-
-The refusal was also correct in a way the invented window concealed. The claim was about
-sound, and it was being put to a model that sees only frames---so no answer from that
-backend, right or wrong, could have been evidence. The refusal surfaced a routing fault
-rather than a perception limit, and sound claims are now measured on the clip's audio track
-by a detector queried with the described sound (\cref{tab:planops}); most clips in the
-evaluation set carry one. That is the general argument for permitting refusal: a backend
-that must answer converts a question it cannot address into a confident measurement, and
-downstream nothing distinguishes that from a real one. The cost is concrete---one catch in
-this trace---and its aggregate size is not established here.
-
-\paragraph{Ordering is composed, never assumed.} For a claim that one event precedes
-or falls inside another, both events must first be confirmed to occur by a backend
-able to observe them---the dense-frame model for anything visible, the sound-event
-detector for anything audible---so a sound can be ordered against something seen. An
-event no available backend can observe yields a refusal rather than a window. If either event is judged absent, the ordered claim is
-contradicted outright; if either cannot be placed in time, the claim is left
-unresolved. Only once both are confirmed do the specialist's time windows decide the
-order, and they do so with a tolerance rather than a fixed threshold: the boundary
-slack is a quarter of the shorter of the two events, so ``before'' requires a gap that
-is resolvable relative to the events being ordered. Containment is directional---one
-interval inside the other, not merely overlapping it---and an interval that contains
-the other contradicts rather than abstains.
-
-\paragraph{Where \unknownv{} genuinely comes from.} It is reserved, and it is
-reserved for cases that are about the evidence rather than about the video. Two valid
-window measurements that cannot be reconciled within the tolerance yield \unknownv{}:
-that is the deterministic outcome of the ordering table, not a tool's opinion. So does
-an incomplete plan---a depth-ordering relation asked for without a depth measurement is
-reported as a gap rather than silently resolved from outlines alone. So does a required
-measurement that never arrived. So does a check that the planner emitted but bound to
-no claim text and no describable request, which is surfaced by name rather than
-absorbed. And so does an infrastructure failure, which is retried at the clip level and
-never scored.
-
-\paragraph{Sub-checks compose by a fixed rule, and an unresolved part does not
-disappear.} A claim may carry several sub-checks. The claim is \contradicted{} if
-\emph{any} of them is contradicted; it is \supported{} only if \emph{every} one is
-supported; in every other case---which is exactly the case where at least one part is
-unresolved and none is contradicted---the claim itself is left unresolved. An
-unresolved part therefore blocks a claim from being asserted as satisfied, but does not
-by itself accuse.
-
-\paragraph{Negation is handled at composition, not inside measurement.} A negated
-sub-check is written only around a whole assertion---``this does not happen'', ``this
-object is not present''---and never around a measurement. At composition time its
-outcome is flipped first, supported becoming contradicted and contradicted becoming
-supported, and the ordinary rule above then applies. The consequence is that the
-measurement rules never have to reason about a negated query, which is why negation
-around a count, an interval or a spatial relation is rejected at planning time rather
-than approximated.
-
-\paragraph{The clip answer.} The roll-up is a separate deterministic step over the
-per-claim outcomes: if any claim is \contradicted{}, the clip is \emph{implausible};
-otherwise, if every claim is \supported{}, it is \emph{plausible}; otherwise the critic
-\abstain{}s. ``Plausible'' therefore means only that no checked claim was
-contradicted---a summary of the plan that was executed, not a certificate of complete
-physical verification.
-
-\paragraph{Where an abstain-by-default rule does apply.} The three reasoner-mediated
-sub-checks of \cref{sec:reasoner-checks} are the exception, and they are asymmetric in
-the opposite direction from the measurement rules. Each may only report a mismatch on
-the strength of a positively contradicting feature it can actually see; if the features
-that would distinguish the two candidate readings are not clearly resolvable in the
-evidence it was given, it abstains, and an unparseable or missing answer also abstains.
-Absence of confirmation is never treated as a contradiction there.
-
-\subsection{Reasoner-mediated hard sub-checks}\label{sec:reasoner-checks}
-Three checks resist full symbolization and remain reasoner-mediated on
-tool-localized inputs: object subtype identity (is the detected object the
-specific kind named), dense action-event recall (did a named event occur, densely
-over time), and depth-ordered spatial relations. Each runs a fresh reasoner pass
-over evidence a tool has already localized, under the same asymmetric gate. We
-name them explicitly rather than imply a pipeline that is more symbolic than it
-is.
-
-\section{Compiling Claims into Executable Measurement Plans}\label{sec:compiler}
-Routing a claim to a tool could be a flat lookup table. Instead, each prompt is
-compiled into a \emph{verification plan}: a small, typed program that names the
-measurements its claims require and how their results combine. The plan is written
-before any frame is read, validated before any tool runs, and executed so that
-equivalent measurements are computed once and shared. Because the plan is an
-explicit artifact, the orchestration itself can be inspected, replayed and
-criticized---which of the two events was timed, which frames a measurement was
-scoped to, and which rule turned the evidence into a verdict.
-
-The payoff is not bookkeeping. A plan lets one claim's result gate another's, lets
-a measured interval narrow where a later measurement looks, and lets a check
-decline to answer when its inputs cannot separate the alternatives
-(\cref{sec:chaining}). \Cref{sec:eval} measures what this buys against verifying
-each claim on its own.
-
-\subsection{A restricted language for measurement plans}\label{sec:plan-lang}
-Each claim is represented by \textbf{one line of code} in a small, typed
-language---the code-as-plan idea used in visual programming
-systems~\cite{vipergpt2023,visprog2023}, here narrowed to a verification
-vocabulary. For claim $c_N$ the planner writes \code{check(cN, <expr>)}, where the
-expression is a single call or several joined by \code{and}. The reasoner does not
-see the video at this stage; it is writing down \emph{what would have to be
-measured}, not answering. Representing the plan this way avoids cross-referenced
-identifiers spread across several generated tables and allows the plan to be
-checked mechanically before execution---planner-format fragility being a reported
-difficulty in tool-controller systems~\cite{hugginggpt2023}. \Cref{tab:planops}
-lists the callable operations and the check each becomes.
+The surface language follows code-as-plan visual programming
+~\cite{vipergpt2023,visprog2023}, but is deliberately restricted to the
+operations in \cref{tab:planops}. For claim $c_i$, the planner writes
+\code{check(ci, <expr>)} with one operation or a conjunction of operations. At
+this stage the planner has no video input: the line states what evidence would
+settle the claim, not whether the claim is true.
 
 \begin{table}[t]
 \centering
@@ -1129,375 +952,362 @@ lists the callable operations and the check each becomes.
 \renewcommand{\arraystretch}{1.2}
 \begin{tabular}{@{}p{4.9cm} p{5.2cm} p{3.0cm}@{}}
 \toprule
-\textbf{Operation} & \textbf{Meaning} & \textbf{Becomes} \\
+\textbf{Surface operation} & \textbf{Question posed} & \textbf{Typed check} \\
 \midrule
-\code{judge("assertion")} & a dense-frame pass over the clip decides the assertion & event occurrence \\
-\code{exists("object")} & the object is visible at some point & existence \\
-\code{eq(count("phrase"), N)} & exactly $N$ are visible & count \\
-\code{before(window(A), window(B))} & $A$ ends before $B$ & temporal order \\
-\code{during(window(A), window(B))} & $A$ falls within $B$ & temporal containment \\
-\code{rel("A||B", relation)} & spatial relation between two segmented objects & spatial \\
-\code{traj("phrase", relation, target)} & tracked motion of an object & trajectory \\
-\code{sound("description")} & the described sound is asserted & occurrence\textsuperscript{$\dagger$} \\
-\code{text("STRING", carrier=...)} & the clip renders that exact string on the named surface & rendered text \\
+\code{judge("assertion")} & dense-frame semantic verification of the complete assertion & general semantic \\
+\code{exists("object")} & whether the object is visible at any decoded time & existence \\
+\code{eq(count("phrase"), N)} & whether measured cardinality equals $N$ & count \\
+\code{before(window(A), window(B))} & whether event $A$ precedes event $B$ & temporal order \\
+\code{during(window(A), window(B))} & whether $A$ is temporally contained in $B$ & temporal containment \\
+\code{rel("A||B", relation)} & a fixed-vocabulary spatial relation & spatial \\
+\code{traj("phrase", relation, target)} & a fixed-vocabulary motion predicate & trajectory \\
+\code{sound("description")} & whether the audio track contains the event & audio occurrence \\
+\code{text("STRING", carrier=...)} & whether the named surface renders the string & rendered text \\
 \bottomrule
 \end{tabular}
-\caption{The planner's measurement vocabulary. \code{count} and \code{window} are
-structural and legal only inside \code{eq}, \code{before}, or \code{during}.
-Relations are drawn from fixed vocabularies (for example \emph{behind},
-\emph{in front of}, \emph{above}, \emph{contained in} for space; \emph{moves
-toward}, \emph{rises then falls}, \emph{accelerates} for motion), and the three
-directed motion relations require an explicit target. Depth-ordering relations
-(\emph{behind}, \emph{in front of}) cannot be settled from masks alone, so they
-additionally require a depth measurement; a plan that omits it is rejected as
-incomplete rather than silently resolved.
-\textsuperscript{$\dagger$}A sound claim is a real measurement on the clip's audio
-track, made by a detector queried with the described sound. If the clip carries no
-audio track at all, the claim resolves to \emph{unknown} rather than contradicted: a
-file that was never listened to cannot supply evidence of absence.}
+\caption{The planner's surface vocabulary. \code{count} and \code{window} are
+structural terms. The deterministic compiler expands a surface operation into
+its required execution closure. Thus \code{before} adds occurrence gates and
+two timing actions; \code{rel} adds co-visibility and mask actions and, for
+\emph{behind} or \emph{in front of}, depth actions. These dependencies need not
+be written as extra surface operations, but they must be present in the compiled
+graph. A sound operation reads the audio track; no audio track yields
+\unknownv{}, not a negative measurement.}
 \label{tab:planops}
 \end{table}
 
-\begin{figure}[t]
-  \centering
-  \input{figs/fig_graph_construction}
-  \caption{How a plan is constructed. One pass names everything the prompt talks
-  about---the objects and actors, and each separate occurrence of an asserted
-  event---and nothing else; the claims are then handled a few at a time against
-  that fixed list, so that different parts of a long prompt refer to the same
-  things. Each group's identifiers are renumbered under its own label so groups
-  cannot collide when assembled, and the assembled plan is checked as a whole,
-  because what needs checking is mostly cross-reference. A group that fails is
-  asked again with its own complaints and a restatement of the format, never with
-  the answer; a group that still fails hands its claims to the general verifier one
-  at a time, charged to the plan's cost. Shaded boxes are learned components;
-  outlined boxes are deterministic.}
-  \label{fig:graphconstruct}
-\end{figure}
+\paragraph{Bounded recovery.}
+The assembled surface plan is validated as a whole because its important
+constraints are cross-references: every check must consume existing actions,
+every identifier must denote a shared entity or event, and every claim must
+have a check. A failing group may be asked again with its own parser or type
+complaints and a restatement of the format, but never with a suggested answer.
+After a fixed number of attempts, an unusable claim falls back to direct
+semantic verification. The fallback is recorded and charged as a model call;
+it is not counted as a specialist measurement. A failed naming pass sends all
+claims through the same charged fallback, so plan failure never makes a prompt
+appear cheaper by silently dropping claims.
 
-\subsection{How a plan is constructed}\label{sec:plan-construction}
-Whatever surface the planner writes, the plan the executor consumes is a small set
-of linked tables: the things the prompt talks about, the separate occurrences of
-the events it asserts, the measurements to be made, the typed checks over those
-measurements, and the claim each check answers. When the planner writes one line
-per claim, the deterministic translator assembles those tables as it goes, giving
-one identifier to each distinct mention it encounters and reusing it thereafter.
-When the tables are written directly, that consistency has to be arranged
-explicitly, and the construction proceeds in two passes over the prompt
-(\cref{fig:graphconstruct}). The reason is reference, not length.
+\subsection{Typed plan representation and static validation}
+\label{sec:plan-lang}
+The compiler turns the surface program into a typed directed graph
+\begin{equation}
+G_{\Pi}=(\mathcal{A},\mathcal{Q},\mathcal{E},b),
+\qquad
+a_j=(o_j,\alpha_j,\omega_j,r_j),
+\qquad
+b:\mathcal{Q}\rightarrow\{1,\ldots,N_p\}.
+\label{eq:plan-dag}
+\end{equation}
+Here $\mathcal{A}$ contains evidence-producing actions, including general
+semantic passes and specialist calls; $\mathcal{Q}$ contains typed checks;
+$\mathcal{E}$ points from a prerequisite to its consumer; and $b(q)=i$ binds
+check $q$ to claim $c_i$. An action records its operation $o_j$, arguments
+$\alpha_j$, declared scope policy $\omega_j$, and result type $r_j$.
 
-\paragraph{Name the things once, then decide what to measure.} The first pass reads
-the whole prompt and does nothing but name. It lists every distinct object or actor
-the claims mention and every separate occurrence of an asserted event, fixes an
-identifier for each, and records which participants each occurrence involves.
-Mentions the prompt itself distinguishes---a first and a second animal of the same
-kind---receive different identifiers, and an event asserted twice receives one entry
-per occurrence rather than one entry for the event type. The pass is required to
-return nothing else: no measurements and no checks. Only then does a second pass
-decide, claim by claim, what would have to be measured, and it does so against that
-finished list, which it may refer to but not extend.
-
-The split exists to keep references stable. If each part of a long prompt chose its
-own names while also choosing its own measurements, two parts would name the same
-object differently, or give one name to two different objects, and a check written
-in one part could not be composed with a check written in another---an ordering
-check, for instance, is only meaningful if both events it orders are the events the
-rest of the plan is talking about. Fixing the names first makes them shared
-vocabulary: the second pass points at a name and cannot quietly mint a competing
-one for something already named.
-
-\paragraph{Claims are handled in small groups.} The claims are then taken a few at a
-time---four by default---in the order they appear in the prompt. A group is shown
-the whole prompt and the whole list of names, but only its own claims, and returns
-only the measurements, the checks and the claim-to-check bindings for those claims.
-Because groups are written independently, their internal identifiers would collide
-once the groups are put together, so the identifiers are made group-local
-mechanically rather than by request: every measurement and check a group produced is
-renumbered under that group's own label and the references inside the group are
-rewritten to match. A collision is therefore impossible even if a group ignores the
-instruction to label its own output. Two things are deliberately not the planner's to
-choose: the claim identifiers and the claim wording are the ones the claim list
-already fixed, and a group that leaves one of its claims without a check yields a
-complaint naming that claim rather than a plan quietly missing it.
-
-\paragraph{The assembled plan is checked as a whole, not group by group.} Validation
-runs once, on the assembled plan. This is not a matter of convenience. Most of what
-needs checking is a reference from one part of the plan to another: whether a check
-points at a measurement that exists, whether a claim points at a check that exists,
-whether an event occurrence is bound to a participant that was actually named. A
-group inspected on its own cannot be checked for any of it, so group-by-group
-checking would accept every group and still admit an incoherent plan. Alongside
-those references the whole-plan
-check enforces the same typing described in \cref{sec:plan-lang}: each kind of check
-must be fed measurements of the kinds that can settle it, relations must come from
-the fixed vocabularies, a stated quantity must be present, and a directed-motion
-check must carry a target. Each complaint the check produces is then traced back to
-the group whose identifiers it mentions.
-
-\paragraph{Recovery is bounded, and it never supplies the answer.} A group whose
-output drew a complaint is asked again, and is shown three things: its own previous
-output, the complaints against it, and a restatement of the format---the permitted
-measurement operations, the permitted kinds of check, the labelling convention for
-identifiers, and the requirement to cover every claim it was given. It is not told
-which measurement the claim should get, which relation is the right one, or what to
-conclude. That line matters: the choice of what to measure is the part of the system
-under study, so correcting it automatically would replace the behaviour being
-measured with the corrector's behaviour and would hide the planning failures that
-should be counted. Teaching the format is not the same as supplying the decision, and
-only the former is done.
-
-Recovery is bounded in both directions. The naming pass and each claim group are
-allowed a small fixed number of attempts. A group still failing after them is not
-dropped and is not left unresolved: its claims are handed to the general verifier one
-at a time, and each of those verifications is charged to the plan's cost exactly like
-any other call. If the naming pass itself never produces a usable list, there is no
-shared vocabulary to write measurements against, and every claim of that prompt takes
-the same per-claim route. After any such degradation the remaining plan is rebuilt
-and re-checked, and if it still fails, its claims degrade the same way rather than an
-unchecked plan being passed on to execution.
-
-\paragraph{What this buys and what it costs.} What it buys is structural: names are
-agreed before anything is measured, so checks written for different parts of a long
-prompt refer to the same objects and events and can be composed; a failure is
-localised to a group and is either repaired or charged rather than silently shrinking
-the plan; and no plan reaches execution without passing a check over its complete
-set of cross-references. What it costs is also concrete. Construction takes several
-model calls rather than one---one for naming, one per group of claims, plus the
-bounded re-asks---and the naming pass is a single point of dependence for the whole
-prompt. A group sees only its own claims, so anything that has to cross between
-groups must travel through the shared list of names rather than through another
-claim's wording. And every claim that degrades to per-claim verification is a claim
-whose plan was not used, which is why the accounting keeps those separate rather than
-folding them into the plan's measurements. \Cref{sec:eval} reports what this
-construction buys: higher recall than independent per-claim verification, at a
-slightly higher call count.
-
-\subsection{Validating a plan before it runs}
-Because the plan is code, it can be checked mechanically before any tool is
-invoked. Each line is parsed; a line that does not parse, or that is not of the
-form \code{check(cN, \dots)}, is rejected rather than guessed at. Only calls from
-the vocabulary in \cref{tab:planops} are permitted, and each is checked for arity
-and argument shape---a count must wrap a \code{count} term, a spatial relation must
-name two objects and a relation from the fixed vocabulary, a directed motion
-relation must carry a target. Logical negation is accepted only directly around the
-three assertion-style operations, because a negated measurement would require
-uncertainty handling the downstream rules do not provide.
-
-Failures are handled at two granularities, and neither is silent. If an entire line
-is unusable, the claim falls back to direct verification by the general verifier, and
-that fallback is \emph{charged}---counted in the plan's cost like any other call, so
-that fallback never looks free. If a single term is unusable---an invented relation,
-a directed motion without a target---only that term degrades to a generalist
-judgment; the substitution is recorded and explicitly counted as \emph{not} a
-measurement, so that a plan cannot inflate its measurement rate by mislabeling
-salvaged terms. Every plan carries this accounting with it: how many calls, which
-claims fell back, which terms were salvaged.
+Before any action runs, the graph must satisfy
+\begin{equation}
+\operatorname{Valid}(G_{\Pi})
+=
+\operatorname{Parse}(G_{\Pi})
+\land \operatorname{Refs}(G_{\Pi})
+\land \operatorname{Typed}(G_{\Pi})
+\land \operatorname{Acyclic}(G_{\Pi})
+\land
+\left[\forall i,\ \exists q\in\mathcal{Q}:b(q)=i\right].
+\label{eq:plan-validity}
+\end{equation}
+$\operatorname{Refs}$ checks identifiers and dependency closure;
+$\operatorname{Typed}$ checks operator arity, fixed relation vocabularies, and
+whether every check receives the result types it requires. For example, a
+directed trajectory must carry a target, and a depth-ordering check must consume
+both masks and depth. An invalid whole line falls back to the general verifier;
+an invalid term can be replaced by a recorded generalist sub-check. In both
+cases the substitution is charged and reported rather than guessed.
 
 \begin{figure}[tp]
   \centering
   \input{figs/fig_plan_graph}
-  \caption{One prompt's plan as a graph. Each claim the prompt makes becomes one or
-  more typed checks, and each check names the measurements that would settle it. A
-  claim can carry more than one check---a numeral adds a count beside the occurrence
-  judgement, a spatial preposition adds a depth-ordered relation---and a single check
-  can consume more than one measurement, as an ordering does. Occurrence and existence
-  go to the general verifier reading the frames; quantities, timings, outlines and
-  depths come from specialists. Illustrative: the plan is written in the report's
-  measurement vocabulary, and the claims are of the kinds the planner emits.}
+  \caption{A surface plan after compilation into claims, typed checks, and
+  evidence-producing actions. A numeral adds a count check beside a semantic
+  assertion; an ordering consumes two event windows after occurrence gating;
+  and a depth relation consumes localization, masks, and depth supplied by the
+  compiler's dependency closure. The graph is illustrative of the planner's
+  vocabulary rather than an additional learned verdict.}
   \label{fig:plangraph}
 \end{figure}
 
-\subsection{Several checks per claim, and negation}
-A claim rarely reduces to a single test (\cref{fig:plangraph}). Because an expression may join several
-calls, each conjunct becomes its own sub-claim with its own measurement, and the
-claim's outcome is composed from theirs by a fixed rule: \textbf{if any part is
-contradicted the claim is contradicted; if every part is supported the claim is
-supported; otherwise the claim is left unresolved}. Negation is applied at this
-composition step rather than pushed into the measurement layer, so the measurement
-rules never have to reason about negated queries.
+\pagebreak
+\subsection{Timeline-conditioned multi-tool execution}
+\label{sec:chaining}
+Execution follows a topological order. Each action's compiled scope function
+$g_j$ converts prerequisite records into either the full frame index set or a
+declared local subset, after which the appropriate backend is called:
+\begin{equation}
+\Omega_j
+  =g_j\!\left(\{R_k:(a_k,a_j)\in\mathcal{E}\},
+              \mathcal{T}_{\mathcal V}\right),
+\qquad
+R_j
+  =F_{o_j}\!\left(\mathcal{V}|_{\Omega_j},\alpha_j\right).
+\label{eq:scoped-execution}
+\end{equation}
+The scope function is part of the validated program. A usable measured window is
+padded, given a minimum duration, and converted to the explicit indices whose
+timestamps fall inside it. A missing, invalid, or overly broad window falls
+back to the whole clip. This conservative fallback avoids interpreting failure
+to localize as evidence that the requested event or relation is absent.
 
-Composition is what lets one sentence be checked in more than one way
-(\cref{fig:planexample}). A claim that
-a ball triggers a cascade of a thousand mousetraps yields both a judgment that the
-cascade occurs \emph{and} a count check against the number. Under the composition
-rule, a measured count below the stated number is by itself sufficient to
-contradict the claim even when the occurrence part is supported---a claim carrying
-only an occurrence check cannot express that.
+\paragraph{Occurrence gates timing.}
+A returned time window is not evidence that the queried event occurred: a
+forced localizer may return its best candidate even for an absent event.
+Visible events are therefore confirmed first by the dense-frame semantic
+verifier, while audible events are confirmed on the audio track. Only supported
+occurrences allow their intervals to enter a temporal predicate. For a relation
+$R\in\{\mathrm{before},\mathrm{during}\}$,
+\begin{equation}
+z_{R(A,B)}
+=
+\begin{cases}
+\mathsf{C}, & \mathsf{C}\in\{o_A,o_B\},\\
+\mathsf{U}, & \mathsf{U}\in\{o_A,o_B\}
+              \text{ or }W_A\text{ or }W_B\text{ is unavailable},\\
+\rho_R(W_A,W_B), & o_A=o_B=\mathsf{S},
+\end{cases}
+\label{eq:temporal-gate}
+\end{equation}
+where $o_A,o_B$ are occurrence states and $W_A,W_B$ are measured windows.
+Thus timing may compose an order but can never establish occurrence.
 
-\begin{figure}[t]
-  \centering
-  \input{figs/fig_plan_example}
-  \caption{One claim, two measurements. A numeral in the claim adds a counting
-  check beside the occurrence judgment, and the composition rule lets the count
-  alone contradict the claim even when the cascade plainly happens. The prompt and
-  the annotator's record shown at the foot are real; what the critic returns on
-  this clip is not reported here.}
-  \label{fig:planexample}
-\end{figure}
-
-\subsection{How the video's timeline wires the plan together}\label{sec:chaining}
-The plan is not a list of independent questions answered in parallel and then
-tallied. What makes it a graph is that measurements are wired to one another
-through the clip's own timeline: one measurement decides whether a second runs,
-where in the clip it runs, and what its answer is permitted to mean.
-\Cref{fig:planchain} follows a single claim about order through that wiring on a
-real clip.
-
-\paragraph{One measurement gates another.} A claim that one event precedes another
-is not settled by asking two timing questions and comparing the answers. The
-occurrence of each event is settled first, by the verifier that reads the frames
-densely, and only if both are confirmed are their measured intervals allowed to
-speak. If either event is judged not to occur, the ordered claim is contradicted
-outright and the timings are never consulted; if either cannot be placed in time,
-the claim is left unresolved. This ordering of operations is what keeps a returned
-interval from becoming backdoor evidence that an event happened---the failure mode
-of \cref{sec:semantics}, where a timing model asked about an absent event returns a
-confident interval anyway. Timings compose an order; they never establish
-existence.
-
-\paragraph{One measurement scopes another.} Several measurements are far too
-expensive to run over every frame---a depth comparison between two objects costs
-tens of seconds per frame, so a single spatial question over a long clip could cost
-an hour. Rather than sample frames, which is how a brief event gets missed, the
-plan asks a cheap question first: the whole clip goes to the verifier as frames
-labelled with their timestamps, and it is asked only \emph{when} the surface or the
-pair of objects is on screen. That answer is not a verdict and is never treated as
-one---if it says the objects never appear together, that claim is ignored and the
-whole clip is measured. What it produces is an interval, which is padded, floored to
-a minimum length, and turned into an explicit list of frame times handed to the
-expensive measurement, which then reads \emph{every} frame in that list. The saving
-is only the frames outside the interval, and a dozen enumerated conditions---an
-error, an unparsable answer, an interval covering most of the clip, a claim about
-absence, an unreadable frame clock---fall back to reading the whole clip. Every
-result records which of the two happened, so a scoped measurement is never mistaken
-for a whole-clip one.
-
-\paragraph{The composition is arithmetic, and it can decline.} Once two intervals
-exist, the order is decided by a rule with a tolerance rather than a threshold on
-raw numbers: the slack is a quarter of the shorter of the two intervals, so
-``before'' requires a gap the clip can actually resolve. Two intervals that begin at
-the same instant, or that each span the whole clip, carry no order, and the claim is
-left unresolved rather than decided by whichever number happens to be smaller. The
-figure shows the arithmetic as the compiler applied it.
+\paragraph{Temporal arithmetic.}
+For positive-duration windows $W_X=[s_X,e_X]$, the recorded executor uses a
+boundary slack equal to one quarter of the shorter window:
+\begin{equation}
+\begin{gathered}
+\delta(A,B)=\tfrac14
+  \min(e_A-s_A,e_B-s_B),\\
+\rho_{\mathrm{before}}(W_A,W_B)
+=
+\begin{cases}
+\mathsf{S}, & e_A\leq s_B+\delta(A,B),\\
+\mathsf{C}, & e_B\leq s_A+\delta(A,B),\\
+\mathsf{U}, & \text{otherwise}.
+\end{cases}
+\end{gathered}
+\label{eq:temporal-before}
+\end{equation}
+The slack absorbs small endpoint uncertainty, so it can tolerate a boundary
+overlap no larger than $\delta$; if neither direction passes, the intervals do
+not resolve an order and the state is $\mathsf{U}$. With the quarter-window rule
+and positive durations, the first two cases cannot both hold. Containment is
+directional and uses the same boundary slack: clear containment supports, clear
+reverse containment contradicts, and boundary-indistinguishable cases remain
+unknown. These predicates are a tolerance-scaled subset of Allen's interval
+algebra~\cite{allen1983intervals}.
 
 \begin{figure}[tp]
   \centering
   \includegraphics[width=\linewidth]{fig_plan_chain.pdf}
-  \caption{One claim about order, followed through the plan on a real clip. The
-  planner writes the line before any frame is read. The ordering check requests two
-  event timings, but they are consulted only after the verifier that reads the frames
-  confirms both events occur. The two intervals returned are shown on the clip's own
-  clock, with frames decoded at the instants they name: the first domino tips at
-  $1.62$--$1.67$\,s, the chain reaction runs from $2.33$\,s to the end. The order is
-  then decided by arithmetic with a tolerance of a quarter of the shorter interval.
-  Every number and every frame here is from the recorded run.}
+  \caption{A real temporal trace. The planner writes the line before reading
+  any frame. The verifier first confirms both events, the timing actions then
+  return $W_A=[1.62,1.67]$\,s and $W_B=[2.33,7.96]$\,s, and
+  \cref{eq:temporal-before} resolves their order. Every number and displayed
+  frame comes from the recorded run.}
   \label{fig:planchain}
 \end{figure}
 
-\subsection{Routing by what the claim says}
-Which measurement a claim receives is decided by its content rather than by a
-blanket rule. A numeral introduces a count check alongside the occurrence
-judgment; spatial prepositions introduce a spatial relation; directed or shaped
-motion introduces a trajectory check; ordering words introduce a temporal
-relation; a described sound introduces the audio operation. Anything else---and
-anything the planner is unsure about---is sent to the general verifier. That
-fallback guarantees the claim remains executable; it does not guarantee a correct
-verdict. Relations outside the fixed vocabularies are never invented; they fall
-back to a general judgment.
+\paragraph{Exact-request reuse.}
+Two actions share one execution only when their complete realized signatures
+match:
+\begin{equation}
+\chi_{\mathcal V}(a_j)
+  =(\operatorname{id}(\mathcal V),o_j,\alpha_j,r_j,\Omega_j),
+\qquad
+a_j\sim a_k
+\Longleftrightarrow
+\chi_{\mathcal V}(a_j)=\chi_{\mathcal V}(a_k).
+\label{eq:exact-reuse}
+\end{equation}
+The executor calls each equivalence class once, following exact
+common-subexpression reuse~\cite{sellis1988mqo,roy2000mqo}. Because the realized
+scope $\Omega_j$ is part of the signature, whole-clip and localized requests
+never merge merely because their natural-language queries are similar.
 
-Routing interacts with a property of the specialists that we treat as
-load-bearing: \textbf{a specialist's output is not by itself evidence that the
-queried thing exists}. Some specialist interfaces return their best candidate even
-when the query has no referent in the clip---a returned time window or bounding box
-can therefore reflect the query rather than the content. Existence and occurrence
-decisions are consequently assigned to the general verifier, which sees the frames
-densely, while the specialists supply the quantities, windows, masks, depths, and
-tracks it cannot produce. This assignment avoids treating a forced specialist
-output as proof of occurrence; it does not make absence judgments infallible.
-Composite claims combine the two: an ordering claim is first confirmed as two
-occurrences by the verifier, and only then ordered using the specialist's windows.
+\paragraph{Execution backends.}
+\Cref{tab:arms} lists the backend that actually runs, rather than a stronger
+backend that an adapter may only declare. There is no holistic scorer in the
+verdict path. Three sub-checks remain explicitly learned because they resist
+full symbolization: subtype identity, dense action-event recall, and
+depth-ordered spatial interpretation on localized evidence. Their outputs are
+tagged as learned base-predicate states; they are not presented as deterministic
+consequences of a raw measurement.
 
-\subsection{Executing equivalent measurements once}
-Sharing happens at two levels, and we keep them distinct. Within a plan, repeated
-references may share one internal description, so a prompt mentioning the same
-object in five claims does not describe it five times. At execution, two
-measurements collapse into a single tool call only when the complete measurement
-request is identical---the operation, the referent, the exact query, the output
-kind, and the time range---so a whole-clip measurement and a sub-interval
-measurement are never merged. This is exact-request reuse, equivalent to
-common-subexpression elimination in the database
-sense~\cite{sellis1988mqo,roy2000mqo}; no sharing across merely similar queries is
-performed. Whether this yields a net saving in practice is a question for the
-evaluation, not a claim made here. Temporal relations remain directional and
-tolerance-scaled, following a subset of Allen's interval
-algebra~\cite{allen1983intervals}.
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}p{2.7cm} p{5.2cm} p{4.6cm}@{}}
+\toprule
+\textbf{Capability} & \textbf{Running backend} & \textbf{Returned object} \\
+\midrule
+Semantic predicate & dense timestamped Qwen3-VL pass~\cite{qwen3vl2025} & learned base state with localized rationale \\
+Object localization & LLMDet open-vocabulary detector~\cite{llmdet2025} & box proposals, not an existence verdict \\
+Object count & CountGD-Box~\cite{countgd2024,countvid2026} (SAM~2.1 internal) & cardinality of a named set \\
+Kinematics & TAPNext-style point tracking~\cite{tapnext2025} and kinematic predicates & timestamped positions and motion features \\
+Event timing & Qwen3-VL over timestamped frames; optional dedicated grounder~\cite{timelens_grounding2025} & interval, absence, or refusal \\
+Spatial relation & SAM~3 masks~\cite{sam3_2025}, monocular depth, and localized reasoning & masks, depth, and a tagged relation state \\
+Rendered text & optical character recognition on localized frames & literal glyph transcription \\
+Audio & FlexSED sound-event detection~\cite{flexsed2025} & sound intervals on the audio track \\
+\bottomrule
+\end{tabular}
+\caption{Execution backends and their outputs. Localization proposals seed
+later measurements but do not prove existence. Specialists provide typed
+measurements; learned semantic decisions are identified as such. No holistic
+video-quality model is used to produce the final clip decision.}
+\label{tab:arms}
+\end{table}
 
-\subsection{What the planner does not change}
-The planner is deliberately the only part that changes: a deterministic translator
-translates its lines into exactly the plan representation the compiler already
-consumes, so the compiler, the sharing rules, the measurement contracts, the
-execution layer, and the division between measuring and judging are untouched. This
-separation is intended to keep the planner replaceable and to prevent a change of
-planning style from silently altering how evidence is interpreted.
+\subsection{Evidence records and provenance}
+\label{sec:contract}
+Each action is serialized as a claim-bound record
+\begin{equation}
+R_{j,i}
+=
+\bigl(\operatorname{id}(\mathcal V),p,s_i,o_j,\Omega_j,
+       \sigma_j,\mu_j,h_j,\kappa_j\bigr),
+\qquad
+\sigma_j\in
+\{\mathtt{measured},\mathtt{abstained},\mathtt{errored}\}.
+\label{eq:evidence-record}
+\end{equation}
+The payload $\mu_j$ contains either a typed measurement or an explicitly tagged
+learned base state; $h_j$ contains the native-output and artifact hashes; and
+$\kappa_j$ contains calls and accelerator time, with optional wall time, price,
+and token counts. Shared execution may bind the same record to several claims,
+but its cost is charged once by execution identifier.
 
-\subsection{How often a plan asks for a measurement}\label{sec:planner-gaps}
-Before considering verdicts, one property of a plan can be read off the plan
-itself: how often it asks for a measurement rather than a general judgment. This
-was checked with real model calls at the planning stage, without video or tools. A
-claim is \emph{measurement-carrying} when its
-validated plan contains at least one non-generalist operation that survives
-validation without being salvaged or falling back; a claim combining a general
-judgment with a count counts once, and salvaged terms never count.
+The three statuses are mutually exclusive. A \code{measured} record carries a
+payload and no abstention or error; \code{abstained} carries a reason and no
+payload; \code{errored} carries an infrastructure message. A valid negative
+measurement---for example a measured count of zero or a complete usable track
+that does not exhibit the requested motion---remains \code{measured} and may
+contradict a claim. Failure to track because of blur, occlusion, low quality, or
+an instrument refusal is \code{abstained}, not a negative observation.
+A terminal \code{errored} record is retried and, if still terminal, produces
+no semantic verdict; the clip is marked $\bot_{\mathrm{infra}}$ and excluded
+from the completed evaluation set rather than relabeled \unknownv{}.
 
-On 233 claims drawn from 22 human-annotated clips, every claim produced a valid,
-type-correct, compilable plan---no fallbacks, no schema errors, no compile
-errors---at one to two model calls per clip. Measurement-carrying claims were
-27/233 (11.6\%), against 2.3\% for the earlier tabular format on the same claims: a
-roughly fivefold relative increase that nonetheless leaves a large majority of
-these claims resting on a general judgment, because these prompts are dominated by
-occurrence-style assertions. On two separate diagnostic sets chosen to be
-measurement-dense, the rate was 19/30 (63.3\%) on claims drawn from counting,
-spatial, and ordering flaws, and 10/10 on synthetic counting prompts. Those
-diagnostic sets probe the routing rules; they are not an estimate of coverage or
-verdict accuracy on the evaluation benchmark.
+Specialist schemas reject judgment-shaped fields, nonfinite numbers, duplicate
+keys, and noncanonical payloads. Every record carries the full prompt and the
+verbatim source span $s_i$, and heavy artifacts are content-addressed by path
+and byte hash. The guarantee is intentionally narrow: a specialist cannot emit
+the final prompt-satisfaction label, and accepted evidence is attributable and
+replayable. The schema cannot make a learned measurement unbiased or detect a
+confidently wrong but well-formed payload.
 
-Density of measurement is a property of the plan, not of the verdict it produces;
-its effect on what the critic catches is measured end-to-end in \cref{sec:eval}.
+\subsection{Three-valued verification and aggregation}
+\label{sec:semantics}
+For a completed trace, every sub-check resolves in
+\[
+\mathbb{V}=\{\mathsf{S},\mathsf{C},\mathsf{U}\},
+\]
+standing for \supported{}, \contradicted{}, and \unknownv{}. A typed resolver
+$\psi_q$ maps measured parent payloads to a sub-check state; it is deterministic
+for count, timing, track, transcription, and other explicit predicates, and is
+learned only for the semantic sub-checks named above:
+\begin{equation}
+z_q
+=
+\begin{cases}
+\psi_q(\{\mu_j:a_j\in\operatorname{Pa}(q)\}),
+  & \sigma_j=\mathtt{measured}\ \text{for all required }a_j,\\
+\mathsf{U},
+  & \text{a required action abstained or produced no usable evidence},\\
+\bot_{\mathrm{infra}},
+  & \text{a required action has a terminal infrastructure error}.
+\end{cases}
+\label{eq:evidence-resolution}
+\end{equation}
+Learned semantic checks use an asymmetric gate: they may contradict only when
+a positively contradicting feature is visible; unresolved visual evidence,
+unparseable output, or missing modality yields $\mathsf{U}$. This avoids turning
+failure of an instrument into an accusation about the video.
 
-Three gaps in the vocabulary are worth naming. The spatial vocabulary has no ``on top of'' relation, so such claims
-degrade to a general judgment; and negated
-measurements are unsupported by design. Out-of-vocabulary calls appear
-occasionally; the validator converts them into charged fallbacks rather than
-accepting them silently.
+Negation is applied to the positive sub-check state, never by asking a tool to
+measure a negative quantity:
+\begin{equation}
+\neg_3\mathsf{S}=\mathsf{C},
+\qquad
+\neg_3\mathsf{C}=\mathsf{S},
+\qquad
+\neg_3\mathsf{U}=\mathsf{U}.
+\label{eq:three-valued-negation}
+\end{equation}
+Let $K_i=\{q\in\mathcal Q:b(q)=i\}$ be the validated checks for claim $c_i$,
+after applying \cref{eq:three-valued-negation} where required. Claim and clip
+composition are
+\begin{equation}
+y_i=
+\begin{cases}
+\mathsf{C}, & \exists q\in K_i:z_q=\mathsf{C},\\
+\mathsf{S}, & \forall q\in K_i:z_q=\mathsf{S},\\
+\mathsf{U}, & \text{otherwise},
+\end{cases}
+\qquad
+Y=
+\begin{cases}
+\bot_{\mathrm{infra}}, & \text{the trace terminates with an infrastructure error},\\
+\textsc{Implausible}, & \exists i:y_i=\mathsf{C},\\
+\textsc{Plausible}, & N_p\geq1\ \land\ \forall i:y_i=\mathsf{S},\\
+\textsc{Abstain}, & \text{otherwise}.
+\end{cases}
+\label{eq:claim-clip-rollup}
+\end{equation}
+The order of the cases matters. One contradiction is sufficient for an
+implausible clip; plausible is emitted only when every planned claim is
+supported; and a trace with no contradiction but at least one unknown
+abstains. Plausible therefore summarizes the validated claims that were
+executed, rather than certifying every possible physical property of the clip.
 
-\paragraph{Where specialists run.} Two configurations expose the same specialists by
-different routes. In the \emph{routed} configuration each claim is dispatched to its
-dedicated specialist (\cref{tab:arms}), which runs as an executable stage. In the
-\emph{plan-based} configuration the compiler's typed checks call those specialists
-through a tool server, and a check reaches one only when the plan names a measurement;
-occurrence-style claims route to the dense-frame generalist by design, which is why
-measurements account for a minority of executed checks (\cref{sec:eval}). Global plan
-selection among alternative tool recipes, and a value-of-information loop that spawns
-follow-up measurements, are not implemented.
+\subsection{Diagnostic interface for future refinement}
+\label{sec:loop}
+The useful refinement output is not only the scalar clip state $Y$, but the
+localized contradiction packet
+\begin{equation}
+\mathcal{F}(p,\mathcal V)
+=
+\left\{
+\bigl(c_i,\{R_{j,i}\}_j,\Omega_i,B_i\bigr)
+:\ y_i=\mathsf{C}
+\right\},
+\label{eq:refinement-packet}
+\end{equation}
+where $\Omega_i$ is the union of available temporal support and $B_i$ contains
+available box tracks or masks. This packet states what failed, which evidence
+supports that conclusion, and where in the clip the failure occurs.
 
-% =====================================================================
-\section{The Intended Refinement Loop}\label{sec:loop}
-% =====================================================================
-The three components are meant to close a loop: the benchmark trains and
-evaluates the critic; the critic scores generated clips; and the critic's
-verdict becomes a reward that fine-tunes or guides the generator toward physical
-faithfulness. \textbf{This loop is future work.} The generator and the critic run on
-disjoint data---the generator on simulation-driven clips, the critic on the
-human-annotated benchmark---and no reward-driven generation run exists. Two
-prerequisites remain: a critic whose reward is trustworthy on the frozen human labels
-(\cref{sec:eval}), and a decision about where the reward enters generation---preference
-optimization, guidance, or data selection.
+\textbf{Closed-loop refinement is not run in this report.} The critic and
+simulation-conditioned generator are evaluated on disjoint data, and no
+\PhyReAct{} packet has yet been used for preference optimization, denoising
+guidance, candidate selection, or localized regeneration.
+\Cref{eq:refinement-packet} defines the interface for that future experiment;
+it does not claim that the current generator has been optimized by the critic.
 
 % =====================================================================
 \section{Evaluation Protocol and Measurement}\label{sec:eval}
 % =====================================================================
 This section states how the critic is measured and reports what those measurements
 returned. A dash marks a measurement that has not been run.
+
+\paragraph{Implementation.}
+Qwen3-VL-30B-A3B-Instruct~\cite{qwen3vl2025}, served in BF16 without
+quantization and tensor-parallel over two GPUs, is used for both the text-only
+planner and the video-aware semantic verifier. These are separate calls: the
+planner receives the prompt and claim state but no frames, while the verifier
+receives densely decoded, timestamped frames and a single declared predicate.
+The specialist revisions are frozen for the evaluated run and the running
+backends are those in \cref{tab:arms}.
 
 \paragraph{Target and ground truth.} The evaluation core of \cref{sec:dataset}, scored
 under the conventions of \cref{sec:bench-spec}. Human labels are the only ground truth.
@@ -1521,6 +1331,20 @@ the critic phrases it, since the phrasing alone changes how readily a verifier a
 Because a detector call, a tracker call and a full vision-language judgement do not cost
 the same, cost is reported as model and tool calls per clip. Uncertainty is estimated by
 resampling whole clips, because flaws within a clip are not independent.
+
+\paragraph{Planner validity and measurement coverage.}\label{sec:planner-gaps}
+Before end-to-end evaluation, the prompt-only planning stage was inspected
+without video or tool access. On 233 claims from 22 annotated clips, every claim
+produced a valid, compilable plan at one to two planner calls per clip.
+Twenty-seven claims (11.6\%) contained at least one specialist action that
+survived validation, compared with 2.3\% for an earlier tabular plan format.
+On deliberately measurement-dense diagnostics the corresponding rates were
+19/30 for counting, spatial, and ordering claims, and 10/10 for synthetic
+counting prompts. These diagnostics test routing and syntax; they are not
+estimates of verdict accuracy or coverage on the evaluation core. The present
+surface vocabulary also lacks an ``on top of'' spatial predicate and rejects
+negated quantitative measurements; such terms become recorded, charged
+generalist fallbacks.
 
 \subsection{Results}
 \Cref{tab:results} reports the paired comparison completed to date: the plan-based
@@ -1699,64 +1523,129 @@ requires evaluation on a new frozen set.
 \section{Related Work}\label{sec:related}
 % =====================================================================
 
-\subsection{Physics and structure in video generation}
-Physical-commonsense generation and its evaluation are studied by
-VideoPhy~\cite{videophy2024,videophy2_2025}, PhyGenBench~\cite{phygenbench2024},
-and Physics-IQ~\cite{physicsiq2025}; V-JEPA-style work argues physics is best
-judged in a learned state space~\cite{vjepa_physics2025}. Our generator does not
-learn physics: it \emph{imports} it from a simulator and asks the backbone to
-render it, via structure conditioning. Structure- and motion-conditioned
-synthesis has a strong lineage---ControlNet for images~\cite{zhang2023controlnet},
-motion control for video~\cite{wang2023videocomposer}, the Wan family and its VACE
-control interface~\cite{wan2025,vace2025}, and, as guided editing rather than
-control-branch conditioning, SDEdit~\cite{meng2022sdedit}. DiffPhy conditions a
-diffusion backbone on a physics chain-of-thought~\cite{diffphy2025}; we instead
-condition on a rendered depth field from a simulation.
+\subsection{Physics-aware video generation and refinement}
+Controllable diffusion separates appearance synthesis from structural guidance.
+ControlNet introduced trainable branches for conditions such as depth and
+segmentation~\cite{zhang2023controlnet}, VideoComposer extended compositional control to
+space and time~\cite{wang2023videocomposer}, and Wan and VACE provide a scalable video
+backbone and a unified interface for reference, mask, and structural
+conditions~\cite{wan2025,vace2025}. These methods determine how a condition enters a
+generator, but not whether that condition or the rendered pixels obey physics.
 
-\subsection{Evaluating text-to-visual faithfulness}
-Decomposing a prompt into checkable pieces is established: TIFA~\cite{tifa2023}
-and the Davidsonian Scene Graph~\cite{dsg2024} score generated
-questions/propositions with a vision-language model, VQAScore uses an
-image-to-text model~\cite{vqascore2024}, and GenAI-Bench, VBench, T2V-CompBench,
-FETV, and EvalCrafter benchmark compositional
-alignment~\cite{genaibench2024,vbench2024,t2vcompbench2024,fetv2023,evalcrafter2024};
-embedding and preference scorers predict alignment or human
-preference~\cite{clipscore2021,pickscore2023,imagereward2023}, and learned quality
-models predict human judgment
-directly~\cite{videoscore2024,videoscore2_2025}. We keep such a holistic learned
-scorer out of the verdict path. Relative to these, our critic routes each claim to
-a dedicated open perception specialist under an evidence-only contract, validates a
-typed plan before execution, distinguishes event occurrences, reuses perception
-only under an exact contract, and preserves claim-level provenance with an explicit
-\unknownv{} outcome. We claim novelty for the integration, not the parts.
+A complementary line derives guidance from physical reasoning or simulation.
+MotionCraft warps diffusion latents with simulated optical flow, while PhysGen estimates
+scene properties, performs rigid-body simulation, and refines the result with a video
+prior~\cite{motioncraft2024,physgen2024}. DiffPhy injects language-model-inferred
+physical context through supervised fine-tuning~\cite{diffphy2025}; PhyT2V iteratively
+rewrites prompts from physical-rule and mismatch reasoning~\cite{phyt2v2025}; and VLIPP
+turns vision-language reasoning into a coarse motion plan~\cite{vlipp2025}. PhyCo learns
+continuous controls for physical properties from simulation data~\cite{phyco2026}.
+More tightly coupled systems place a simulator inside generation: PSIVG reconstructs a
+generated template, simulates object trajectories, and feeds them back at test
+time~\cite{psivg2026}, while MoReGen coordinates language agents, simulation, and
+rendering for code-based synthesis~\cite{moregen2026}.
 
-\subsection{Visual programs, tool-use, and modular video QA}
-Composing perception modules for reasoning includes Neural Module
-Networks~\cite{nmn2016}, VisProg~\cite{visprog2023}, ViperGPT~\cite{vipergpt2023},
-CodeVQA~\cite{codevqa2023}, and neural-symbolic
-VQA~\cite{nsvqa2018,nsm2019}; LLM tool-controllers and plan-execute graphs include
-HuggingGPT, TaskMatrix.AI, ControlLLM, LLMCompiler, and
-ReWOO~\cite{hugginggpt2023,taskmatrix2023,controlllm2023,llmcompiler2024,rewoo2023},
-with search-based
-variants~\cite{toolchainstar2024,lats2024,tot2023,got2024}; modular video QA
-includes ProViQ, MoReVQA, the VideoAgent systems, and
-VideoTree~\cite{proviq2023,morevqa2024,videoagent_wang2024,videoagent_fan2024,videotree2025}.
-Our execution layer is narrower and verification-specific: a \emph{typed} plan,
-type-checked before tools run, whose evidence obligations carry three-valued
-semantics; it does not search over alternative plans. Reuse of equivalent
-measurements is common-subexpression elimination in the
-multi-query-optimization sense~\cite{sellis1988mqo,roy2000mqo,graefe1993volcano,graefe1995cascades},
-and the specialists themselves draw on open detection, counting, tracking,
-grounding, and audio
-models~\cite{llmdet2025,countgd2024,countvid2026,tapnext2025,tapvid2022,timelens_grounding2025,unitime2025,sam2_2024,sam3_2025,flexsed2025}.
+Evaluation signals have also entered the generation loop. Binary VLM feedback has been
+used for preference optimization of object interactions~\cite{aifeedback2024};
+Video-T1 searches candidate denoising trajectories with test-time verifiers
+~\cite{videot1_2025}; and VideoRepair converts detected semantic misalignment into
+localized regeneration~\cite{videorepair2026}. Our generation testbed is deliberately
+narrower: known MuJoCo state is rendered into metric depth or silhouettes for a frozen
+Wan~2.2-VACE model. This avoids inverse reconstruction and generator training, but a
+physically coherent control signal does not certify that the synthesized pixels preserve
+its physics. The present work therefore evaluates the generator and critic separately;
+using \PhyReAct{} evidence to guide generation remains future work.
 
-\subsection{Flaw and preference datasets}
-Prior video benchmarks largely provide clip-level physical-commonsense or
-preference labels~\cite{videophy2024,videophy2_2025,phygenbench2024}. Our benchmark
-instead provides \emph{localized} human flaw annotations---severity, the violated prompt
-fragment, a rationale, and, where present, a time span and a box track---so that a
-detector can be scored not only on whether a clip is flawed but on whether it
-found the specific, spatially and temporally located error a person marked.
+\subsection{Generated-video evaluation and physical benchmarks}
+General-purpose suites measure complementary aspects of generated video. VBench,
+T2V-CompBench, FETV, and EvalCrafter aggregate perceptual quality, temporal consistency,
+and prompt-alignment criteria~\cite{vbench2024,t2vcompbench2024,fetv2023,evalcrafter2024},
+while VideoScore and VideoScore2 learn to predict fine-grained human
+judgments~\cite{videoscore2024,videoscore2_2025}. Prompt decomposition is also
+established: TIFA and the Davidsonian Scene Graph turn text into questions or
+propositions~\cite{tifa2023,dsg2024}, and VQAScore evaluates a text condition with an
+image-to-text model~\cite{vqascore2024}. These approaches are valuable for ranking
+systems, but their final scores do not by themselves expose a measurement trace for a
+specific physical allegation.
+
+Physics-specific evaluation has rapidly broadened. VideoPhy and VideoPhy-2 assess
+semantic adherence and physical commonsense, with VideoPhy-2 additionally labeling
+candidate physical rules as followed, violated, or undetermined
+~\cite{videophy2024,videophy2_2025}. PhyGenBench spans common physical phenomena
+~\cite{phygenbench2024}, Physics-IQ tests whether generative models encode physical
+principles~\cite{physicsiq2025}, and PhyCoBench compares observed motion with
+optical-flow-guided future-frame prediction~\cite{phycobench2025}. PhyWorldBench extends
+coverage to fundamental, composite, and deliberately anti-physical prompts, with
+prompt-specific evaluation standards~\cite{phyworldbench2026}. These benchmarks provide
+essential generator-level comparisons and increasingly structured criteria. Our
+question is complementary: given an arbitrary prompt and clip, can an evaluator expose
+which physical obligation failed, what instrument measured it, when the supporting
+evidence occurred, and why insufficient evidence produced an abstention rather than a
+pass?
+
+\subsection{Agentic tool use and neuro-symbolic video reasoning}
+ReAct established the reasoning--action--observation loop, in which tool results can
+change the next reasoning step~\cite{react2023}. Related work explores how such behavior
+is acquired and organized. Toolformer learns when and how to insert API calls through
+self-supervision, while GPT4Tools transfers multimodal tool use to open language models
+through self-instruction~\cite{toolformer2023,gpt4tools2023}. HuggingGPT uses an LLM
+controller to plan and route subtasks across expert models~\cite{hugginggpt2023}, while
+ControlLLM and ToolChain* search tool-call graphs or action trees
+~\cite{controlllm2023,toolchainstar2024}. ReWOO and LLMCompiler instead plan before
+execution and make tool dependencies explicit~\cite{rewoo2023,llmcompiler2024}.
+Feedback-based agents close another loop: Reflexion stores linguistic feedback in
+episodic memory across trials, whereas CRITIC invokes external tools to validate and
+iteratively revise an answer~\cite{reflexion2023,critic2024}.
+
+Multimodal systems specialize these ideas to perception. Visual programs such as
+VisProg, ViperGPT, and CodeVQA compose vision modules through generated programs
+~\cite{visprog2023,vipergpt2023,codevqa2023}, while ProViQ, MoReVQA, the VideoAgent
+systems, and VideoTree adapt modular or selective observation to
+video~\cite{proviq2023,morevqa2024,videoagent_wang2024,videoagent_fan2024,videotree2025}.
+Recent video agents make observation itself adaptive: CAViAR invokes modules and uses a
+critic to select reasoning traces, and LensWalk controls temporal scope and sampling
+density~\cite{caviar2025,lenswalk2026}. Their primary setting is video question
+answering rather than physical verification of generated content.
+
+Three systems are particularly close. VideoGen-Eval combines LLM prompt structuring,
+MLLM judgments, and temporal patch tools for multidimensional generated-video
+evaluation~\cite{videogeneval2025}. NeuS-V translates prompts into temporal-logic
+specifications, maps frame-level proposition confidence to a video automaton, and uses
+probabilistic model checking for alignment~\cite{neusv2025}. NeuS-E then identifies a
+weak proposition and failure frame and edits or regenerates the affected suffix
+~\cite{neuse2025}. Thus, agentic evaluation, prompt-to-temporal specification, and
+verification-guided repair all predate this work.
+
+The name \PhyReAct{} deliberately echoes ReAct, but its control flow follows the
+plan--execute branch rather than a free-form thought--action--observation loop. Before
+viewing the video, it compiles and validates typed physical claims and their
+dependencies; during execution, observations may gate or scope already-declared
+measurements but do not trigger unconstrained replanning or search over alternative tool
+recipes. Count, tracking, segmentation, depth, OCR, audio, and reasoning specialists
+must return evidence rather than prompt-level verdicts, and fixed composition rules
+preserve \supported{}, \contradicted{}, and \unknownv{} with claim-level provenance.
+The present system neither trains a tool-use policy nor maintains reflective memory
+across clips. Unlike NeuS-V, its interface covers measurements that are not naturally
+reducible to frame-level proposition confidence, but it also provides no formal
+guarantee when its learned perception is wrong. Unlike NeuS-E, Reflexion, or CRITIC, it
+does not yet turn its diagnostics into autonomous online correction.
+
+\subsection{Diagnostic supervision for generated-video failures}
+Human supervision for generated video ranges from holistic ratings and preferences to
+dimension-level explanations. VideoGen-Eval evaluates human agreement over more than
+12{,}000 videos generated from 700 structured prompts~\cite{videogeneval2025}.
+Physion-Eval is closer to flaw diagnosis: its 12{,}718 generated videos and 10{,}990
+expert reasoning traces cover 22 physical categories, temporally localize failures, and
+use corresponding real-world videos as references~\cite{physioneval2026}.
+
+Our 1{,}500-clip corpus is complementary rather than a replacement. Its 2{,}582
+human-written records bind each flaw to the violated prompt fragment and a rationale,
+severity, and confidence, with an optional time span and box track. This schema supports
+open-vocabulary allegation-to-flaw matching for a prompt-conditioned critic without a
+matched real-world reference. The resulting benchmark is more directly aligned with
+\PhyReAct{}'s output contract, but its all-flawed, single-annotator construction supports
+recall measurement only and does not provide the precision or agreement statistics of a
+balanced, redundantly annotated benchmark.
 
 % =====================================================================
 \section{Limitations}\label{sec:limitations}
@@ -1787,9 +1676,10 @@ ground truth together. This report contributes one piece for each: a generator
 that imports geometry and motion from a simulation and renders them through a
 video-diffusion control branch; a human-annotated benchmark that localizes real
 flaws in space, time, and prompt reference; and an auditable multi-tool critic
-that decomposes a prompt, routes each claim to an open specialist returning
-evidence only, and combines the evidence deterministically into a three-valued
-verdict. Against human labels, the compiled-plan critic recovers more localized flaws
+that compiles a prompt into typed checks, combines explicitly identified learned
+base predicates with specialist measurements, and rolls them up
+deterministically into a three-valued verdict and localized trace. Against human
+labels, the compiled-plan critic recovers more localized flaws
 than verifying each claim on its own, at a slightly higher call count; an equal-cost
 comparison and a held-out set remain to be run. Closing the loop that lets the critic
 refine the generator is the next milestone.

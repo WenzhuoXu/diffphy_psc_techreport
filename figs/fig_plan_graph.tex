@@ -56,7 +56,7 @@
 % ---- row 2: ordering, two measurements into one check ----------------
 \node[pgclaim, anchor=north west] (c1) at ($(c0.south west)+(0,-0.55)$)
   {\textbf{c1}\\ it dives back \emph{after} the leap};
-\node[pgcheck, anchor=west] (p1) at ($(c1.east)+(1.05,0)$) {order in time\\ (strictly before)};
+\node[pgcheck, anchor=west] (p1) at ($(c1.east)+(1.05,0)$) {order in time\\ (before, with slack)};
 \node[pgmeas, anchor=south west] (m1a) at ($(p1.east)+(1.05,0.06)$)
   {\textbf{event timing}\\ when does it leap?};
 \node[pgmeas, anchor=north west] (m1b) at ($(p1.east)+(1.05,-0.06)$)
