@@ -1,0 +1,108 @@
+{
+  "_what": "The six tool-driven catches shown in fig_critic_cases and tab:cases. Every string here is copied from the run's own per-clip row; nothing is paraphrased upward.",
+  "_provenance": {
+    "rows": "diffphy_exp013/scripts/exp013/exp029/v3_physics_result.jsonl (79 clips completed, read 2026-07-31)",
+    "human_labels": "diffphy_exp013/artifacts/runs/exp013/gold_v1/gold_core_v1.json",
+    "flaw_matching": "diffphy_exp013/artifacts/runs/exp013/exp029/semantic_adj_B.json, framework.examples",
+    "gallery": "diffphy_exp013/artifacts/runs/exp013/exp029/run_page.html (built 2026-07-31 13:40)",
+    "note": "This run is an earlier physics-routing pass, not the run behind tab:results. It is cited here only for the per-case measurement traces, never for a recall figure.",
+    "screening": "Every candidate was re-derived from the three raw sources above rather than from the gallery's per-clip badge: the badge is a per-clip count and the trace block is assembled per clip, so a card can look tool-driven when the specialist abstained or when the matcher credited a different flaw. Ten candidates were discarded that way. All six survivors were then eye-checked against every decoded frame of their clip."
+  },
+  "cases": [
+    {
+      "clip8": "cfdfe797",
+      "subject": "dolphin",
+      "instrument": "leap detector",
+      "check_key": "c0&1",
+      "claim": "A dolphin leaps out of the water",
+      "human": "The dolphin … merely swims to the surface and then dives back down without jumping out of the water.",
+      "measured": "hops: required yes, measured no — largest vertical excursion 0.00 of the dolphin's own radius over 37 tracked frames; 0 excursions reach the 0.30-radius threshold",
+      "verdict_line": "contradicted",
+      "provenance": "physics:measure_hops",
+      "evidence": {"frames": 37, "excursions": 0, "largest_excursion_radii": 0.0,
+                   "hop_min_radii": 0.3, "vertical_spread_radii": 0.649,
+                   "horizontal_spread_radii": 0.199, "vertical_over_horizontal": 3.26}
+    },
+    {
+      "clip8": "f85ffa1f",
+      "subject": "water bottle",
+      "instrument": "surface motion vs. background flow",
+      "check_key": "c1&1",
+      "claim": "The water bottle is rolling on a car floor.",
+      "human": "The water bottle … remains in its original position and never rolls on the floor.",
+      "measured": "rolling: required yes, measured no — surface moves 10.20 px/frame against 11.00 px/frame of background flow, over 256 frame pairs",
+      "verdict_line": "contradicted",
+      "provenance": "physics:measure_shape",
+      "evidence": {"surface_residual_px_per_frame": 10.202, "background_flow_px_per_frame": 11.003,
+                   "surface_radii_per_frame": 0.04204, "radius_px": 242.7, "pairs": 256}
+    },
+    {
+      "clip8": "a0b49065",
+      "subject": "sun",
+      "instrument": "vertical travel, camera cancelled",
+      "check_key": "c1",
+      "claim": "The sun is rising.",
+      "human": "The sun remains completely stationary in its original position without slowly rising.",
+      "measured": "vertical travel: required up — largest departure from its starting height 0.71 radius, under the 0.75 that counts as travel; net −2 px over 192 tracked frames",
+      "verdict_line": "contradicted",
+      "provenance": "physics:measure_motion",
+      "evidence": {"vertical_radii_peak": 0.706, "vertical_radii_net": -0.077,
+                   "camera_peak_radii": -0.665, "camera_dominated": false,
+                   "frames": 192, "tracker": "silhouette"}
+    },
+    {
+      "clip8": "128c7e8d",
+      "subject": "babies",
+      "instrument": "counter",
+      "check_key": "c0",
+      "claim": "There are seven babies",
+      "human": "There are only five babies in the video, which does not match the quantity requested in the text prompt.",
+      "measured": "count: prompt asserts 7, measured 5 (exact mode)",
+      "verdict_line": "contradicted",
+      "provenance": "count",
+      "evidence": {"expected": 7, "got": 5, "mode": "exact"}
+    },
+    {
+      "clip8": "18a38392",
+      "subject": "F-22 jets",
+      "instrument": "counter",
+      "check_key": "c0&1",
+      "claim": "Three F-22 Raptor fighter jets are in tight formation.",
+      "human": "A total of four fighter jets appear in the video, which does not match the requested quantity of three.",
+      "measured": "count: prompt asserts 3, measured 4 (exact mode)",
+      "verdict_line": "contradicted",
+      "provenance": "count",
+      "evidence": {"expected": 3, "got": 4, "mode": "exact"}
+    },
+    {
+      "clip8": "4075411a",
+      "subject": "graduation banner",
+      "instrument": "OCR recognition head",
+      "check_key": "c0&1",
+      "claim": "A massive 'CONGRATULATIONS GRADUATES' banner is being unfurled across a university building.",
+      "human": "The text appearing in the video does not match the requested text “Congratulations to the graduates”.",
+      "measured": "text: required 'CONGRATULATIONS GRADUATES', read 'GOBADRAEAT(CRSTRORISEUND' — stable wrong transcript on 25 of 241 frames (stride 10)",
+      "verdict_line": "contradicted",
+      "zoom": [382, 262, 1000, 358],
+      "_zoom_note": "banner region of the LAST frame (1280x720), magnified in place so the render's own glyphs are readable at print size; the source rectangle is drawn on the frame",
+      "provenance": "paddle",
+      "evidence": {"ocr_verdict": "stable_wrong_transcript",
+                   "coverage": {"frames_read": 25, "total_frames": 241, "stride": 10,
+                                "full_coverage": false}}
+    }
+  ],
+  "additional_catches_same_clips": [
+    {
+      "clip8": "cfdfe797", "check_key": "c2", "provenance": "physics:measure_motion",
+      "human": "The dolphin in the video does not disappear into the depths of the ocean.",
+      "measured": "vertical travel: required down, measured up by 2.07 of its own radius (net −317 px over 37 tracked frames, tracker silhouette, partial)",
+      "verdict": "contradicted"
+    },
+    {
+      "clip8": "cfdfe797", "check_key": "c4&0", "provenance": "physics:measure_presence",
+      "human": "The dolphin in the video does not disappear into the depths of the ocean.",
+      "measured": "presence: required vanishes, measured continuous — found on 121 of 121 frames, no gap of 3 or more frames",
+      "verdict": "contradicted"
+    }
+  ]
+}
