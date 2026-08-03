@@ -190,3 +190,25 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def assert_field_shape(rows: list[dict], field: str, key_sample, what: str) -> None:
+    """Refuse to believe a row-field query that returns nothing on a known-nonempty case.
+
+    STANDING HAZARD IN THIS CODEBASE, hit three times in one session:
+      * cost["saved_by_sharing"] went NEGATIVE (it subtracts two different populations)
+      * n_measured counts what the PLANNER TYPED, not what a tool executed
+      * `typed` is keyed by the PARENT claim ("c2"), not the sub-claim ("c2&0"), so looking up
+        sub-ids returned an empty histogram and made 209 composite claims look measurement-free
+        when 80 of them carry a measurement
+    Each was caught only because a number looked impossible. A query that silently returns zero is
+    indistinguishable from a real zero, so validate the lookup against a case known to be nonempty
+    before trusting any aggregate built on it.
+    """
+    hit = sum(1 for r in rows if (r.get(field) or {}).get(key_sample) is not None)
+    if hit == 0:
+        raise RuntimeError(
+            f"lookup of {field}[{key_sample!r}] matched NOTHING across {len(rows)} rows while "
+            f"computing {what}. That is a key-shape error, not a real zero — check the field's "
+            "actual keys before believing any aggregate over it.")
+    print(f"[shape] {field}[{key_sample!r}] resolves on {hit}/{len(rows)} rows ({what})")

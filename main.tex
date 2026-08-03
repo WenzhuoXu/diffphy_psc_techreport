@@ -1614,11 +1614,19 @@ contradiction.
 
 \input{tab_ablation}
 
-Two mechanism rows remain unrun: multi-measurement composition, and the reviewer conflict rule of
-\cref{sec:review}. The latter is not merely unbudgeted --- the conflict rule is not implemented in
-the codebase this comparison runs on, so it cannot be ablated here at all. \Cref{tab:ablation}
-therefore isolates two of four mechanisms; it is not a full decomposition, and the advantage in
-\cref{tab:paired} remains only partly attributed.
+Two mechanism rows remain unrun, for different reasons that are worth separating. The reviewer
+conflict rule of \cref{sec:review} is not implemented in the codebase this comparison runs on, so
+it cannot be ablated here at all --- the published run that motivates it and the run reported here
+are different systems on that point. Multi-measurement composition \emph{is} implemented and
+\emph{is} a real gap: $80$ of the $209$ composite claims in this run, $38\%$, have at least one
+conjunct settled by a specialist measurement, so disabling the roll-up would plausibly move
+verdicts. It is unrun because the specialist server became unavailable before the row could be
+started, not because the mechanism is inert on this data.
+
+\Cref{tab:ablation} therefore isolates two of four mechanisms. It is not a full decomposition, and
+the advantage in \cref{tab:paired} and \cref{tab:frozen} remains only partly attributed: we can say
+it is not an artifact of decomposition and is not explained by call sharing, and we can say the
+specialists contribute to it, but we cannot yet apportion it among the remaining parts.
 
 \subsection{The current critic, measured by category and by difficulty}
 \label{sec:bycat}
