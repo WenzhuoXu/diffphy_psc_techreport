@@ -1523,6 +1523,49 @@ and the two conditions' non-overlapping clips are excluded rather than scored as
 
 \input{tab_paired}
 
+\subsection{What one mechanism is worth, measured by removing it}
+\label{sec:ablation}
+\Cref{tab:paired} shows that the plan-based critic finds more, but not which part of it does
+the work. The way to find out is to disable one mechanism and run again, which is what
+\cref{tab:ablation} reports. Each row is a separate live pass of the identical plan against
+the same specialists, so the checks and their measurements are unchanged and only the named
+mechanism is gone.
+
+It is worth saying why this is a re-run rather than an arithmetic exercise. The cheap
+alternative --- take the finished run and delete the findings the mechanism produced --- assumes
+that every deleted finding becomes a miss. That assumption is false in a system with
+alternative routes to the same evidence: the rest of the plan may reach the same flaw by
+another check. Only a re-run answers the question, so only a re-run is reported.
+
+\paragraph{Shared perception buys cost, not recall.} The first row disables call deduplication,
+the mechanism that lets two claims requiring the same measurement share one execution. The
+result separates cleanly into the two things a mechanism can do. Recall is untouched: both
+conditions find exactly the same flaws, and the paired interval on the difference is zero. Cost
+is not: without deduplication the critic spends more calls per clip for those same flaws.
+
+The saving is concentrated rather than spread. Only a fifth of the ablated clips contained any
+duplicate perception query at all; on those the ablation spent between two and fourteen extra
+calls, and on the rest it spent the same as the full condition. That distribution is a property
+of the evaluation set --- these prompts seldom ask one question twice within a clip --- so the
+average understates what the mechanism would be worth on prompts that name a single object
+across many claims.
+
+A null result invites the obvious objection that the switch never took effect, so the row
+carries a positive control. On every clip where the full condition is recorded as having
+deduplicated, the ablation demonstrably spent more calls, and no ablated clip reports a saving.
+The mechanism was therefore genuinely off, and ``no change in recall'' is a measurement rather
+than a no-op. The narrow conclusion: on this data, sharing is not where the plan-based critic's
+recall advantage in \cref{tab:paired} comes from.
+
+\input{tab_ablation}
+
+The remaining mechanism rows --- specialist routing, multi-measurement composition, and the
+reviewer conflict rule --- are not run. Each needs its own full pass, and the measured cost of
+a pass on this hardware did not leave room for them within this report's compute budget.
+\Cref{tab:ablation} therefore isolates one mechanism and reports a null for it; it is not a
+decomposition of the whole advantage, and the advantage in \cref{tab:paired} remains
+unattributed to any single component.
+
 \subsection{The current critic, measured by category and by difficulty}
 \label{sec:bycat}
 A single recall figure hides which defects a critic can reach. The two tables in this
