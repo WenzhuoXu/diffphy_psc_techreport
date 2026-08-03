@@ -1399,10 +1399,27 @@ generalist fallbacks.
 because it is part of this work's history, but it is \emph{superseded} by \cref{tab:paired}, and two
 differences matter more than the change in numbers.
 
-First, its recall is computed by a keyword-overlap matcher that the project subsequently
+First and decisively, that run's plan-based arm was executing against \emph{the wrong videos}. The
+per-clip context was held in shared mutable state while five clips ran concurrently, so a
+specialist measurement requested for one clip could be answered from another's frames. A test
+reproducing the runner's exact shape puts the rate at $57$ of $72$ measurements --- $79.2\%$ ---
+reading a clip other than the one that asked. The defect is specific to the plan-based path;
+per-claim verification passes an explicit clip identifier and was unaffected. So that comparison
+set a clean baseline against a plan-based arm whose measurements were largely attributed
+elsewhere, and no conclusion about orchestration can rest on it. The results reported here use the
+corrected, thread-local context.
+
+This also explains why the earlier figure is \emph{reproducible} without being valid, an outcome
+recorded in advance: matching an allegation to a flaw by its asserted content credits the
+allegation for naming the right assertion whether or not its account of the video came from that
+video. Recall computed by span matching is therefore insensitive to whether the critic looked at
+the right clip --- which is a limitation of the matching protocol worth stating plainly, and one
+that applies to \cref{tab:paired} as well.
+
+Second, its recall is computed by a keyword-overlap matcher that the project subsequently
 \textbf{retracted}: the measure moves on byte-identical text, inflates with output volume, and in one
 audited case credited a bundled ``mossy stone path'' claim as covering a flaw about moss when nothing
-had tested moss. The successor comparison uses a same-defect judgement instead. Second, its
+had tested moss. The successor comparison uses a same-defect judgement instead. Third, its
 denominator counts distinct flaw \emph{spans} ($286$, after collapsing $18$ duplicate entries from
 $304$), where \cref{tab:paired} counts flaw entries ($295$ of $306$), so the percentages are not
 directly comparable in either direction.
@@ -1415,7 +1432,8 @@ the identical field gives $125$ of $306$ for the earlier arm against $135$ of $3
 one: the baseline in \cref{tab:paired} is the \emph{stronger} of the two. The advantage grows
 between the tables because the earlier comparison's recall was inflated on \emph{both} sides ---
 its reported baseline figure of $179$ exceeds what those rows support on any available field --- not
-because the comparison arm was weakened.
+because the comparison arm was weakened. The plan-based arm's figure there carries the additional
+defect above, so the two tables' gaps are not two estimates of one quantity.
 
 We therefore report \cref{tab:paired} as the result and this table as prior context. Its figures
 cannot be regenerated, and no claim in this report rests on them.
@@ -1649,8 +1667,11 @@ so only the combination step is missing. This is the largest effect of the three
 quarter of the flaws found while the call count does not move at all, and the paired interval
 excludes zero on both sides. Composition is therefore doing more work in this system than either
 sharing or specialist routing, and doing it for free in call terms. The row's denominator differs
-slightly from the other two, and its label carries both its own figure and the full system's on the
-same clips.
+slightly from the other two --- it covers $39$ of the same $40$ clips, one having produced an
+incomplete measurement set and so no row, under the same policy applied in \cref{tab:paired} --- and
+its label therefore carries both its own figure and the full system's on exactly the clips it
+covers. The clip in question is scored in all three other conditions, so its absence is an isolated
+loss rather than a systematic gap in this row.
 
 Its control is two-sided, which the other rows' cannot be: clips carrying a composite claim must
 allege the same or fewer contradictions, and clips carrying \emph{none} should be unaffected. The
