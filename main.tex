@@ -151,9 +151,9 @@ activate, skip, or localize the already-declared measurements rather than
 inventing new tool sequences at run time. What is special about \PhyReAct{} is
 not the control flow, which is inherited from mainstream reason--act--observe
 agents, but the \emph{physical grounding} of that flow: frozen low-level
-physical operators (detection with LLMDet, counting with CountGD, point
-tracking with TAPNext, segmentation with SAM~3, monocular depth, optical
-character recognition, and audio event detection) return measurements rather
+physical operators (grounding and tracking with SAM~3, counting over its instance
+identities, eleven typed physical measurements over those tracks, monocular depth,
+optical character recognition, and audio event detection) return measurements rather
 than verdicts, a strong reasoning model supplies the semantics, and
 deterministic rules compose the measurements into a three-valued decision with
 full provenance. This lineage is a design choice rather than a claim of
@@ -915,10 +915,10 @@ steps, and the result of each action conditions what the agent does next. The
 reasoning step compiles the evaluation prompt into a set of \emph{typed physical
 claims} together with an executable measurement plan---the physical obligations
 that the video must satisfy for the prompt to hold. Each \emph{act} step
-dispatches a frozen low-level physical operator (detection with
-LLMDet~\cite{llmdet2025}, counting with CountGD~\cite{countgd2024}, point
-tracking with TAPNext~\cite{tapnext2025}, segmentation with SAM~3~\cite{sam3_2025},
-depth, OCR, or audio event grounding with FlexSED~\cite{flexsed2025}) or a
+dispatches a frozen low-level physical operator (grounding and
+tracking with SAM~3~\cite{sam3_2025}, counting over its instance identities, one of
+eleven typed physical measurements over those tracks, depth, optical character
+recognition, or audio event grounding with FlexSED~\cite{flexsed2025}) or a
 dense-frame semantic verifier over the sampled frames. The \emph{observe} step
 consumes the returned measurement and uses it to gate whether a claimed event
 occurred, to scope which frames and entities subsequent operators attend to,
@@ -1253,24 +1253,29 @@ consequences of a raw measurement.
 \small
 \setlength{\tabcolsep}{5pt}
 \renewcommand{\arraystretch}{1.2}
-\begin{tabular}{@{}p{2.7cm} p{5.2cm} p{4.6cm}@{}}
+\begin{tabular}{@{}p{2.9cm} p{5.4cm} p{4.2cm}@{}}
 \toprule
 \textbf{Capability} & \textbf{Running backend} & \textbf{Returned object} \\
 \midrule
 Semantic predicate & dense timestamped Qwen3-VL pass~\cite{qwen3vl2025} & learned base state with localized rationale \\
-Object localization & LLMDet open-vocabulary detector~\cite{llmdet2025} & box proposals, not an existence verdict \\
-Object count & CountGD-Box~\cite{countgd2024,countvid2026} (SAM~2.1 internal) & cardinality of a named set \\
-Kinematics & TAPNext-style point tracking~\cite{tapnext2025} and kinematic predicates & timestamped positions and motion features \\
-Event timing & Qwen3-VL over timestamped frames; optional dedicated grounder~\cite{timelens_grounding2025} & interval, absence, or refusal \\
-Spatial relation & SAM~3 masks~\cite{sam3_2025}, monocular depth, and localized reasoning & masks, depth, and a tagged relation state \\
-Rendered text & optical character recognition on localized frames & literal glyph transcription \\
+Fallback verification & gpt-5.6-sol, invoked on a claim the dense pass passes & three-valued claim state, both verdicts recorded \\
+Grounding and masks & SAM~3 Video~\cite{sam3_2025} with persistent object identities & per-frame masks and tracked identities \\
+Object count & cardinality of SAM~3 instance identities & count with its per-frame series \\
+Physical measurement & eleven typed operations over the tracks: motion, contact, shape, hops, path, presence, damping, onsets, events, timing, viewpoint & typed numeric measurement with its evidence \\
+Camera cancellation & dense optical flow subtracted before subject motion is reported & subject-relative displacement \\
+Event timing & Qwen3-VL harness over timestamped frames & interval, absence, or refusal \\
+Rendered text & PaddleOCR recognition head, every frame, EasyOCR fallback & literal glyph transcription \\
 Audio & FlexSED sound-event detection~\cite{flexsed2025} & sound intervals on the audio track \\
 \bottomrule
 \end{tabular}
-\caption{Execution backends and their outputs. Localization proposals seed
-later measurements but do not prove existence. Specialists provide typed
-measurements; learned semantic decisions are identified as such. No holistic
-video-quality model is used to produce the final clip decision.}
+\caption{Execution backends and their outputs. SAM~3 grounds the subject and
+supplies the tracks every physical measurement is taken over, and counting reads
+the cardinality of its instance identities. The eleven typed operations return
+numbers with their evidence; the two learned components are identified as such,
+and the fallback verifier is the only one that may resolve a claim. Displacements
+are expressed in multiples of the subject's own radius, which requires no scene
+calibration, and camera motion is cancelled before any subject motion is
+reported. No holistic video-quality model produces the final clip decision.}
 \label{tab:arms}
 \end{table}
 
@@ -1838,9 +1843,9 @@ program-of-thought and modular visual
 reasoning~\cite{visprog2023,vipergpt2023,rewoo2023,llmcompiler2024}. Executing $G$
 drives the classic reason$\rightarrow$act$\rightarrow$observe loop of ReAct-style
 agents~\cite{react2023}, but every \texttt{act} is a call into a \emph{frozen}
-physical expert operator---open-vocabulary detection~\cite{llmdet2025},
-counting~\cite{countgd2024}, point tracking~\cite{tapnext2025},
-segmentation~\cite{sam3_2025}, monocular depth, OCR, and audio event
+physical expert operator---promptable segmentation and tracking~\cite{sam3_2025},
+counting over its instance identities, the typed physical measurements taken over those
+tracks, monocular depth, OCR, and audio event
 detection~\cite{flexsed2025}---registered in $\Pi$. This is the sense in which
 \PhyReAct{} \emph{physicalizes} ReAct: it inherits the control-flow harness from
 mainstream tool-using agents~\cite{toolformer2023,hugginggpt2023} and specializes
@@ -2030,7 +2035,7 @@ it has been run. The executable plan follows in \Cref{sec:roadmap}.
 \toprule
 \textbf{Pillar} & \textbf{Where it lives in the loop} & \textbf{Status} \\
 \midrule
-P1 Physicalized ReAct + operators & compile / act--observe over frozen experts~\cite{llmdet2025,countgd2024,tapnext2025,sam3_2025,flexsed2025} & Phase 0 (built) \\
+P1 Physicalized ReAct + operators & compile / act--observe over frozen experts~\cite{sam3_2025,flexsed2025} & Phase 0 (built) \\
 P2 CoT-as-program + cost nodes & program $G$ over $\Pi$, budget $c(G)$ & Phase 0 partial \\
 P4 Auditable trace + three-valued $Y$ & trace $T=(C,G,R,Y,F)$, provenance & Phase 0 (artifacts) \\
 P5 Verification-guided refinement & outward control channel $\delta,\,\mathrm{Gen}$ & roadmap \\
@@ -2085,8 +2090,9 @@ evidence for a roadmap row.}
   % ---- frozen operators ----
   \node[built] (ops) at (0.6,0.5)
     {\scriptsize frozen operators\\
-     \scriptsize LLMDet\,/\,CountGD\,/\,TAPNext\\
-     \scriptsize SAM3\,/\,Depth\,/\,OCR\,/\,FlexSED};
+     \scriptsize SAM3 grounding + tracks\\
+     \scriptsize 11 typed measures\,/\,Depth\\
+     \scriptsize OCR\,/\,FlexSED};
   \draw[barrow] (ops)--(exec);
 
   % ---- generator (built endpoint) ----
