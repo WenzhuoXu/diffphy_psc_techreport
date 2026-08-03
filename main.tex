@@ -1021,11 +1021,13 @@ tool recipe during execution.
   \centering
   \input{figs/fig_critic_pipeline}
   \caption{\PhyReAct{} dataflow. The text-only planner receives the prompt and
-  writes claims and a surface plan; the compiler expands and validates it
-  before the video reaches execution. The video-aware verifier emits explicitly
-  learned base-predicate states, whereas specialists emit typed measurements.
-  Only the final claim and clip aggregation is wholly deterministic. Shaded
-  boxes are learned components; outlined boxes are deterministic.}
+  writes claims and a surface plan; the compiler expands and validates it before
+  the video reaches execution. SAM~3 grounds the subject and supplies the tracks
+  the typed operations measure over, so the specialists return numbers while the
+  video-aware verifier returns explicitly tagged learned states. Composition is
+  deterministic, and the one learned step after it is the fallback verifier, which
+  may resolve a claim the dense pass had left supported. Shaded boxes are learned
+  components; outlined boxes are deterministic.}
   \label{fig:criticpipe}
 \end{figure}
 
@@ -1278,6 +1280,46 @@ calibration, and camera motion is cancelled before any subject motion is
 reported. No holistic video-quality model produces the final clip decision.}
 \label{tab:arms}
 \end{table}
+
+\subsection{The physical measurement operations}
+\label{sec:physics}
+The specialists that decide physical claims are not one model per capability but one arm built
+around a single grounding step. SAM~3 segments the named subject and carries a persistent identity
+for it across frames; every physical operation then measures over those tracks. Eleven operations
+are exposed to the planner, and each exists because a class of human complaint could not be settled
+without it.
+
+The largest class is displacement. Of the $288$ distinct flaws in the core, $131$ concern physical
+motion, and within those the complaint ``it should have moved and did not'' --- or moved the wrong
+way --- appears twenty-one times, against twice for anything resembling a ballistic arc. Three
+conventions make that measurable. Displacement is reported in multiples of the subject's own
+radius, so no scene calibration is required and a sun crossing a tenth of its own width is
+distinguishable from one crossing three. Direction is taken from the furthest excursion off the
+starting position rather than the net, because a rise followed by a fall cancels to nothing.
+And camera motion is cancelled by dense optical flow over the whole frame before any subject
+motion is reported. An earlier version used a second mask as a rigid landmark, which breaks down
+when the camera and the subject move together; a flow field measured over the whole frame does
+not depend on finding a stationary object.
+
+Three more operations exist because a subject can fail without going anywhere. Contact measures
+the closest approach between two tracked masks, rather than whether their boxes overlap, and settles
+thirteen complaints about whether two things touch. Shape change measures how much the subject's own
+surface moves relative to the background flow, which catches a scroll that rolls when it should lie
+still --- a case a displacement measurement reports as zero. Path shape reads the trajectory's form,
+distinguishing a circle from a figure of eight.
+
+The rest address time and existence. Permanence asks whether a subject that should vanish instead
+persists, and hop counting whether one that should leave the ground ever does. Damping detects a
+spinning object that never slows, the complaint about the arrow of time. Onset ordering covers the
+thirty-nine complaints about which of two events comes first. Clip timing handles duration and
+playback rate, and viewpoint motion separates a moving camera from a moving subject when the claim
+concerns the camera.
+
+Two properties hold across all eleven. Each returns a number together with the evidence behind it
+--- the frames read, the tracker used, the threshold applied --- and never a verdict; the decision
+is made by the fixed rules of \cref{sec:semantics}. And each may refuse: a subject smaller than one
+percent of the frame, or a track too short to measure, produces an explicit abstention rather than a
+number, so an unmeasurable claim never arrives as a passed one.
 
 \subsection{Evidence records and provenance}
 \label{sec:contract}

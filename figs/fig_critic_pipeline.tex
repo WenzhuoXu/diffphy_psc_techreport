@@ -102,16 +102,16 @@
   \node[cflearn, text width=7.0cm, anchor=north east]
     (specialists) at ($(gate.south east)+(0,-1.55)$)
     {\textbf{Specialist instruments}\\[1.5pt]
-     \cfsub{one frozen model per measurement: detection,\\ counting, point
-     tracking, the time window of\\ an event, segmentation masks with depth}};
+     \cfsub{SAM 3 grounds the subject and tracks it;\\ eleven typed operations measure over those
+     tracks;\\ counting reads its instance identities}};
 
   % ---------------- evidence-only contract (deterministic) ---------------
   \coordinate (mergeA) at ($(verifier.south)+(0,-0.50)$);
   \node[cfdet, text width=13.6cm, anchor=north west]
     (evidence) at ($(verifier.north west |- mergeA)+(0,-0.40)$)
     {\textbf{Typed execution records}\\[1.5pt]
-     \cfsub{specialists return measurements --- boxes, counts, tracks, windows,
-     and depths; learned base-predicate\\ states are explicitly tagged; every
+     \cfsub{specialists return measurements --- masks, tracks, counts, displacements,
+     contacts, and windows; learned\\ base-predicate states are explicitly tagged; every
      record is tied to the prompt fragment that requested it}};
 
   % ---------------- deterministic composition ----------------------------
@@ -122,15 +122,23 @@
      clip: anything contradicted makes\\ its parent contradicted, everything
      supported makes it supported, and anything else is left unresolved}};
 
+  % ---------------- fallback verification (learned) -----------------------
+  \node[cflearn, text width=13.6cm, anchor=north west]
+    (fallback) at ($(compose.south west)+(0,-0.40)$)
+    {\textbf{Fallback verification}\\[1.5pt]
+     \cfsub{a stronger model re-examines any claim the dense pass left supported; where it
+     disagrees, the claim\\ resolves as contradicted rather than as absent evidence, and both
+     verdicts are kept in the record}};
+
   % ---------------- outputs ----------------------------------------------
-  \coordinate (fanB) at ($(compose.south)+(0,-0.40)$);
+  \coordinate (fanB) at ($(fallback.south)+(0,-0.40)$);
   \node[cfout, text width=5.6cm, anchor=north west]
-    (verdict) at ($(compose.south west)+(0,-0.80)$)
+    (verdict) at ($(fallback.south west)+(0,-0.80)$)
     {{\textbf{Verdict}}\\[1.5pt]
      \cfsub{each claim supported, contradicted or\\ unknown; the whole clip
      plausible,\\ implausible, or abstained on}};
   \node[cfdet, text width=7.0cm, anchor=north east]
-    (trace) at ($(compose.south east)+(0,-0.80)$)
+    (trace) at ($(fallback.south east)+(0,-0.80)$)
     {\textbf{Audit trace}\\[1.5pt]
      \cfsub{the claims checked, the evidence each call\\ returned, which claims
      fell back to a general\\ judgment, and the rule that combined them}};
@@ -153,7 +161,8 @@
 
   \draw[cfarr] (evidence.south) -- (evidence.south |- compose.north);
 
-  \draw[cfline] (compose.south) -- (fanB);
+  \draw[cfarr] (compose.south) -- (compose.south |- fallback.north);
+  \draw[cfline] (fallback.south) -- (fanB);
   \draw[cfline] (verdict.north |- fanB) -- (trace.north |- fanB);
   \draw[cfarr]  (verdict.north |- fanB) -- (verdict.north);
   \draw[cfarr]  (trace.north   |- fanB) -- (trace.north);
