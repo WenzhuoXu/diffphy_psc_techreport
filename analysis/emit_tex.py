@@ -199,14 +199,24 @@ def tab_ablation(ab: dict | None) -> str:
                      f"and not a source of recall; only {r.get('flag_active_clips', 0)} of "
                      f"{r['clips']} clips contained a duplicate perception query to collapse.")
         else:
+            # BUG FIXED: this branch previously caught BOTH the routing and the composition row and
+            # hardcoded "every specialist measurement" plus "which touches zero" for each. The
+            # composition row was therefore mislabelled as a specialist ablation, and its interval
+            # [-20,-5] -- which excludes zero -- was described as touching it. Both appeared in the
+            # built PDF. Name the mechanism per row, and DERIVE the zero-crossing from the interval
+            # instead of asserting it.
             lo2, hi2 = r["ci"]
-            note += (f" Removing every specialist measurement costs {abs(r['diff'])} flaws "
+            what = ("every specialist measurement" if r["env"] == "VAC_DISABLE_OPS"
+                    else "the multi-check roll-up")
+            crosses = lo2 <= 0 <= hi2
+            sep = ("which touches zero, so the effect is not separable from noise at this "
+                   "denominator" if crosses else
+                   "which excludes zero, so the effect is separable at this denominator")
+            note += (f" Removing {what} costs {abs(r['diff'])} flaws "
                      f"({r['full_caught']} to {r['off_caught']}) at a paired interval of "
-                     f"$[{lo2:+d}, {hi2:+d}]$, which touches zero: the specialists contribute "
-                     f"recall on this subset, but not separably from noise at this denominator. "
-                     f"Their contribution is also not free to remove in the way sharing is --- "
-                     f"the call count barely moves, because the plan still issues the same "
-                     f"requests and each simply abstains.")
+                     f"$[{lo2:+d}, {hi2:+d}]$, {sep}. The cost in calls barely moves either way, "
+                     f"because the plan still issues the same requests and the affected checks "
+                     f"simply abstain.")
     rows = "\n".join(body)
     return rf"""
 \begin{{table}}[t]

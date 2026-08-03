@@ -62,10 +62,12 @@ implicit successes.
 To ground evaluation in real failures, we introduce a 1{,}500-clip
 human-annotated corpus with prompt-linked flaw rationales and, where available,
 temporal spans and box tracks, from which we freeze a motion-enriched evaluation
-core. On 149 completed core clips, plan-based execution recovers 197 of 286
-localized flaws ($68.9\%$), versus 179 ($62.6\%$) for one-at-a-time per-claim
-verification, at 13.0 versus 12.1 calls per clip. We also instantiate a
-simulation-conditioned generator as a controllable refinement testbed.
+core. On 148 completed core clips, plan-based execution recovers 179 of 295
+localized flaws ($60.7\%$), versus 135 ($45.8\%$) for one-at-a-time per-claim
+verification, at 12.7 versus 11.8 calls per clip; the advantage survives when both
+systems are made to verify an identical claim list, and ablations attribute part of
+it to specialist measurement and more of it to multi-check composition. We also
+instantiate a simulation-conditioned generator as a controllable refinement testbed.
 \PhyReAct's evidence traces are designed to support future critic-guided
 refinement; closed-loop generator optimization remains future work.
 }
@@ -184,11 +186,11 @@ appearance. The present study evaluates the critic and this controllable
 generator separately; using critic feedback to update generation closes the
 intended loop and remains future work.
 
-On the 149 development-core clips completed by both systems, \PhyReAct{}
-recovers 197 of 286 localized flaws ($68.9\%$), compared with 179
-($62.6\%$) for wording-controlled, one-at-a-time claim verification. This gain
-of 18 recovered flaws has a whole-clip bootstrap interval of $[+8,+28]$, while
-requiring 13.0 rather than 12.1 model and tool calls per clip. These results
+On the 148 development-core clips completed by both systems, \PhyReAct{}
+recovers 179 of 295 localized flaws ($60.7\%$), compared with 135
+($45.8\%$) for one-at-a-time claim verification. This gain
+of 44 recovered flaws has a paired whole-clip bootstrap interval of $[+29,+59]$, while
+requiring 12.7 rather than 11.8 model and tool calls per clip. These results
 support planned, timeline-aware evidence collection over isolated per-claim
 verification at a modest additional call cost; because the core was used during
 system development, they characterize the current system rather than held-out
@@ -1392,8 +1394,23 @@ surface vocabulary also lacks an ``on top of'' spatial predicate and rejects
 negated quantitative measurements; such terms become recorded, charged
 generalist fallbacks.
 
-\subsection{Results}
-\Cref{tab:results} reports the paired comparison completed to date: the plan-based
+\subsection{An earlier comparison, and why it is not the headline}
+\Cref{tab:results} records an earlier paired comparison of the same two systems. It is retained
+because it is part of this work's history, but it is \emph{superseded} by \cref{tab:paired}, and two
+differences matter more than the change in numbers.
+
+First, its recall is computed by a keyword-overlap matcher that the project subsequently
+\textbf{retracted}: the measure moves on byte-identical text, inflates with output volume, and in one
+audited case credited a bundled ``mossy stone path'' claim as covering a flaw about moss when nothing
+had tested moss. The successor comparison uses a same-defect judgement instead. Second, its
+denominator counts distinct flaw \emph{spans} ($286$, after collapsing $18$ duplicate entries from
+$304$), where \cref{tab:paired} counts flaw entries ($295$ of $306$), so the percentages are not
+directly comparable in either direction.
+
+We therefore report \cref{tab:paired} as the result and this table as prior context. Its figures
+cannot be regenerated from rows available here, and no claim in this report rests on them.
+
+\Cref{tab:results} compares the plan-based
 critic against per-claim verification, on the 149 clips of the evaluation core both
 systems have scored. Both receive the same claim texts and the same matching protocol,
 and the per-claim baseline is wording-controlled---asked its questions in the form the
@@ -1458,10 +1475,10 @@ rating-level comparison of \cref{sec:vs2} is separate and has been run.
 
 \subsection{A controlled head-to-head on the frozen set}
 \label{sec:paired}
-The comparison in \cref{tab:results} has two defects that no confidence interval repairs. Its
-denominator is not the frozen set, and the plan-based side spent \emph{more} calls per clip
-than the baseline it beat, so the question of whether planning wins at equal cost was never
-put. \Cref{tab:paired} is a controlled comparison designed to put it.
+Beyond the retracted matcher, the earlier comparison also left the cost question unasked: the
+plan-based side spent \emph{more} calls per clip than the baseline it beat. \Cref{tab:paired} is a
+controlled comparison, scored by same-defect judgement on the frozen set, designed to put both
+questions properly.
 
 Two controls make it a paired experiment rather than two separate results. Both conditions run
 against the same live specialists and the same reasoning model in the same configuration, and
@@ -1868,8 +1885,8 @@ each will be given the same claim decomposition where it accepts one.
 \toprule
 \textbf{Evaluator} & \textbf{Output it produces} & \textbf{Caught} & \textbf{Recall} & \textbf{Calls} \\
 \midrule
-This work, plan-based & localized allegation & 197 & 68.9\% & 13.0 \\
-Per-claim verification & localized allegation & 179 & 62.6\% & 12.1 \\
+This work, plan-based & localized allegation & 179 & 60.7\% & 12.7 \\
+Per-claim verification & localized allegation & 135 & 45.8\% & 11.8 \\
 Question-decomposition scoring~\cite{tifa2023,dsg2024} & per-question answers & --- & --- & --- \\
 Alignment scoring~\cite{vqascore2024,clipscore2021} & clip-level scalar & --- & --- & --- \\
 Learned quality scoring~\cite{videoscore2024,videoscore2_2025} & clip-level scalar & --- & --- & --- \\
@@ -1877,7 +1894,7 @@ Modular video question answering~\cite{proviq2023,morevqa2024} & per-question an
 \bottomrule
 \end{tabular}
 \caption{The intended external comparison, stated before it is run. The first two rows
-are the measured systems of \cref{tab:results}, on its 149 clips and 286 flaws. Dashes
+are the measured systems of \cref{tab:paired}, on its 148 clips and 295 flaws. Dashes
 are unrun. A clip-level scalar has no allegation
 to match against a localized human flaw, so scoring it requires a stated rule for turning
 a score into a decision; that rule will be fixed in advance and reported with the result.}

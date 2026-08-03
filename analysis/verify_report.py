@@ -81,6 +81,24 @@ def main() -> int:
     else:
         print("[warn] /tmp/paired_frozen.json absent — claims-matched figures unverified")
 
+    # THE ABSTRACT AND INTRODUCTION, checked separately from the tables.
+    # This gap is how a stale headline survived: the abstract led with 197/286 (68.9%) from a
+    # superseded run for hours while every table check passed 23/23, because nothing verified the
+    # front matter at all. The abstract must now quote the SAME figures as tab:paired, and the
+    # retired run's number must NOT appear as a live claim there.
+    if PAIRED.exists():
+        p2 = json.loads(PAIRED.read_text())
+        head = txt[:6000]           # abstract + intro sit well inside this
+        g2, f2, n2 = p2["caught"]["graph"], p2["caught"]["flat"], p2["flaws"]
+        for lab, needle in ((f"abstract: plan-based {g2}", str(g2)),
+                            (f"abstract: per-claim {f2}", str(f2)),
+                            (f"abstract: denominator {n2}", str(n2))):
+            checks.append((lab, needle, needle in head))
+        # the retired figure must not be presented up front
+        for stale in ("68.9", "197 of 286"):
+            checks.append((f"abstract: retired figure {stale!r} ABSENT", f"NOT {stale}",
+                           stale not in head))
+
     # the published-run figures the descriptive tables rest on
     for label, needle in (("published: found/total", "228"),
                           ("published: denominator", "304"),
