@@ -1534,99 +1534,16 @@ measurements do not reach.
 Because this core was used during development, these figures characterize the current system rather
 than held-out generalization.
 
-\subsection{Plan-based execution against per-claim verification}
-\label{sec:paired}
-The headline measures coverage but not the value of planning. To isolate that, both conditions were
-run on the frozen set: the plan-based critic, and a baseline that verifies the same claims one at a
-time with the general verifier, phrased as the critic phrases them. Both use the same models and
-specialists and are scored by the same matching protocol.
-
-On the 148 clips both completed, carrying 295 flaw entries, the plan-based critic
-recovers 179 flaws (60.7\%) against 135 (45.8\%), a paired difference of
-$+44$ with a $95\%$ interval of $[+29, +59]$ over clip resamples. Per clip it
-spends 12.7 model and tool calls against
-11.8. \Cref{tab:paired} gives the flaw-by-flaw overlap: the
-plan-based condition finds 56 flaws the baseline misses, the baseline
-finds 12 the plan-based condition misses, and
-104 are found by neither.
-
-\input{tab_paired}
-
-Recall alone rewards accusing more, so the accusation rate accompanies it. The plan-based condition
-issues about a third more accusations per clip, and the share the matching protocol links to a human
-flaw is slightly higher for it than for the baseline. Part of the recall difference is therefore
-better targeting and part is greater volume.
-
-Each condition decomposes the prompt with its own call, so the two do not necessarily verify an
-identical claim set: on $51\%$ of clips the claim lists are byte-identical, and where they differ the
-median difference in claim count is zero. \Cref{tab:frozen} removes that variable by handing the
-baseline the plan-based condition's own frozen claim list. The gap persists --- 56 of 96 against
-43, a paired interval of $[+6, +20]$ --- so it does not follow from one condition
-dividing the prompt more favourably.
-
-\input{tab_frozen}
-
-The plan-based condition spends more calls per clip in both comparisons. Equal-cost behaviour was
-not measured; that requires a fixed call budget or a sweep across budgets.
-
-The matching protocol accepts loose links. Among credited flaws, a complaint that objects are
-meteorites, not meteors, is matched to an accusation that the video is an anime. Both conditions are
-scored by the same protocol, and the absolute rates are upper bounds on how often a finding
-identifies the annotator's specific defect.
-
-The depth-ordering and on-screen-text operations are disabled in both conditions: the first
-contributed no checks across an earlier $108$-clip evaluation at several hundred seconds per call,
-and the second is the slowest operation in the suite at a median of $19$ minutes per call. Affected
-checks resolve to \unknownv{} with the disabling recorded, so no text or depth-ordering claim in
-\cref{tab:paired} is settled by a measurement; both fall to the general verifier.
-
-Two clips of the $150$ are excluded. One decomposes to zero claims, so neither condition can score
-it. The other, \code{fec3507b}, has a perception call that returns no result, and the scoring
-contract declines to emit a row with incomplete measurements. Both are hard, high-severity clips, so
-the rates are marginally optimistic with respect to the frozen set.
-
-\subsection{Mechanism ablations}
-\label{sec:ablation}
-\Cref{tab:ablation} isolates three orchestration mechanisms by disabling each and re-running the
-identical plan on the same $40$ clips. Each row is a separate live pass.
-
-\input{tab_ablation}
-
-The three mechanisms do not trade in the same currency. Call deduplication finds exactly the same
-flaws while spending $1.1$ fewer calls per clip, so it buys cost and no accuracy; only $9$ of the
-$40$ clips contain a duplicate perception query to collapse. Specialist routing costs $5$ flaws to
-remove, and multi-check composition costs $12$ --- the largest effect, and the only interval that
-excludes zero --- while neither changes the call count, because the plan still issues the same
-requests and the affected checks abstain.
-
-Each row carries a control that the mechanism was genuinely disabled. For deduplication, the clips
-where the full condition is recorded as having deduplicated must spend more calls without it, and
-all nine do. For routing and composition the effect appears in verdicts rather than call counts: on
-clips carrying the affected structure, the ablated run must allege no more contradictions than the
-full one, which holds in every case but one --- removing a measurement that \emph{supported} a
-conjunct can let a composite claim roll up to a contradiction.
-
-Composite-free clips diverge in $17\%$ of cases even though the mechanism cannot touch them, because
-re-planning and re-verifying a clip does not reproduce a previous run exactly. Measured on the
-deduplication row, whose mechanism changes no verdict, the rate is $12\%$. The intervals in this
-section resample clips and do not capture this component of variability.
-
-One mechanism is not ablatable in this implementation: the fallback verifier's conflict rule is not
-present in the codebase these comparisons run on, so \cref{tab:ablation} covers three of four.
-
 \subsection{Recall against clip properties}
 \label{sec:bycat}
-\Cref{tab:bycat} gives the category breakdown of the paired run, computed from its own rows.
-\Cref{tab:robust} reports recall against four properties of the clip, computed from the headline
-record's rows.
+\Cref{tab:robust} reports recall against annotator severity, clip duration, the number of flaws in
+the clip, and the hard stratum, on the same record as \cref{tab:headline}.
 
-\input{tab_bycat}
 \input{tab_robust}
 
-Across annotator severity, clip duration, defect density and the hard stratum, no band departs from
-the overall rate by more than about ten points, and every departure is of the order of the scorer's
-own measured variation. Recall shows no detectable dependence on these properties. The
-severity-$5$ band is the lowest at $18$ of $28$, but rests on ten missed flaws.
+No band departs from the overall rate by more than about ten points, and every departure is of the
+order of the scorer's own measured variation. The severity-$5$ band is the lowest at $18$ of $28$,
+on ten missed flaws.
 
 \subsection{Six measured catches in full}
 \label{sec:cases}
@@ -1793,8 +1710,7 @@ each will be given the same claim decomposition where it accepts one.
 \toprule
 \textbf{Evaluator} & \textbf{Output it produces} & \textbf{Caught} & \textbf{Recall} & \textbf{Calls} \\
 \midrule
-This work, plan-based & localized allegation & 179 & 60.7\% & 12.7 \\
-Per-claim verification & localized allegation & 135 & 45.8\% & 11.8 \\
+This work & localized allegation & 228 & 75.0\% & --- \\
 Question-decomposition scoring~\cite{tifa2023,dsg2024} & per-question answers & --- & --- & --- \\
 Alignment scoring~\cite{vqascore2024,clipscore2021} & clip-level scalar & --- & --- & --- \\
 Learned quality scoring~\cite{videoscore2024,videoscore2_2025} & clip-level scalar & --- & --- & --- \\
@@ -1802,7 +1718,7 @@ Modular video question answering~\cite{proviq2023,morevqa2024} & per-question an
 \bottomrule
 \end{tabular}
 \caption{The intended external comparison, stated before it is run. The first two rows
-are the measured systems of \cref{tab:paired}, on its 148 clips and 295 flaws. Dashes
+is this work on the evaluation core (\cref{tab:headline}), on 304 flaws over 149 clips. Dashes
 are unrun. A clip-level scalar has no allegation
 to match against a localized human flaw, so scoring it requires a stated rule for turning
 a score into a decision; that rule will be fixed in advance and reported with the result.}
