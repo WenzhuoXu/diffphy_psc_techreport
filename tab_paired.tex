@@ -8,27 +8,27 @@
 \toprule
 \textbf{Condition} & \textbf{Flaws found} & \textbf{Rate} & \textbf{Calls}
  & \textbf{Accusations} & \textbf{That} \\
- & of 52 & & per clip & per clip & \textbf{landed} \\
+ & of 167 & & per clip & per clip & \textbf{landed} \\
 \midrule
-Plan-based critic & 30 & 57.7\% & 14.0
- & 5.5 & 33\% \\
-Per-claim verification & 21 & 40.4\% & 13.0
- & 4.0 & 27\% \\
+Plan-based critic & 96 & 57.5\% & 13.0
+ & 4.3 & 38\% \\
+Per-claim verification & 74 & 44.3\% & 11.9
+ & 3.2 & 36\% \\
 \midrule
 \multicolumn{6}{@{}l}{\textit{Where they disagree, flaw by flaw}} \\
-\quad found by both & 18 & & & & \\
-\quad plan-based only & 12 & & & & \\
-\quad per-claim only & 3 & & & & \\
-\quad found by neither & 19 & & & & \\
+\quad found by both & 65 & & & & \\
+\quad plan-based only & 31 & & & & \\
+\quad per-claim only & 9 & & & & \\
+\quad found by neither & 62 & & & & \\
 \bottomrule
 \end{tabular}
-\caption{Paired comparison on the 25 clips of the frozen evaluation set that both
-conditions have scored in this run, carrying 52 human flaws. Both conditions read the
+\caption{Paired comparison on the 83 clips of the frozen evaluation set that both
+conditions have scored in this run, carrying 167 human flaws. Both conditions read the
 \emph{same} frozen claim decomposition per prompt, so neither is handed easier claims, and
 both are scored by the same matching protocol against the same labels. Calls count model and
 tool invocations and exclude the matching protocol, which is the scorer rather than the
-critic. The difference of +9 flaws has a paired $95\%$ interval of
-$[+2, +16]$ from 10,000 clip resamples with seed 20260803:
+critic. The difference of +22 flaws has a paired $95\%$ interval of
+$[+11, +34]$ from 10,000 clip resamples with seed 20260803:
 graph ahead. Both conditions ran against the same served reasoning model
 (Qwen3-VL-30B-A3B-Instruct, BF16) and the same live specialist servers; the counting
 specialist was measured broken during this run (\cref{sec:contract}) and its checks are

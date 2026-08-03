@@ -1478,12 +1478,13 @@ while the flaws both conditions find are the easy majority. The paired interval 
 difference excludes zero.
 
 Two columns exist to stop a volume effect passing for an accuracy gain. Recall alone rewards
-accusing more, and the plan-based condition does accuse more --- about $5.7$ accusations per
-clip against $4.2$, a third again as many, which buys it more chances at the matching
-protocol. Its accusations also land more often ($33\%$ against $27\%$), so the gain is not
-purely volume, but neither figure is high, and the difference in precision is smaller than the
-difference in recall. A reader should take the recall gain as partly earned by better targeting
-and partly by flagging more.
+accusing more, and the plan-based condition does accuse more --- roughly a third again as many
+accusations per clip, which buys it more chances at the matching protocol. The share of its
+accusations that the protocol links to a human flaw is nonetheless no lower than the baseline's,
+so the extra accusations are not simply noise; but that share is under half for both conditions,
+and the gap between them is much smaller than the gap in recall. A reader should take the recall
+gain as partly earned by better targeting and partly by flagging more, and should read the
+accusation columns rather than the recall column alone.
 
 That the matching protocol is generous is visible on inspection. Reading the flaws the
 plan-based condition found alone, some are unarguable: a prompt demanding a thousand
@@ -1495,6 +1496,20 @@ scored by the same protocol, so this does not bias the comparison, but it does m
 absolute rates in this table are upper bounds on how often a finding truly identifies the
 annotator's defect.
 
+\paragraph{Two specialists were switched off during this run, and the rows say so.} The
+depth-ordering and on-screen-text operations are disabled in both conditions. The reason is
+measured, not preference: across an earlier $108$-clip pass the depth-ordering call contributed
+no checks at all while costing several hundred seconds per invocation from a single server with
+no failover, and the text read had never returned a result on this benchmark. Left enabled they
+consume the entire tail of a run --- with them live, one clip completed in $46$ minutes; with
+them disabled, six completed in four. Every affected check resolves to \unknownv{} carrying the
+provenance \code{disabled:<operation>}, so it is recorded as unmeasured rather than counted as
+a pass, and the count of such checks is recoverable from the rows. The consequence for reading
+\cref{tab:paired} is that no text claim and no depth-ordering claim is settled by a
+measurement in either condition; both fall to the general verifier. The independent evidence
+that this costs little here is that text checks produced no typed measurement in this run even
+before the operation was switched off.
+
 \paragraph{What this does and does not establish.} It establishes more flaws found, on this
 subset, at $95\%$ confidence. It does \textbf{not} yet establish the stronger claim that
 planning wins at equal or lower cost: the plan-based condition spends about one more call per
@@ -1502,10 +1517,9 @@ clip, the same imbalance that undermines \cref{tab:results}. Establishing that c
 either a hard call budget applied to both conditions or a sweep across several budgets, and
 neither has been run. We also report calls rather than accelerator seconds; calls are not
 computationally interchangeable, and a per-call cost accounting remains unrun. The subset is
-smaller than the frozen set because the plan-based condition costs about ten times as much
-wall time per clip as the baseline, so the denominator in the caption is what was actually
-completed, and the two conditions' non-overlapping clips are excluded rather than scored as
-misses.
+smaller than the frozen set because the plan-based condition costs substantially more wall time
+per clip than the baseline, so the denominator in the caption is what was actually completed,
+and the two conditions' non-overlapping clips are excluded rather than scored as misses.
 
 \input{tab_paired}
 

@@ -18,6 +18,7 @@ import argparse
 import importlib.util
 import io
 import json
+import re
 import sys
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -165,6 +166,51 @@ accusations the matching protocol links to a human flaw are reported beside it.}
 """
 
 
+def check_prose_consistency(paired: dict, tex_path: Path) -> list[str]:
+    """Warn when main.tex's PROSE hardcodes a number the paired table has moved past.
+
+    WHY: the paired run's denominator grows as clips land, so any figure typed into a sentence
+    goes stale silently. It happened once already -- the prose said "5.7 accusations per clip
+    against 4.2" and "33% against 27%" while the regenerated table read 4.4/3.3 and 40%/38%,
+    which is a materially different claim about whether the gain is a volume effect. The tables
+    are generated and cannot drift; sentences can. So the sentences must avoid bare figures the
+    table owns, and this check enforces that by flagging any that reappear.
+    """
+    if not paired or not tex_path.exists():
+        return []
+    src = tex_path.read_text()
+    i = src.find(r"\subsection{A controlled head-to-head")
+    j = src.find(r"\subsection{The current critic")
+    if i < 0 or j < 0:
+        return ["could not locate the head-to-head subsection to check"]
+    body = src[i:j]
+    owned = {
+        "accusations per clip (graph)": paired["allegations"]["graph"]["per_clip"],
+        "accusations per clip (flat)": paired["allegations"]["flat"]["per_clip"],
+        "landed share (graph)": paired["allegations"]["graph"]["precision"],
+        "landed share (flat)": paired["allegations"]["flat"]["precision"],
+        "flaws found (graph)": paired["caught"]["graph"],
+        "flaws found (flat)": paired["caught"]["flat"],
+    }
+    out = []
+    for label, val in owned.items():
+        # Check the figure AS THE TABLE RENDERS IT, not the raw float: the table prints 4.4 for
+        # a stored 4.37, so searching the raw value finds nothing and the guard silently passes.
+        # That is exactly the failure this function exists to prevent, so it must not repeat it
+        # one level up. Both the one-decimal and integer renderings are checked.
+        forms = {f"{val:.1f}", f"{val:.0f}", f"{val:g}"}
+        for f in forms:
+            for pat in (rf"\${re.escape(f)}\$", rf"(?<![\d.]){re.escape(f)}\\%"):
+                if re.search(pat, body):
+                    out.append(f"prose hardcodes {label} (renders as {f}); "
+                               "phrase it qualitatively and let the table own the number")
+                    break
+            else:
+                continue
+            break
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(HERE.parent / "results_tables.tex"))
@@ -195,9 +241,12 @@ def main() -> int:
         p.write_text(head + body)
         print(f"[emit] {p.name}")
     Path(a.out).write_text(head + "\n".join(pieces.values()))
+    for w in check_prose_consistency(paired, HERE.parent / "main.tex"):
+        print(f"[emit] WARN {w}")
     print(f"[emit] {a.out}  ({'paired table INCLUDED' if paired else 'paired table = TODO marker'})")
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(main())
+
