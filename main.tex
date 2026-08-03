@@ -43,31 +43,29 @@
 }
 
 \abstract{
-Generated videos can look convincing while violating prompt-specific physical
-obligations, yet clip-level learned scorers compress failures into opaque scores
-and offer little evidence for correction. We present \PhyReAct, an
-agentic framework for auditable evaluation of generated video and a foundation
-for verification-guided refinement. \PhyReAct{} compiles a prompt into
-prompt-grounded claims with typed checks and an executable measurement plan. A
-vision-language reasoner performs semantic
-decomposition and dense-frame judgments, while frozen open specialists supply
-counts, tracks, masks, depth, text, and audio evidence. The video's timeline
-structures execution: occurrence gates timing, localized intervals select frames
-for later checks, and fixed rules compute relations. Specialists return
-measurements, not verdicts; deterministic rules combine validated records into
-\emph{supported}, \emph{contradicted}, or \emph{unknown} claim states and a
-\emph{plausible}, \emph{implausible}, or \emph{abstain} clip decision. This
-separation preserves provenance and keeps unresolved checks from becoming
-implicit successes.
-To ground evaluation in real failures, we introduce a 1{,}500-clip
-human-annotated corpus with prompt-linked flaw rationales and, where available,
-temporal spans and box tracks, from which we freeze a motion-enriched evaluation
-core. On 149 completed core clips, plan-based execution recovers 197 of 286
-localized flaws ($68.9\%$), versus 179 ($62.6\%$) for one-at-a-time per-claim
-verification, at 13.0 versus 12.1 calls per clip. We also instantiate a
-simulation-conditioned generator as a controllable refinement testbed.
-\PhyReAct's evidence traces are designed to support future critic-guided
-refinement; closed-loop generator optimization remains future work.
+Videos that look fluent are not necessarily physically reliable, yet most video
+evaluators collapse this judgment into a single scalar score that cannot be
+traced, audited, or corrected. We present \PhyReAct{}, a physically grounded
+instance of the mainstream ReAct agentic paradigm: a strong reasoning model runs
+an explicit thought--action--observation loop in which reasoning compiles the
+prompt into typed physical obligations, and observations gate and scope which
+operators fire next. The actions invoke a suite of frozen low-level physical
+experts---detection, counting, tracking, segmentation, depth, OCR, and
+audio---that return only measurements, never verdicts. A deterministic layer
+composes these measurements into a three-valued state (\supported{},
+\contradicted{}, or \unknownv{}, surfaced as \emph{plausible},
+\emph{implausible}, or \abstain{}) together with full provenance, yielding a
+human-auditable trace rather than an opaque number. We anchor evaluation in a
+1{,}500-clip corpus of human-annotated flaw records that localize real
+generation failures in prompt reference, space, and time. On the current
+development core---used during system development and not held out---plan-grounded
+ReAct execution recovers more localized flaws than one-at-a-time per-claim
+verification, at a cost of roughly one additional operator call per clip; precise
+figures and their uncertainty are reported in the body. The resulting evidence
+traces are designed as an interface for context-training self-evolution,
+operator-library growth, external-knowledge retrieval, and critic-to-generator
+refinement through a control channel. Closing this optimization loop remains
+future work.
 }
 
 % convenience macros
@@ -108,101 +106,134 @@ refinement; closed-loop generator optimization remains future work.
 \section{Introduction}\label{sec:intro}
 % =====================================================================
 
-Text-to-video systems can now produce clips with striking appearance and smooth
-local motion, yet visual fluency is not physical reliability. A generated video
-may preserve style and identity while omitting a requested object, reversing the
-order of two events, violating a contact outcome, or producing a trajectory
-inconsistent with the described scene. Recent benchmarks expose this gap
-between perceptual quality, prompt adherence, and physical
-commonsense~\cite{videophy2024,videophy2_2025,phygenbench2024,physicsiq2025}.
-For evaluation that can eventually support refinement, however, a scalar score
-is not enough. The system must recover the prompt-conditioned physical
-obligations---over entities, events, motion, contact, space, quantity, and
-time---and identify the evidence for each decision. This raises a first
-question: \emph{can a video evaluator turn a generation request into checkable
-physical obligations and ground every decision in localized, inspectable
-evidence?}
+\begin{figure}[t]
+  \centering
+  \input{figs/fig_teaser}
+  \caption{\PhyReAct{} turns an opaque quality score into an auditable verdict.
+  A learned video--text scorer maps a prompt and clip to a single number that
+  cannot say which prompt obligation failed, where in the clip, or on what
+  evidence. \PhyReAct{} instead runs a reason--act--observe loop: reasoning
+  compiles the prompt into typed physical obligations and an executable
+  measurement plan, frozen physical operators return localized measurements,
+  and fixed rules combine them into \supported{}, \contradicted{}, or
+  \unknownv{} claim states, a \emph{plausible}, \emph{implausible}, or
+  \abstain{} clip decision, and a localized evidence packet recording what
+  failed, when, and on what basis. The claims and windows shown are an
+  illustrative schematic of the output contract, not a measured run.}
+  \label{fig:teaser}
+\end{figure}
 
-Existing approaches provide complementary parts of this capability. Learned
-video judges estimate holistic quality or alignment
-scores~\cite{videoscore2024,videoscore2_2025}; question and proposition
-decomposition make prompt requirements more explicit~\cite{tifa2023,dsg2024};
-and visual-programming or modular video-QA systems show how language models can
-compose perception modules~\cite{visprog2023,vipergpt2023,proviq2023,morevqa2024}.
-Physical verification nevertheless places these ideas under a demanding
-measurement contract. Counting objects, localizing an event, following a
-trajectory, estimating depth order, reading text, and detecting sound require
-different instruments and expose different failure modes. A high-level model
-must decide which evidence is needed and how later measurements depend on
-earlier ones, while low-level specialists must report what they observe without
-silently converting uncertain measurements into confident judgments. This
-leads to a second question: \emph{can high-level reasoning coordinate
-heterogeneous measurements over time, preserve unresolved evidence, and produce
-feedback suitable for video refinement?}
+Text-to-video systems now produce clips with striking appearance and smooth
+local motion, yet visual fluency is not physical reliability. A generated
+video can preserve style and identity while omitting a requested object,
+reversing the order of two events, violating a contact outcome, or following a
+trajectory inconsistent with the described scene. Recent benchmarks expose this
+gap between perceptual quality and physical
+faithfulness~\cite{videophy2024,videophy2_2025,phygenbench2024,physicsiq2025}. For
+evaluation that could eventually drive correction, however, a scalar quality
+score is not enough: it cannot say which prompt-conditioned obligation
+failed---over entities, events, motion, contact, space, quantity, and
+time---where in the clip it failed, or on what evidence the judgment rests. What
+is missing is not a better number but a decision that names the violated
+obligation and exposes the evidence behind it.
 
-To address these coupled questions, we present \PhyReAct{}, an agentic physical
-reasoning framework for evaluating and refining generated video. Rather than
-treating physics as a single global impression, \PhyReAct{} compiles a prompt
-into verifiable claims and typed checks. Before inspecting the video, a high-level
-vision-language reasoner writes an executable plan whose operations and
-dependencies are checked by a mechanical validator. At execution time, a
-dense-frame reasoner establishes whether relevant objects and events occur, and
-frozen specialist models provide targeted measurements for count, tracking,
-segmentation, depth, rendered text, and audio. This division lets semantic
-reasoning select and connect the evidence while keeping specialist outputs
-available for inspection.
+We approach physical evaluation as physically grounded reasoning in the
+reason--act--observe style. ReAct established the general pattern of interleaving
+a model's reasoning with tool actions and observations of their
+results~\cite{react2023}. \PhyReAct{} is a grounded instance of that pattern
+specialized to physical verification: a reasoner compiles the prompt into
+\emph{typed physical obligations} and an executable measurement plan, and
+observations returned by physical operators then gate and scope which later
+operator calls are valid and where in the video they run. Concretely, the
+current system operates as a plan-then-execute member of this family---reasoning
+declares the obligations and their measurement plan up front, and observations
+activate, skip, or localize the already-declared measurements rather than
+inventing new tool sequences at run time. What is special about \PhyReAct{} is
+not the control flow, which is inherited from mainstream reason--act--observe
+agents, but the \emph{physical grounding} of that flow: frozen low-level
+physical operators (detection with LLMDet, counting with CountGD, point
+tracking with TAPNext, segmentation with SAM~3, monocular depth, optical
+character recognition, and audio event detection) return measurements rather
+than verdicts, a strong reasoning model supplies the semantics, and
+deterministic rules compose the measurements into a three-valued decision with
+full provenance. This lineage is a design choice rather than a claim of
+autonomous replanning: the run-time freedom is confined to the gate-and-scope
+semantics just described.
 
-The central mechanism is a timeline-conditioned evidence chain. An event must
-first be observed before its time interval can support another operation; that
-interval then restricts the frames examined by a more expensive specialist; and
-temporal relations are evaluated from the resulting intervals using fixed
-rules. Consequently, evidence is not collected as an unordered set of model
-answers: earlier observations determine which later measurements are valid and
-where they should be made. Specialists return evidence rather than final
-prompt-satisfaction labels, after which deterministic composition maps each
-claim to \supported{}, \contradicted{}, or \unknownv{} and the clip to
-\emph{plausible}, \emph{implausible}, or \abstain{}. The output is therefore a
-claim-level trace that identifies what was checked, where the evidence arose,
-and which conclusion followed from it.
+Four roles divide the labor. A \emph{text-only planner} reads the whole prompt
+and writes the typed obligations and their measurement plan before any frame is
+seen. A \emph{video-aware semantic verifier} reads timestamped frames densely
+for predicates such as existence and event occurrence. \emph{Physical
+operators} supply targeted measurements---counts, tracks, masks, depths,
+rendered text, and sound intervals. A \emph{deterministic aggregator} then
+applies typed predicates and three-valued composition, so that no learned
+component emits the final label. The video's timeline structures execution as a
+conditioned evidence chain: an event must be observed before its time interval
+can support anything else (occurrence gates timing), that confirmed interval
+restricts the frames a more expensive operator examines (localized scope), and
+temporal and spatial relations are then computed from the resulting intervals by
+fixed rules. Earlier observations therefore determine which later measurements
+are valid and where they are taken, rather than leaving evidence as an unordered
+bag of model answers. The output is a claim-level trace that a person can read,
+audit, and hand off to human-in-the-loop review (\cref{fig:teaser}).
 
 Evaluating such a critic requires ground truth at the same level of detail. We
-therefore assemble 1{,}500 generated clips with 2{,}582 human-written flaw
-records. Each record identifies the exact prompt fragment that was violated and
-includes a rationale, severity, confidence, and, when available, a temporal
-span or object track. A recorded selection procedure yields a motion-enriched
-evaluation set and a 150-clip core for routine experiments. Unlike a single
-clip-level quality score, these annotations allow each allegation made by the
-critic to be matched to the particular failure marked by a person.
+therefore assemble a corpus of $1{,}500$ generated clips with $2{,}582$
+human-written flaw records, each of which quotes the exact prompt fragment that
+was violated and adds a rationale, a severity, a confidence, and, where the
+annotator could supply them, a temporal span and an object track. These
+human labels anchor evaluation in real failures and are the only ground truth
+in this work; the critic's own verdicts are never treated as such. Unlike a
+single clip-level score, the annotations let each allegation the critic makes be
+matched to the particular failure a person marked.
 
-The same structured trace also provides a natural interface to refinement:
-contradicted claims identify what should change, while their localized evidence
-indicates when and where an intervention is needed. As a controlled testbed for
-this direction, we render MuJoCo simulations as depth or silhouette control
-videos for a Wan~2.2-VACE generator~\cite{todorov2012mujoco,wan2025,vace2025}.
-The simulation specifies geometry and motion, while the text prompt controls
-appearance. The present study evaluates the critic and this controllable
-generator separately; using critic feedback to update generation closes the
-intended loop and remains future work.
+The same structured trace also defines an interface to refinement: a
+contradicted claim names what should change, and its localized evidence
+indicates when and where an intervention is needed. As a controllable testbed
+for this direction, we render MuJoCo simulations as depth or silhouette control
+videos for a Wan~2.2-VACE generator, so that geometry and motion come from the
+simulator while appearance comes from the text
+prompt~\cite{todorov2012mujoco,wan2025,vace2025}. This gives a control channel
+through which critic feedback could later update \emph{how a clip is generated}.
+In this report the critic and the generator are studied separately; closing the
+critic-to-generator loop remains future work.
 
-On the 149 development-core clips completed by both systems, \PhyReAct{}
-recovers 197 of 286 localized flaws ($68.9\%$), compared with 179
-($62.6\%$) for wording-controlled, one-at-a-time claim verification. This gain
-of 18 recovered flaws has a whole-clip bootstrap interval of $[+8,+28]$, while
-requiring 13.0 rather than 12.1 model and tool calls per clip. These results
-support planned, timeline-aware evidence collection over isolated per-claim
-verification at a modest additional call cost; because the core was used during
-system development, they characterize the current system rather than held-out
-generalization.
+Reading physical evaluation as a reason--act--observe framework also makes
+several extensions natural, which we state as design directions rather than
+completed results. Because the plan is written as a program over operators, the
+operator library can grow with experience into a reusable, cost-annotated
+toolset~\cite{plugmem2026,reasoningbank2026}. Because every trace is inspectable
+and version-controllable, traces and their feedback could accumulate as
+human-readable prior context and let the system evolve without updating
+weights~\cite{contexttraining2026,explicitmem2026}. And because a loop that
+feeds only its own traces back into its own context is internally closed,
+admitting external or social knowledge would break that closure---but only under
+a candidate-and-pruning discipline that guards against context
+pollution~\cite{contexttraining2026}. None of these extensions is implemented or
+measured here; they describe where the framework points.
 
-Our contributions are threefold. First, we introduce \PhyReAct{}, an agentic
-critic that combines typed planning, heterogeneous visual and audiovisual
-measurements, timeline-conditioned execution, and deterministic three-valued
-reasoning in a single inspectable trace. Second, we provide a 1{,}500-clip
-benchmark with localized, prompt-grounded human flaw records and a paired
-flaw-level evaluation that isolates the benefit and cost of plan-based
-execution. Third, we connect structured criticism to a simulation-conditioned
-generation testbed, establishing a concrete interface for future
-critic-guided video refinement.
+Our contributions are threefold. First, we present \PhyReAct{}, a physically
+grounded reason--act--observe framework for auditable video evaluation that
+compiles a prompt into typed physical obligations, gates and scopes a set of
+frozen physical operators over the video timeline, and composes their
+measurements into a three-valued, fully attributable verdict. Second, we
+introduce a $1{,}500$-clip corpus of human-annotated, prompt-grounded flaw
+records together with a paired flaw-level evaluation that isolates the benefit
+and cost of plan-based execution against one-at-a-time per-claim verification.
+Third, we connect this critic to a simulation-conditioned generation testbed,
+establishing a concrete control-channel interface for future critic-guided
+refinement. As a fourth, forward-looking element, the framework's inspectable
+traces are designed to support operator-library growth and weight-free
+context-training self-evolution, which we leave to future work.
+
+On the direction of the measured comparison, plan-based, timeline-aware
+evidence collection recovers more human-marked flaws than isolated per-claim
+verification, at the price of about one extra model or tool call per clip. This
+comparison is made on a $149$-clip development core that is recall-only,
+single-annotator, and \emph{not} held out---the system was developed against
+it---so the result characterizes the current system rather than held-out
+generalization; \Cref{sec:eval} reports the precise figures and their
+uncertainty.
 
 
 % =====================================================================
@@ -865,6 +896,67 @@ clips, whereas VideoPhy-2 provides redundant judgments and majority resolution.
 \label{sec:compiler}
 % =====================================================================
 
+\subsection{\PhyReAct{} as a physically grounded ReAct instance}
+\label{sec:critic-react}
+
+\PhyReAct{} inherits the control structure of the ReAct paradigm~\cite{react2023}:
+a text-only reasoner interleaves \emph{reason}, \emph{act}, and \emph{observe}
+steps, and the result of each action conditions what the agent does next. The
+reasoning step compiles the evaluation prompt into a set of \emph{typed physical
+claims} together with an executable measurement plan---the physical obligations
+that the video must satisfy for the prompt to hold. Each \emph{act} step
+dispatches a frozen low-level physical operator (detection with
+LLMDet~\cite{llmdet2025}, counting with CountGD~\cite{countgd2024}, point
+tracking with TAPNext~\cite{tapnext2025}, segmentation with SAM~3~\cite{sam3_2025},
+depth, OCR, or audio event grounding with FlexSED~\cite{flexsed2025}) or a
+dense-frame semantic verifier over the sampled frames. The \emph{observe} step
+consumes the returned measurement and uses it to gate whether a claimed event
+occurred, to scope which frames and entities subsequent operators attend to,
+and---via fixed, deterministic rules---to compute the physical relations that the
+typed plan declared. As in classic ReAct, tool outputs steer the trajectory
+rather than a fixed pipeline; unlike a free-form ReAct rollout, the trajectory is
+anchored to obligations that were declared before any pixels were read.
+
+The one deliberate departure from unconstrained ReAct is a \emph{grounding}
+choice made for auditability and physical correctness, not a rejection of the
+paradigm. Because a free-running agent that invents new tool sequences
+mid-rollout is difficult to audit and easy to lead into unfalsifiable narratives,
+\PhyReAct{} pushes the open-ended reasoning to the front: the planner compiles
+and \emph{statically validates} the typed measurement plan before it observes the
+video, in the spirit of plan-before-act agents~\cite{rewoo2023,llmcompiler2024}
+and code-as-plan systems that emit an executable program of visual
+primitives~\cite{vipergpt2023,visprog2023}. At execution time, observations
+activate, skip, or localize nodes that were already declared, rather than
+authorizing the model to synthesize arbitrary new tool chains. Crucially, the
+operators only return \emph{measurements}; the verdict is left to a deterministic
+composition over those measurements. This separation---operators measure, fixed
+rules adjudicate---is what distinguishes \PhyReAct{} from prompting a model to
+read the frames and pronounce a conclusion directly, and it is what lets us
+surface a human-traceable chain of evidence behind each
+\supported{}/\contradicted{}/\unknownv{} decision. \PhyReAct{} thus sits in the
+plan--execute branch of the ReAct family: a physically grounded instance in which
+reasoning compiles the prompt into typed physical obligations and observations
+gate and scope the operators that discharge them.
+
+\paragraph{CoT-as-program and a reusable operator library.}
+Viewed this way, the compiled closure of each typed check---its input scoping,
+the operator invocations it triggers, and the deterministic rule that turns their
+measurements into a relation---behaves like a self-contained, reusable
+\emph{operator}. Nothing about a given closure is specific to a single video: it
+can in principle be named, encapsulated, and versioned, and it already carries
+the cost accounting we record in the provenance trace (operator calls and
+accelerator time per node). This is the natural substrate for a training-free
+procedural operator library that grows and is retrieved across tasks, as
+envisioned by procedural-memory and self-evolving-reasoning
+proposals~\cite{plugmem2026,reasoningbank2026}. We stress, however, that this is a
+framing of the design, not a claim about the current system: as implemented,
+\PhyReAct{} treats every clip independently and performs \emph{no} cross-clip
+reuse, and no operator ever persists or is retrieved from a prior evaluation.
+Curating the compiled closures into a versioned, cost-annotated operator
+library---and demonstrating that reuse improves recall or reduces spend---is
+future work (\cref{sec:selfevolve}); we neither run nor report any such
+experiment here.
+
 \subsection{Problem formulation and system overview}
 A generated clip is paired with the prompt $p$ that requested it. We represent
 the decoded video by its own container clock,
@@ -910,10 +1002,10 @@ unverifiable free-form claim label.
 \emph{global with respect to the prompt}: the naming pass sees the whole prompt
 and all later claim groups share that vocabulary. Execution can be
 \emph{local in time}: a declared interval may gate or scope a later declared
-action. This is static plan-then-execute orchestration, not global search over
-alternative plans and not an online ReAct loop. Observations may activate,
-skip, or localize nodes already in the program; they do not invent a new tool
-recipe during execution.
+action. This is the plan--execute branch of the reason--act--observe family
+(\cref{sec:critic-react}): observations activate, skip, or localize nodes already
+in the program, but they do not search over alternative plans or invent a new
+tool recipe during execution.
 
 \begin{figure}[tp]
   \centering
@@ -1270,10 +1362,10 @@ supported; and a trace with no contradiction but at least one unknown
 abstains. Plausible therefore summarizes the validated claims that were
 executed, rather than certifying every possible physical property of the clip.
 
-\subsection{Diagnostic interface for future refinement}
+\subsection{Diagnostic interface: the contradiction packet}
 \label{sec:loop}
-The useful refinement output is not only the scalar clip state $Y$, but the
-localized contradiction packet
+The useful refinement output of a \PhyReAct{} run is not only the scalar clip
+state $Y$, but the localized contradiction packet
 \begin{equation}
 \mathcal{F}(p,\mathcal V)
 =
@@ -1284,15 +1376,23 @@ localized contradiction packet
 \label{eq:refinement-packet}
 \end{equation}
 where $\Omega_i$ is the union of available temporal support and $B_i$ contains
-available box tracks or masks. This packet states what failed, which evidence
-supports that conclusion, and where in the clip the failure occurs.
+available box tracks or masks. Because the packet is assembled from the same
+auditable trace that produced the verdict, it retains full provenance: each
+contradicted claim carries the evidence records that support the conclusion and
+the region of the clip where the failure occurs. The packet therefore states
+\emph{what} failed, \emph{on what evidence}, and \emph{where}. This packet is
+what the framework of \Cref{sec:framework} turns into an outward control signal:
+its space--time localization is exactly what lets a contradiction be mapped onto a
+local edit of the computed generator control (\Cref{sec:framework:control},
+\eqref{eq:control}), closing an independent-critic$\rightarrow$generator loop.
 
-\textbf{Closed-loop refinement is not run in this report.} The critic and
+\textbf{Closed-loop refinement is not run in this report.} The critic and the
 simulation-conditioned generator are evaluated on disjoint data, and no
 \PhyReAct{} packet has yet been used for preference optimization, denoising
 guidance, candidate selection, or localized regeneration.
-\Cref{eq:refinement-packet} defines the interface for that future experiment;
-it does not claim that the current generator has been optimized by the critic.
+\Cref{eq:refinement-packet} defines the interface only; we make no claim that the
+current generator has been optimized by the critic or that any packet has made a
+generated clip more physically correct.
 
 % =====================================================================
 \section{Evaluation Protocol and Measurement}\label{sec:eval}
@@ -1520,6 +1620,563 @@ held-out split exists within these 150 clips; a claim of generalization therefor
 requires evaluation on a new frozen set.
 
 % =====================================================================
+\section{Framework: Learning as State Optimization}\label{sec:framework}
+% =====================================================================
+
+The preceding sections described three concrete artifacts that already run: a
+physics-guided generator (\Cref{sec:generation}), a $1{,}500$-clip human-authored
+defect benchmark (\Cref{sec:dataset}), and a physically grounded, tool-using
+critic whose plan-based adjudication we measure in \Cref{sec:eval}. This section
+steps back and states the single abstraction that ties them together and defines
+what \PhyReAct{} is meant to become. Our thesis is that a physical-reasoning
+agent should keep everything it has learned not in its weights but in one
+\emph{human-readable, typed, provenance-carrying state}, and should improve by
+\emph{optimizing that state rather than by updating weights}. Every improvement
+is then an edit to an object a person can read, version, and veto, and the arc of
+the framework culminates in a system that evolves itself without ever touching a
+weight.
+
+We are deliberate about the honesty boundary. Only three components rest on
+experiments (\Cref{sec:generation,sec:dataset,sec:eval}); everything else in this
+section is framework and roadmap. Because all learning is state optimization on a
+readable $S$, this boundary can be drawn cleanly \emph{inside} the same formalism
+rather than hidden, and \Cref{tab:builtvsroadmap} states it plainly.
+
+\subsection{From ReAct and agent memory to a physical agent with typed state}
+\label{sec:framework:genealogy}
+
+Agentic reasoning in the ReAct lineage interleaves \emph{reason}, \emph{act}, and
+\emph{observe} steps, letting a model call external tools and condition on their
+returns~\cite{react2023,reflexion2023,critic2024}. Program-of-thought variants
+push this further: the chain of thought is emitted \emph{as a program} that
+composes tool calls~\cite{rewoo2023,llmcompiler2024,vipergpt2023,visprog2023,%
+toolformer2023,hugginggpt2023}. Orthogonally, a fast-growing agent-memory
+literature asks where an agent's accumulated experience should live---episodic
+transcripts, distilled semantic priors, or reusable
+procedures~\cite{contexttraining2026,reasoningbank2026,explicitmem2026,%
+plugmem2026,vilomem2026,amem2025,agentmemsurvey2024,m3agent2025,hindsight2026,%
+aimeetsbrain2026}. \PhyReAct{} sits at the intersection and makes one decisive
+change: it \emph{physicalizes} the ReAct harness and upgrades the \emph{carrier}
+of memory. Where prior agents store free-text notes or latent vectors,
+\PhyReAct{} stores structured physical-verification traces with full provenance.
+This single choice is what makes the agent auditable by construction, and it is
+the throughline of the framework below.
+
+\subsection{The unifying abstraction}
+\label{sec:framework:abstraction}
+
+\PhyReAct{} maintains a single, human-readable \emph{agent state}
+\begin{equation}
+  S \;=\; (\Pi,\; M,\; K),
+  \label{eq:state}
+\end{equation}
+and it improves by optimizing $S$. The underlying reasoning model and the
+low-level physical experts are frozen; all accumulated competence lives in $S$,
+which is inspectable, diffable, versionable, and revertible. ``Training'' and
+``inference'' are the same readable procedure run in different directions: one
+map reads $S$ to act, and channels write to $S$ (or to the generator) to improve.
+
+\begin{description}
+  \item[$\Pi$ --- operator library (procedural memory).] A set of reusable,
+    already-compiled measurement operators. Each operator $o\in\Pi$ is a closure
+    mapping a video and typed arguments to a physical measurement, and it carries
+    an explicit \emph{cost node} $c(o)$ recording its spending (compute, expert
+    calls, latency). $\Pi$ grows monotonically as recurring reasoning
+    sub-procedures are packaged into named operators.
+  \item[$M$ --- experience library (episodic + semantic memory).] Versioned,
+    human-readable priors distilled from past traces: nearest-neighbor
+    \emph{plans} for similar prompts and \emph{physics-failure priors} over
+    common defect modes. $M$ keeps \emph{evidence} (what was measured) separate
+    from \emph{belief} (what we now expect): evidence is non-negotiable, belief
+    is defeasible and can be overridden by fresh measurement, so no distilled
+    prior is ever mistaken for an observation.
+  \item[$K$ --- external knowledge channel.] Retrieved external or social
+    knowledge (physical facts, domain conventions, human corrections) admitted
+    only through a candidate-and-pruning discipline. $K$ is the deliberate
+    \emph{open} port that keeps the internal improvement loop from closing on
+    itself (\Cref{sec:selfevolve}).
+\end{description}
+
+The rest of the framework is exactly two kinds of maps over this state: a
+single-episode \emph{read} operator that consumes $S$ and emits an auditable
+trace (\Cref{sec:framework:episode}), and \emph{write} channels that update the
+generator and $S$ from that trace. The six design pillars of the paper are
+recovered as special cases of read-vs-write over $S$: P1/P2 and the read side of
+P4 are ``read $S$ to produce a trace''; P3 and P6 are ``write $S$''; P5 is
+``write the generator''; and the supervisory side of P4 wraps the writes.
+
+\subsection{The single-episode operator (read path): physicalized ReAct as a program over \texorpdfstring{$\Pi$}{Pi}}
+\label{sec:framework:episode}
+
+Given a prompt--video pair $(p, V)$, one episode is a deterministic pipeline that
+only \emph{reads} $S$:
+\begin{align}
+  \text{retrieve:}    &\quad (\pi_p, m_p, k_p) = r(S, p), \label{eq:retrieve}\\
+  \text{compile:}     &\quad (C, G) = \mathrm{Reason}(p, V \mid \pi_p, m_p, k_p), \label{eq:compile}\\
+  \text{act--observe:}&\quad R = \mathrm{Exec}_{\Pi}(G, V), \label{eq:exec}\\
+  \text{adjudicate:}  &\quad (Y, F) = \Phi(C, R), \label{eq:adjudicate}\\
+  \text{emit:}        &\quad T = (C, G, R, Y, F). \label{eq:trace}
+\end{align}
+Here $C$ is a set of \emph{typed physical obligations}---explicit,
+machine-checkable statements of what the video must satisfy to honor the prompt
+(object presence and count, contact and support, trajectory continuity, depth
+ordering, on-screen text, audio events). $G$ is a \emph{program over $\Pi$}:
+reasoning is not free-form chain-of-thought but a composition of operator calls
+that the model writes and the runtime executes, in the tradition of
+program-of-thought and modular visual
+reasoning~\cite{visprog2023,vipergpt2023,rewoo2023,llmcompiler2024}. Executing $G$
+drives the classic reason$\rightarrow$act$\rightarrow$observe loop of ReAct-style
+agents~\cite{react2023}, but every \texttt{act} is a call into a \emph{frozen}
+physical expert operator---open-vocabulary detection~\cite{llmdet2025},
+counting~\cite{countgd2024}, point tracking~\cite{tapnext2025},
+segmentation~\cite{sam3_2025}, monocular depth, OCR, and audio event
+detection~\cite{flexsed2025}---registered in $\Pi$. This is the sense in which
+\PhyReAct{} \emph{physicalizes} ReAct: it inherits the control-flow harness from
+mainstream tool-using agents~\cite{toolformer2023,hugginggpt2023} and specializes
+it with explicit physical obligations and physical-measurement operators
+\textbf{(P1)}. This general form is instantiated concretely by the critic of
+\Cref{sec:critic}; \Cref{eq:verdict} below is the same three-valued verdict used
+there.
+
+Each operator returns a measurement together with a \emph{gate} on its own scope:
+when an operator's preconditions are not met (out-of-scope object, untrackable
+occlusion, no audio track), it emits \abstain{} rather than a fabricated value.
+The adjudicator $\Phi$ in \eqref{eq:adjudicate} is a \emph{deterministic} roll-up
+from evidence $R$ to a three-valued verdict
+\begin{equation}
+  Y \;\in\; \{\,\supported{},\ \contradicted{},\ \unknownv{}\,\},
+  \label{eq:verdict}
+\end{equation}
+plus a \emph{contradiction packet} $F$ that localizes, for each unmet obligation,
+which measurement contradicts it and where. The three-valued codomain is
+load-bearing: \unknownv{} (and \abstain{} for out-of-scope obligations) are
+first-class outcomes, so the critic can decline to certify rather than guess, and
+a \contradicted{} verdict is never conflated with mere implausibility. The
+emitted trace $T=(C,G,R,Y,F)$ carries full provenance---every element of $Y$ is
+back-traceable to the operator calls in $G$ and the measurements in $R$.
+
+\paragraph{CoT-as-program and cost nodes \textnormal{(P2)}.} Because $G$ is a
+program, recurring sub-procedures (e.g.\ ``verify a bounce $=$ track the object,
+detect the contact frame, check the pre/post vertical-velocity sign flip'') can
+be packaged, named, and re-registered as new operators in $\Pi$. Each operator
+carries its cost node $c(o)$, so a program has a well-defined budget
+$c(G)=\sum_{o\in G} c(o)$ and the reasoner can trade breadth of measurement
+against spending. Over many episodes $\Pi$ scales up into a growing procedural
+memory, and reasoning increasingly becomes \emph{composition of trusted
+operators} rather than re-derivation from scratch. What is instantiated today is
+a fixed operator set $\Pi_0$ and a fixed compiler; the \emph{scaling-up} of $\Pi$
+via distillation is roadmap (\Cref{sec:framework:builtvsroadmap}).
+
+\subsection{The outward channel: verification-guided refinement \textnormal{(P5)}}
+\label{sec:framework:control}
+
+The read path produces, for a failed clip, a localized contradiction packet $F$
+(defined in \Cref{sec:loop}). Rather than merely report a score, the outward
+\emph{control channel} maps $F$ into a \emph{local edit of the generator's
+control signal} and regenerates:
+\begin{equation}
+  V' \;=\; \mathrm{Gen}\!\big(p,\; \delta(F)\big),
+  \qquad \delta:\ F \;\longmapsto\; \Delta(\text{control}),
+  \label{eq:control}
+\end{equation}
+where $\mathrm{Gen}$ is the physics-guided pipeline of \Cref{sec:generation}
+(MuJoCo simulation~\cite{todorov2012mujoco} driving a Wan~2.2 video
+model~\cite{wan2025} through VACE control conditioning~\cite{vace2025}), and
+$\delta(F)$ is a \emph{targeted} edit to the simulation/control inputs addressing
+the specific violated obligation rather than resampling blindly. Because the
+control signal is \emph{computed}, not estimated, a contradiction localized in
+space and time maps naturally onto a local edit of the conditioning stream. What
+makes this channel trustworthy is that the critic is \emph{independent and
+frozen}---not the generator grading its own output, in contrast to
+self-evaluating refinement loops~\cite{mavis2025} and verification-guided
+repair~\cite{neuse2025}. Both endpoints of \eqref{eq:control} are built
+(\Cref{sec:generation,sec:eval}); the map $\delta$ and the closed loop are
+roadmap, and we claim no generator improvement from this channel yet.
+
+\subsection{Auditability by construction}
+\label{sec:framework:audit}
+
+Auditability here is not a logging layer added afterwards but a consequence of the
+formalism: because the learned object is the readable state $S$ and every
+conclusion is a deterministic roll-up $\Phi$ over provenance-carrying
+measurements, any verdict $Y$ can be replayed back to the operator calls in $G$
+and the measurements in $R$, and any state change $S\!\rightarrow\!S'$ is a
+human-readable diff of $\Pi$, $M$, or $K$. This is what later makes both
+weight-free self-evolution and its human supervision tractable: the reviewer
+inspects readable objects, not gradients.
+
+We are explicit about what auditability does \emph{not} claim. A \supported{}
+verdict is a critic judgment, not ground truth---ground truth in this paper is
+human annotation. A deterministic roll-up removes randomness in the roll-up step
+but does not by itself resolve evaluator drift in the underlying operators or the
+compiler. A prompt that survives our checks is \emph{plausible} with respect to
+the tested obligations, not a certificate of physical correctness. And a static
+critic improving does not entail that the generator has improved. These
+distinctions are enforced by the three-valued codomain \eqref{eq:verdict} and by
+keeping evidence separate from belief in $M$.
+
+\subsection{The culmination: weight-free context-training self-evolution}
+\label{sec:selfevolve}
+
+The framework builds toward one capability: a critic that improves itself without
+ever updating a weight. Everything above---a readable state, a program over
+operators, provenance traces, an independent verdict---exists so that the
+system's own experience can be folded back into $S$ safely. This inward
+\emph{context-training} channel \textbf{(P3)} is the terminal form of \PhyReAct{}.
+
+Given a trace $T$ and feedback $\phi$ (human labels, downstream outcomes, or a
+later, more complete measurement), we distill \emph{candidate} state edits and
+accept them under a strict guard:
+\begin{align}
+  (\Delta\Pi, \Delta M, \Delta K) &= \mathrm{Distill}(T, \phi), \label{eq:distill}\\
+  S' &= \mathrm{Accept}\big(S,\, \Delta\Pi, \Delta M, \Delta K\big). \label{eq:accept}
+\end{align}
+Both successful and failed episodes are distilled (hindsight over
+traces~\cite{hindsight2026,reasoningbank2026}): a success may add a plan to $M$ or
+an operator to $\Pi$; a failure may add a physics-failure prior or a scope caveat.
+This is self-evolution that never touches weights, in the spirit of
+context-distillation and experience-memory
+agents~\cite{contexttraining2026,reasoningbank2026,reflexion2023,explicitmem2026,%
+amem2025,agentmemsurvey2024,vilomem2026}, and it treats deployment-time adaptation
+as \emph{learning as state optimization} rather than fine-tuning. The acceptance
+rule is where optimization becomes safe:
+\begin{equation}
+  S' =
+  \begin{cases}
+    S \oplus \Delta, & \text{if } U_{\mathrm{val}}(S\oplus\Delta) > U_{\mathrm{val}}(S),\\[2pt]
+    S, & \text{otherwise (do-nothing elitism),}
+  \end{cases}
+  \label{eq:elitism}
+\end{equation}
+where $U_{\mathrm{val}}$ is a \emph{held-out proxy} score and $\Delta$ ranges over
+distilled candidates. Candidates that do not strictly improve the proxy are
+pruned; when none does, the state is left unchanged. This do-nothing default gives
+a monotonicity guarantee on the proxy and is our first-order defense against
+context pollution.
+
+\paragraph{Breaking the closed loop with external knowledge \textnormal{(P6)}.}
+A system whose only inputs are its own traces---CoT $\rightarrow$ feedback
+$\rightarrow$ context $\rightarrow$ CoT---is a \emph{closed} loop that can amplify
+its own biases: distilled priors condition future reasoning, whose traces distill
+into more priors. The external knowledge channel $K$ is the deliberate opening.
+\PhyReAct{} may issue retrieval or ask for external or social knowledge (physical
+facts, human corrections, domain conventions) and admit it into $K$ under the same
+candidate-and-pruning discipline as \eqref{eq:elitism}, with an explicit
+\emph{do-nothing} fallback: if no retrieved candidate improves the held-out proxy,
+nothing is admitted, and $K$-sourced facts are provenance-tagged distinctly from
+distilled beliefs so bad admissions remain revertible. Grounding the loop in
+outside information is thus not a license for uncontrolled ingestion; it is gated
+by the same elitism that protects $S$, so external knowledge can break the echo
+chamber without polluting it.
+
+Because the learned object is a readable state, self-evolution stays honest about
+its own status: every prior distilled into $M$ is a \emph{critic-derived} prior, a
+summary of what \PhyReAct{}'s own verification loop concluded, not verified truth.
+Retrieval quality, staleness of cached plans, and the propagation of a bad prior
+remain open problems. This entire inward channel---and the external opening---is
+roadmap: it is the destination the framework is designed to reach, and we neither
+run nor report it here.
+
+\subsection{Human oversight}
+\label{sec:framework:human}
+
+A human is kept in the loop at a few specific gates rather than throughout: a
+reviewer may audit a trace $T$, veto or edit a proposed state update in
+\eqref{eq:accept}, and approve whether a refined generation \eqref{eq:control} or
+a new state $S'$ is deployed. Human feedback also enters $\mathrm{Distill}$ as a
+first-class signal $\phi$. Weight-free learning is what makes this lightweight:
+because updates are readable diffs of $S$, oversight is a matter of reading and
+approving, not retraining. The reviewing tooling and deployment protocol are
+roadmap; the artifacts they act on---traces, three-valued state, provenance---exist
+today.
+
+\subsection{What is built vs.\ what is roadmap}
+\label{sec:framework:builtvsroadmap}
+
+Because all learning is state optimization on a readable $S$, we can mark
+built-vs-roadmap directly on the formalism, and each pillar is a projection of the
+same loop at a different radius (\Cref{tab:builtvsroadmap}). \textbf{Instantiated
+today (Phase~0):} the frozen generator pipeline $\mathrm{Gen}$
+(\Cref{sec:generation}); the $1{,}500$-clip defect benchmark that exercises the
+read path (\Cref{sec:dataset}); the episode read operator
+\eqref{eq:retrieve}--\eqref{eq:trace} with a fixed operator set $\Pi_0$, typed
+obligations $C$, three-valued deterministic adjudication $\Phi$, and provenance
+traces $T$; and the comparison in \Cref{sec:eval} of plan-based vs.\ per-claim
+adjudication ($197/286=68.9\%$ vs.\ $179/286=62.6\%$, recall-only, on the
+development core, \emph{not} a held-out split). \textbf{Roadmap (Phase~1+):} the
+outward control map $\delta$ and the closed critic$\rightarrow$generator loop
+\eqref{eq:control}; the scaling-up of $\Pi$; the culminating context-training
+self-evolution of $M$ via \eqref{eq:distill}--\eqref{eq:elitism}; the external
+knowledge channel $K$; and human-in-the-loop deployment at scale. Every roadmap
+item is a \emph{write} path in the same formalism whose \emph{read} counterpart is
+already exercised, which is why we can state the vision precisely without implying
+it has been run. The executable plan follows in \Cref{sec:roadmap}.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}p{0.30\linewidth} p{0.42\linewidth} l@{}}
+\toprule
+\textbf{Pillar} & \textbf{Where it lives in the loop} & \textbf{Status} \\
+\midrule
+P1 Physicalized ReAct + operators & compile / act--observe over frozen experts~\cite{llmdet2025,countgd2024,tapnext2025,sam3_2025,flexsed2025} & Phase 0 (built) \\
+P2 CoT-as-program + cost nodes & program $G$ over $\Pi$, budget $c(G)$ & Phase 0 partial \\
+P4 Auditable trace + three-valued $Y$ & trace $T=(C,G,R,Y,F)$, provenance & Phase 0 (artifacts) \\
+P5 Verification-guided refinement & outward control channel $\delta,\,\mathrm{Gen}$ & roadmap \\
+P2$^{+}$ Operator-library scale-up & procedural-memory growth in $\Pi$ & roadmap \\
+P6 Breaking the loop & external channel $K$, candidate$+$prune & roadmap \\
+P3 Context-training self-evolution & inward channel $\mathrm{Distill}$, elitism~\eqref{eq:elitism} & roadmap (culmination) \\
+P4$^{+}$ Human oversight & supervision $+$ deployment gate & roadmap \\
+\bottomrule
+\end{tabular}
+\caption{Each pillar is a projection of the same loop at a different radius. Only
+Phase~0 rows are backed by measurements; solid arrows in \Cref{fig:phyreact}
+correspond to them, dashed arrows to the roadmap rows. No result in this paper is
+evidence for a roadmap row.}
+\label{tab:builtvsroadmap}
+\end{table}
+
+% Requires: \usepackage{tikz}\usetikzlibrary{arrows.meta,positioning,calc}
+% Solid = Built (Phase 0); Dashed = Roadmap (Phase 1+).
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  built/.style={draw, thick, rounded corners, align=center, inner sep=3pt},
+  road/.style ={draw, thick, dashed, rounded corners, align=center, inner sep=3pt},
+  barrow/.style={-{Latex}, thick},
+  rarrow/.style={-{Latex}, thick, dashed}]
+
+  % ---- human-in-the-loop wrapper (drawn first, absolute coords) ----
+  \draw[road, fill=black!2] (-7.5,-4.3) rectangle (8.7,3.3);
+  \node[anchor=north] at (0.6,3.2)
+    {\scriptsize \textbf{P4} human-in-the-loop: audit $T$ $\cdot$ veto $\Delta S$ $\cdot$ gate deployment};
+
+  % ---- learned state S ----
+  \node[built, fill=blue!5] (S) at (-5.0,0.1)
+    {$S=(\Pi,M,K)$\\[2pt]
+     \scriptsize $\Pi$ operators (procedural)\\
+     \scriptsize $M$ experience\; $K$ external\\
+     \scriptsize human-readable, versionable};
+
+  % ---- read pipeline (top) ----
+  \node[built] (in)   at (-4.9,2.2) {$(p,V)$};
+  \node[built] (comp) at (-2.4,2.2) {compile\\$(C,G)$};
+  \node[built] (exec) at (0.6,2.2)  {act--observe\\$\mathrm{Exec}_{\Pi}$};
+  \node[built] (adj)  at (3.5,2.2)  {adjudicate\\$\Phi\!\to\!(Y,F)$};
+  \node[built] (T)    at (6.7,2.2)  {trace\\$T{=}(C,G,R,Y,F)$};
+  \draw[barrow] (in)--(comp);
+  \draw[barrow] (comp)--(exec);
+  \draw[barrow] (exec)--(adj);
+  \draw[barrow] (adj)--(T);
+  \draw[barrow] (S) to[out=90,in=180] node[left,pos=0.65]{\scriptsize retrieve} (comp);
+
+  % ---- frozen operators ----
+  \node[built] (ops) at (0.6,0.5)
+    {\scriptsize frozen operators\\
+     \scriptsize LLMDet\,/\,CountGD\,/\,TAPNext\\
+     \scriptsize SAM3\,/\,Depth\,/\,OCR\,/\,FlexSED};
+  \draw[barrow] (ops)--(exec);
+
+  % ---- generator (built endpoint) ----
+  \node[built, fill=green!8] (gen) at (6.8,-1.9)
+    {$\mathrm{Gen}$\\ \scriptsize MuJoCo$\to$Wan2.2-VACE};
+
+  % ---- outward control channel (roadmap) ----
+  \draw[rarrow] (T) to[out=-90,in=60]
+    node[right,pos=0.5]{\scriptsize $\delta(F)$ control edit \textbf{(P5)}} (gen);
+  \draw[rarrow] (gen) to[out=180,in=-90]
+    node[below,pos=0.72]{\scriptsize $V'$ regenerate} (in);
+
+  % ---- inward context-training channel (roadmap) ----
+  \node[road] (dist) at (0.6,-2.8)
+    {Distill $\to (\Delta\Pi,\Delta M,\Delta K)$\\
+     \scriptsize held-out proxy prune $+$ do-nothing elitism \textbf{(P3)}};
+  \draw[rarrow] (T) to[out=-120,in=0] node[above,pos=0.4]{\scriptsize $(T,\phi)$} (dist);
+  \draw[rarrow] (dist) to[out=180,in=-90] node[below,pos=0.5]{\scriptsize $S'$} (S);
+
+  % ---- external knowledge (roadmap) ----
+  \node[road] (ext) at (-5.0,-2.9)
+    {external / social knowledge\\ $\cdot$ retrieval\\
+     \scriptsize candidate$+$prune gate \textbf{(P6)}};
+  \draw[rarrow] (ext)--(S);
+
+  % ---- legend ----
+  \draw[thick] (-7.1,-4.05)--(-6.5,-4.05);
+  \node[anchor=west] at (-6.4,-4.05) {\scriptsize Built (Phase 0)};
+  \draw[thick,dashed] (-3.4,-4.05)--(-2.8,-4.05);
+  \node[anchor=west] at (-2.7,-4.05) {\scriptsize Roadmap (Phase 1+)};
+\end{tikzpicture}
+\caption{State-optimization view of \PhyReAct{}. Everything the system learns
+lives in one human-readable state $S=(\Pi,M,K)$. A single \emph{read} operator
+(top, solid = built) conditions on $S$, compiles $(p,V)$ into typed obligations
+$C$ and a program $G$ over $\Pi$, runs frozen physical operators, and emits a
+provenance-carrying three-valued trace $T$. Two structurally dual \emph{write}
+channels (dashed = roadmap), both driven by the same independent frozen critic,
+close the loop: the outward control channel edits the generator's control signal
+via $\delta(F)$ and regenerates (P5); the inward context-training channel
+distills $T$ into candidate state edits accepted only under held-out proxy
+pruning with do-nothing elitism (P3). The external channel $K$ breaks the
+internal loop (P6). A human-in-the-loop layer wraps both channels (P4). Solid
+arrows are instantiated in \Cref{sec:generation,sec:dataset,sec:eval};
+dashed arrows are the roadmap of \Cref{sec:roadmap}.}
+\label{fig:phyreact}
+\end{figure*}
+
+\section{An Executable Roadmap}
+\label{sec:roadmap}
+
+The framework of \Cref{sec:framework} defines one learned object, the state
+$S=(\Pi,M,K)$, and three maps over it: a read operator (built) and two write
+channels (roadmap). We phase the work accordingly. Phase~0 is the read path and
+the two frozen endpoints already instantiated in this paper; Phase~1
+consolidates the real experiment onto an honest protocol; Phases~2--6 exercise
+the write paths, each with a measurable success metric and each a strict
+superset of what precedes it. No number below the Phase~0 line is a result;
+Phases~1+ state \emph{targets and protocols}, not outcomes.
+
+\paragraph{Phase~0 --- Built: the read path and frozen endpoints (\emph{done}).}
+\begin{itemize}
+  \item \textbf{Delivered.} The physics-guided generator $\mathrm{Gen}$
+    (MuJoCo\,$\rightarrow$\,Wan2.2-VACE, \Cref{sec:generation}); the $1500$-clip
+    human-authored defect benchmark (\Cref{sec:dataset}); the episode read
+    operator with fixed $\Pi_0$, typed obligations $C$, three-valued
+    deterministic adjudication $\Phi$, and provenance traces $T$
+    (\Cref{sec:critic}); and the plan-based vs.\ per-claim comparison
+    ($197/286=68.9\%$ vs.\ $179/286=62.6\%$ recall on the development core,
+    non-held-out, \Cref{sec:eval}).
+  \item \textbf{Covers.} P1 (physicalized ReAct read path), and the read side of
+    P2 (programs over $\Pi_0$) and P4 (provenance traces).
+  \item \textbf{Honest limits.} Recall-only, single non-held-out split; critic
+    verdicts are judgments scored against human labels, not ground truth; a
+    static evaluator result is not evidence any generator improved; the two
+    write channels are not yet exercised.
+\end{itemize}
+
+\paragraph{Phase~1 --- Held-out, precision+recall evaluation with provenance completeness.}
+\begin{itemize}
+  \item \textbf{Goal.} Promote the critic result from dev-core / recall-only to a
+    held-out, precision+recall protocol, and guarantee every verdict carries a
+    complete provenance trace $T$.
+  \item \textbf{Needs.} A frozen held-out split of the benchmark disjoint from
+    dev-core; a provenance schema for $(C,G,R,Y,F)$.
+  \item \textbf{Experiments.} Plan-based vs.\ per-claim adjudication on held-out
+    clips with full confusion matrices; audit that every \contradicted{} verdict
+    localizes to frame-level evidence via $F$.
+  \item \textbf{Success metric.} Held-out plan-based accuracy $\geq$ per-claim
+    with non-degrading precision; complete provenance coverage.
+  \item \textbf{Risk.} Held-out gap reveals dev-core overfitting; the
+    three-valued codomain inflates \unknownv{} to dodge hard cases --- mitigate
+    by reporting the \unknownv{} rate alongside accuracy.
+\end{itemize}
+
+\paragraph{Phase~2 --- Operator library with cost accounting (P2).}
+\begin{itemize}
+  \item \textbf{Goal.} Turn fixed $\Pi_0$ into a growing, versioned $\Pi$ whose
+    operators carry cost nodes $c(o)$ and whose programs have measurable budgets
+    $c(G)$.
+  \item \textbf{Needs.} An operator registry with provenance and versioning; a
+    compiler that detects recurring $G$-sub-programs and promotes them into named
+    operators; per-operator cost instrumentation wired into $\Phi$.
+  \item \textbf{Experiments.} Track the coverage/cost frontier as $|\Pi|$ grows;
+    ablate frozen $\Pi_0$ vs.\ promoted $\Pi$ at matched budget.
+  \item \textbf{Success metric.} A Pareto improvement in obligation coverage
+    per unit cost over the Phase~0 fixed pipeline at equal or lower $c(G)$.
+  \item \textbf{Risk.} Library bloat and stale operators; promoted operators
+    encode clip-specific shortcuts --- mitigate with usage-frequency thresholds
+    and held-out re-validation before promotion.
+\end{itemize}
+
+\paragraph{Phase~3 --- Context-training self-evolution of $M$ (P3).}
+\begin{itemize}
+  \item \textbf{Goal.} Distill traces (success and failure) into human-readable,
+    versionable priors in $M$ --- nearest-neighbor plans and physics-failure
+    priors --- accepted under held-out proxy pruning with do-nothing elitism
+    \eqref{eq:elitism}, keeping evidence separate from belief.
+  \item \textbf{Needs.} A distillation function $\mathrm{Distill}$; a held-out
+    validation split $U_{\mathrm{val}}$ (new data, disjoint from the Phase~0/1
+    core); a diffable memory store.
+  \item \textbf{Experiments.} Compare $\{$no memory, retrieval-only, distilled
+    $M$ with elitism, distilled $M$ without elitism$\}$ on the held-out split; a
+    pollution stress test injecting wrong priors and checking elitism rejects
+    them.
+  \item \textbf{Success metric.} Monotone non-decreasing held-out proxy across
+    accepted updates, a positive gap of ``$M$ with elitism'' over both baselines,
+    and zero acceptance of injected harmful priors.
+  \item \textbf{Risk.} Belief leaking into evidence, or proxy overfitting;
+    mitigate with the evidence/belief split and periodic held-out refresh.
+\end{itemize}
+
+\paragraph{Phase~4 --- Closing the control channel critic\,$\rightarrow$\,generator (P5).}
+\begin{itemize}
+  \item \textbf{Goal.} Implement $\delta:F\mapsto\Delta(\text{control})$ of
+    \eqref{eq:control}, converting a contradiction packet into a \emph{targeted}
+    local edit of the MuJoCo/VACE control signal, and regenerate.
+  \item \textbf{Needs.} A parameterization of Wan2.2-VACE control inputs by
+    obligation type; a differentiable-or-heuristic edit policy $\delta$; a
+    re-adjudication harness.
+  \item \textbf{Experiments.} On clips with \contradicted{} verdicts, compare
+    $\{$blind resampling, prompt-only edit, targeted $\delta(F)$ edit$\}$; report
+    the fraction of previously violated obligations that flip to \supported{}
+    after regeneration, \emph{human-verified}, and re-run the full obligation set
+    $C$ post-edit to report net defect change.
+  \item \textbf{Success metric.} Targeted $\delta(F)$ regeneration repairs a
+    significantly higher fraction of localized violations than blind resampling
+    at equal generation budget, confirmed by human annotation (not by the critic
+    alone), with no rise in unrelated-obligation contradictions.
+  \item \textbf{Risk.} Goodharting the critic or whack-a-mole edits that fix one
+    obligation while breaking another; mitigated by human verification and the
+    net-defect audit.
+\end{itemize}
+
+\paragraph{Phase~5 --- Breaking the loop with external knowledge $K$ (P6).}
+\begin{itemize}
+  \item \textbf{Goal.} Open the internal CoT$\rightarrow$feedback$\rightarrow$context
+    loop by admitting external/social knowledge and retrieval into $K$ under the
+    same candidate-and-pruning discipline, with a do-nothing fallback.
+  \item \textbf{Needs.} A retrieval/ingestion interface; a candidate gate scored
+    by $U_{\mathrm{val}}$; provenance tagging that marks $K$-sourced facts
+    distinctly from distilled beliefs.
+  \item \textbf{Experiments.} On a bias-probe subset (defect modes
+    under-represented in the internal traces), compare closed-loop
+    ($K=\emptyset$) vs.\ open-loop ($K$ admitted with gating); a noise-injection
+    test on retrieved sources.
+  \item \textbf{Success metric.} Reduced error on the bias-probe subset with no
+    regression on the general held-out split; zero admissions when no candidate
+    improves the proxy (fallback correctness).
+  \item \textbf{Risk.} Context pollution from noisy or off-distribution sources;
+    mitigated by the same elitism gate as $S$, plus source provenance so bad
+    admissions are revertible.
+\end{itemize}
+
+\paragraph{Phase~6 --- Human-in-the-loop deployment at scale (P4).}
+\begin{itemize}
+  \item \textbf{Goal.} Operate both channels under human supervision: reviewers
+    audit traces $T$, veto/edit candidate state updates, and gate deployment of
+    refined generations and new states $S'$.
+  \item \textbf{Needs.} Trace-replay and state-diff review tooling; an approval
+    workflow feeding $\mathrm{Distill}$ and $K$; audit logs over
+    $S\!\rightarrow\!S'$ with rollback.
+  \item \textbf{Experiments.} Held-out study measuring reviewer time per audited
+    trace, inter-annotator agreement on state-update acceptance and on
+    three-valued verdicts, and the catch-rate of injected bad updates that
+    elitism alone would have missed.
+  \item \textbf{Success metric.} Auditing cost per trace low enough to be
+    practical, with human review reliably catching a measurable residual of
+    harmful updates beyond the automatic gate.
+  \item \textbf{Risk.} Reviewer fatigue and rubber-stamping (which would
+    reintroduce an unaudited closed loop); mitigate by surfacing only
+    elitism-borderline updates for human attention.
+\end{itemize}
+
+\noindent\emph{Ordering rationale.} Phase~1 makes the real result honest;
+Phases~2--3 grow the two components of $S$ that the inward channel writes ($\Pi$,
+$M$); Phase~4 exercises the outward channel; Phase~5 opens $K$; Phase~6 wraps
+everything in human oversight. Each phase reuses the Phase~0 read path unchanged,
+so at every step the system remains weight-free and auditable by construction.
+
+
+% =====================================================================
 \section{Related Work}\label{sec:related}
 % =====================================================================
 
@@ -1616,19 +2273,99 @@ weak proposition and failure frame and edits or regenerates the affected suffix
 ~\cite{neuse2025}. Thus, agentic evaluation, prompt-to-temporal specification, and
 verification-guided repair all predate this work.
 
-The name \PhyReAct{} deliberately echoes ReAct, but its control flow follows the
-plan--execute branch rather than a free-form thought--action--observation loop. Before
-viewing the video, it compiles and validates typed physical claims and their
-dependencies; during execution, observations may gate or scope already-declared
-measurements but do not trigger unconstrained replanning or search over alternative tool
-recipes. Count, tracking, segmentation, depth, OCR, audio, and reasoning specialists
-must return evidence rather than prompt-level verdicts, and fixed composition rules
-preserve \supported{}, \contradicted{}, and \unknownv{} with claim-level provenance.
-The present system neither trains a tool-use policy nor maintains reflective memory
-across clips. Unlike NeuS-V, its interface covers measurements that are not naturally
-reducible to frame-level proposition confidence, but it also provides no formal
-guarantee when its learned perception is wrong. Unlike NeuS-E, Reflexion, or CRITIC, it
-does not yet turn its diagnostics into autonomous online correction.
+\PhyReAct{} is a grounded instance of this ReAct family specialized for physical
+verification. Rather than let perception decide the verdict in prompt space, the
+reasoning model compiles a prompt into \emph{typed physical obligations}, and
+frozen physical operators---counting, tracking, segmentation, depth, OCR, audio,
+and open-vocabulary semantics---return measurements rather than judgments.
+Observations then gate and scope the obligations that remain worth measuring, and
+a fixed set of composition rules rolls the measurements into a three-valued state
+(\supported{}, \contradicted{}, or \unknownv{}, surfaced as \abstain{} when
+evidence is insufficient) while retaining claim-level provenance. This
+plan-before-act discipline and its code-as-plan compilation inherit directly from
+ReWOO, LLMCompiler, and ViperGPT~\cite{rewoo2023,llmcompiler2024,vipergpt2023}:
+the control flow follows the plan--execute branch of ReAct, where observations
+gate and scope already-declared measurements rather than trigger free-form
+re-planning or the on-the-fly invention of new tool sequences.
+
+Where \PhyReAct{} currently departs from the ReAct lineage is memory: classic
+ReAct agents accumulate experience within a single episode, whereas \PhyReAct{}
+today treats each clip independently. We view cross-clip, self-evolving memory as
+the extension the framework is built toward (\cref{sec:selfevolve}) and survey the
+relevant literature separately in \cref{sec:related-memory}.
+
+These positions clarify our relationship to the closest neuro-symbolic
+evaluators. NeuS-V offers no formal guarantee when its learned perception is
+wrong~\cite{neusv2025}, which is precisely why \PhyReAct{} keeps measurements
+separate from verdicts and preserves per-claim provenance, so that a wrong
+measurement remains locally attributable rather than silently absorbed into a
+score. NeuS-E~\cite{neuse2025}, and more broadly Reflexion~\cite{reflexion2023}
+and CRITIC~\cite{critic2024}, produce diagnoses but stop short of turning them
+into autonomous, online correction of the underlying generator; converting our
+audited critiques into such a control channel (\cref{sec:loop}) is a future
+direction we outline rather than an implemented result.
+
+\subsection{Agent memory, context-training, and self-evolving agents}
+\label{sec:related-memory}
+Because \PhyReAct{} is designed to evolve by optimizing a human-readable state
+$S=(\Pi,M,K)$ rather than by updating weights (\cref{sec:framework}), it inherits
+from a fast-growing literature on where an agent's experience should live and how
+it should be revised. We organize that literature along the three components of
+$S$ and, orthogonally, along the storage medium.
+
+\paragraph{Where experience is stored: explicit state versus weights.}
+A central question is whether accumulated experience should be internalized into
+parameters or externalized into a readable store. Evidence that explicit,
+retrievable memory can outperform implicit weight-internalization on multi-hop
+reasoning~\cite{explicitmem2026} motivates our commitment to a weight-free state:
+the reasoning model and physical operators stay frozen, and all learning is an
+edit to $\Pi$, $M$, or $K$. Context-training makes this precise by treating
+deployment-time adaptation as optimization of a textual, human-readable context
+rather than gradient descent~\cite{contexttraining2026}, and self-evolving
+reasoning memories such as ReasoningBank show that curating what an agent
+remembers---distilled from both successful and failed trajectories---improves it
+without any parameter update~\cite{reasoningbank2026,reflexion2023}. Surveys of
+agent memory chart this design space and the accompanying management
+lifecycle~\cite{agentmemsurvey2024,aimeetsbrain2026}.
+
+\paragraph{Procedural memory ($\Pi$): reusable operators and programs.}
+The operator library $\Pi$ is a procedural memory in the sense of PlugMem, which
+distills raw trajectories into reusable, provenance-carrying procedures indexed
+for retrieval~\cite{plugmem2026}, and of the program-of-thought agents whose
+chains of thought are executable compositions of tool
+calls~\cite{rewoo2023,llmcompiler2024,vipergpt2023,visprog2023}. \PhyReAct{}
+specializes this to physical measurement: each compiled check is a cost-annotated
+closure that can, in principle, be named and reused across clips.
+
+\paragraph{Episodic and semantic memory ($M$): distilling and refining priors.}
+The experience library $M$ corresponds to episodic and semantic memory. A-Mem
+maintains a persistent, self-organizing episodic store of past
+interactions~\cite{amem2025}; ViLoMem distills multimodal experience through
+grow-and-refine error attribution with no gradient updates~\cite{vilomem2026}; and
+M3-Agent, the closest analogue in the video domain, builds an entity-centric
+multimodal memory graph over per-clip observations~\cite{m3agent2025}. We adopt
+Hindsight's discipline of separating recorded \emph{evidence} from derived
+\emph{belief}, so that traceable updates never silently overwrite the raw
+observations an auditor may later revisit~\cite{hindsight2026}.
+
+\paragraph{External knowledge ($K$) and pollution control.}
+Because a loop that recycles only its own conclusions can amplify its biases, $K$
+admits external knowledge, but under a candidate-and-pruning discipline with a
+do-nothing fallback. This follows the finding that naively equipping an agent with
+retrieval can degrade it through context pollution, and that maintaining and
+pruning candidate contexts against a held-out signal is what turns external
+information into consistent gains~\cite{contexttraining2026}.
+
+\paragraph{Positioning.}
+Two properties distinguish \PhyReAct{} within this literature. First, the
+\emph{carrier} of memory is a structured physical-verification trace with full
+provenance and a three-valued verdict, rather than free-text notes or latent
+vectors, which is what makes the accumulated state auditable by construction.
+Second, we are explicit that none of this cross-clip machinery is run here: every
+memory citation above is a directional precedent for the roadmap of
+\cref{sec:roadmap}, not evidence that \PhyReAct{} already carries state across
+clips, and any distilled prior would be a critic-derived summary rather than
+ground truth.
 
 \subsection{Diagnostic supervision for generated-video failures}
 Human supervision for generated video ranges from holistic ratings and preferences to
@@ -1668,21 +2405,60 @@ enforces symbolic identifier consistency but cannot guarantee that heterogeneous
 tools localized the same physical instance; and the reasoner-mediated sub-checks
 reduce but do not remove semantic opacity.
 
+\paragraph{No cross-clip memory or self-evolution.} \PhyReAct{} is stateless
+across clips: each clip is planned and executed independently, so the system
+cannot reuse a verified claim-to-plan mapping for a similar prompt, nor
+accumulate the recurring physics-failure modes it observes (for example, that a
+requested multi-object collision is routinely mis-generated). \Cref{sec:selfevolve}
+sketches the intended remedy---a context-trained experience library that distills
+each fully-provenanced trace into human-readable, versionable priors without
+updating weights~\cite{contexttraining2026,reasoningbank2026,explicitmem2026},
+grows the operator set through multimodal distillation~\cite{plugmem2026,vilomem2026,m3agent2025},
+and breaks its internal loop by admitting external knowledge only under a
+candidate-and-prune discipline~\cite{contexttraining2026}. That design is entirely
+future work: retrieval quality, staleness of cached plans, and the propagation of
+a wrong prior remain open, and any distilled prior would be
+\emph{critic-derived}, not ground truth. Because every trace is already serialized
+with full provenance (\cref{sec:contract}), the evidence records are a ready
+substrate for such a store, but we neither build nor evaluate one here.
+
 % =====================================================================
 \section{Conclusion}\label{sec:conclusion}
 % =====================================================================
-Physical faithfulness in generated video requires steering, measurement, and
-ground truth together. This report contributes one piece for each: a generator
-that imports geometry and motion from a simulation and renders them through a
-video-diffusion control branch; a human-annotated benchmark that localizes real
-flaws in space, time, and prompt reference; and an auditable multi-tool critic
-that compiles a prompt into typed checks, combines explicitly identified learned
-base predicates with specialist measurements, and rolls them up
-deterministically into a three-valued verdict and localized trace. Against human
-labels, the compiled-plan critic recovers more localized flaws
-than verifying each claim on its own, at a slightly higher call count; an equal-cost
-comparison and a held-out set remain to be run. Closing the loop that lets the critic
-refine the generator is the next milestone.
+Physical faithfulness in generated video requires three things that are usually
+studied apart: a way to \emph{steer} what gets generated, a way to \emph{measure}
+whether physical obligations are met, and \emph{ground truth} against which
+measurements can be scored. This report contributes one artifact toward each. For
+steering, we build a simulation-driven controllable generator
+(MuJoCo\,$\rightarrow$\,Wan~2.2-VACE), a first step toward the control channel
+through which a critic might one day feed corrections back into generation. For
+ground truth, we assemble a benchmark of human-annotated, localized defects, so
+that a critic can be scored on whether it finds the specific fault rather than on
+aggregate preference. And for measurement, we present \PhyReAct{}, an auditable
+multi-tool critic that grounds the reason--act--observe loop in physical
+verification: reasoning compiles the prompt into typed physical checks, frozen
+expert operators are called only to return measurements over the scope those
+checks declare, and a deterministic roll-up folds the observations into a
+three-valued verdict (\supported{}/\contradicted{}/\unknownv{}, surfaced as
+\emph{plausible}, \emph{implausible}, or \abstain{}) with a human-traceable
+evidence chain.
+
+Our central empirical result is narrow and stated as such: against human labels,
+on a development core, plan-grounded execution recalls more of the localized
+defects than per-claim verification does, at a modestly higher operator-call
+cost. This core is recall-only, singly annotated, and not held out---the system
+was developed on it---so an equal-cost control and a held-out evaluation both
+remain to be run before the comparison can be trusted beyond this setting.
+
+The trajectory the framing implies is clear even where the experiments are not
+yet done. The traceable evidence \PhyReAct{} already emits is the raw material for
+weight-free self-evolution through context-training, for growing the operator
+library as new measurement procedures are distilled, and---once the control
+channel is closed---for turning critic verdicts into generator corrections.
+Closing that critic\,$\rightarrow$\,generator loop is the next milestone; we do
+not claim to have closed it here, nor that the generator has been made more
+physically faithful as a result. What we claim is a grounded, auditable place to
+start.
 
 % =====================================================================
 \appendix

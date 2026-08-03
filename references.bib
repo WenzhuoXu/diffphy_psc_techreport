@@ -926,3 +926,103 @@
   journal={Advances in Neural Information Processing Systems (NeurIPS)},
   year={2023}
 }
+
+% --- Agent memory (cross-clip memory is future work, not used here) -------
+% Metadata verified live against the arXiv abstract pages, 2026-07-31.
+@article{agentmemsurvey2024,
+  title  = {A Survey on the Memory Mechanism of Large Language Model based Agents},
+  author = {Zhang, Zeyu and Bo, Xiaohe and Ma, Chen and Li, Rui and Chen, Xu and
+            Dai, Quanyu and Zhu, Jieming and Dong, Zhenhua and Wen, Ji-Rong},
+  journal= {arXiv preprint arXiv:2404.13501},
+  year   = {2024},
+  note   = {Landscape reference for agent memory; PhyReAct maintains none.}
+}
+@inproceedings{amem2025,
+  title    = {{A-MEM}: Agentic Memory for {LLM} Agents},
+  author   = {Xu, Wujiang and Liang, Zujie and Mei, Kai and Gao, Hang and
+              Tan, Juntao and Zhang, Yongfeng},
+  booktitle= {Advances in Neural Information Processing Systems (NeurIPS)},
+  year     = {2025},
+  note     = {arXiv:2502.12110. Persistent, self-organizing episodic store.}
+}
+@inproceedings{reasoningbank2026,
+  title    = {{ReasoningBank}: Scaling Agent Self-Evolving with Reasoning Memory},
+  author   = {Ouyang, Siru and Yan, Jun and Hsu, I-Hung and Chen, Yanfei and
+              Jiang, Ke and Wang, Zifeng and Han, Rujun and Le, Long T. and
+              Daruki, Samira and Tang, Xiangru and Tirumalashetty, Vishy and
+              Lee, George and Rofouei, Mahsan and Lin, Hangfei and Han, Jiawei and
+              Lee, Chen-Yu and Pfister, Tomas},
+  booktitle= {International Conference on Learning Representations (ICLR)},
+  year     = {2026},
+  note     = {arXiv:2509.25140. Distills reusable reasoning strategies across episodes.}
+}
+
+% --- Agentic memory / context adaptation anchors for the ReAct-family framing
+% --- and the future self-evolving/external-knowledge directions.
+% --- Metadata taken from the project literature notes; arXiv identifiers with
+% --- future-looking prefixes are flagged there as pending verification and
+% --- should be re-checked against the arXiv abstract page before submission.
+@article{contexttraining2026,
+  title  = {Context Training with Active Information Seeking},
+  author = {Huang, Zeyu and Kuncoro, Adhiguna and Feng, Qixuan and Shen, Jiajun and
+            Dery, Lucio and Szlam, Arthur and Ranzato, Marc'Aurelio},
+  journal= {arXiv preprint arXiv:2605.13050},
+  year   = {2026},
+  note   = {Learning as state optimization: edits a human-readable context, weights frozen; candidate-and-prune discipline against context pollution. (metadata per project notes; verify before submission)}
+}
+@inproceedings{explicitmem2026,
+  title    = {Explicit v.s.\ Implicit Memory: Exploring Multi-hop Complex Reasoning over Personalized Information},
+  author   = {Zhang, Zeyu and Zhang, Yang and Tan, Haoran and Li, Rui and Chen, Xu},
+  booktitle= {ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD)},
+  year     = {2026},
+  note     = {arXiv:2508.13250. Evidence that explicit external retrievable memory outperforms implicit weight-internalized memory. (metadata per project notes; verify before submission)}
+}
+@article{plugmem2026,
+  title  = {{PlugMem}: A Task-Agnostic Plugin Memory Module for {LLM} Agents},
+  author = {Yang, Ke and Chen, Zixi and He, Xuan and Jiang, Jize and Galley, Michel and
+            Wang, Chenglong and Gao, Jianfeng and Han, Jiawei and Zhai, ChengXiang},
+  journal= {arXiv preprint arXiv:2603.03296},
+  year   = {2026},
+  note   = {Distills trajectories into a knowledge-centric graph of propositional facts and prescriptive workflows with provenance edges. (metadata per project notes; verify before submission)}
+}
+@inproceedings{vilomem2026,
+  title    = {{ViLoMem}: Agentic Learner with Grow-and-Refine Multimodal Semantic Memory},
+  author   = {Bo, Weihao and Zhang, Shan and Sun, Yanpeng and Wu, Jingjing and Xie, Qunyi and
+              Tan, Xiao and Chen, Kunbin and He, Wei and Li, Xiaofan and Zhao, Na and
+              Wang, Jingdong and Li, Zechao},
+  booktitle= {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  year     = {2026},
+  note     = {arXiv:2511.21678. Dual-stream visual/logical error distillation, grow-and-refine (merge/create), no weight update. (metadata per project notes; verify before submission)}
+}
+@article{mavis2025,
+  title  = {{MAViS}: A Multi-Agent Framework for Long-Sequence Video Storytelling},
+  author = {Wang, Qian and Huang, Ziqi and Jia, Ruoxi and Debevec, Paul and Yu, Ning},
+  journal= {arXiv preprint arXiv:2508.08487},
+  year   = {2025},
+  note   = {Explore-Examine-Enhance closed loop: evaluator feedback rewrites prompts and regenerates. Generator-side self-evaluation. (metadata per project notes; verify before submission)}
+}
+@inproceedings{m3agent2025,
+  title    = {Seeing, Listening, Remembering, and Reasoning: A Multimodal Agent with Long-Term Memory},
+  author   = {Long, Lin and He, Yichen and Ye, Wentao and Pan, Yiyuan and Lin, Yuan and
+              Li, Hang and Zhao, Junbo and Li, Wei},
+  booktitle= {International Conference on Learning Representations (ICLR)},
+  year     = {2026},
+  note     = {arXiv:2508.09736. M3-Agent: entity-centric multimodal memory graph over per-clip observations with multi-turn retrieval. (metadata per project notes; verify before submission)}
+}
+@article{hindsight2026,
+  title  = {Hindsight is 20/20: Building Agent Memory that Retains, Recalls, and Reflects},
+  author = {Latimer, Chris and Boschi, Nicol\'o and Bartholomew, Chris and Neeser, Andrew and
+            Srivastava, Gaurav and Wang, Xuan and Ramakrishnan, Naren},
+  journal= {arXiv preprint arXiv:2512.12818},
+  year   = {2026},
+  note   = {Separates observed evidence from inferred belief; confidence-reinforced, traceable updates. (metadata per project notes; verify before submission)}
+}
+@article{aimeetsbrain2026,
+  title  = {{AI} Meets Brain: Memory Systems from Cognitive Neuroscience to Autonomous Agents},
+  author = {Liang, Jiafeng and Li, Hao and Li, Chang and Zhou, Jiaqi and Jiang, Shixin and
+            Wang, Zekun and Ji, Changkai and Zhu, Zhihao and Liu, Runxuan and Ren, Tao and
+            Fu, Jinlan and Ng, See-Kiong and Liang, Xia and Liu, Ming and Qin, Bing},
+  journal= {arXiv preprint arXiv:2512.23343},
+  year   = {2026},
+  note   = {Survey aligning cognitive-neuroscience memory with LLM/agent memory; expert-model symbolization of dense frames, procedural/strategic self-evolution. (metadata per project notes; verify before submission)}
+}

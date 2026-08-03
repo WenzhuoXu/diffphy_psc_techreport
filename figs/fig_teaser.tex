@@ -1,0 +1,201 @@
+% =====================================================================
+% fig_teaser.tex -- Figure 1 teaser: an opaque learned scalar judge versus
+% PhyReAct's auditable, per-claim, timeline-grounded verdict.
+%
+% \input-able into main.tex, which loads adobe_research.cls + diffphy-support
+% (hence the adobered / adobeink / adobegray colours and the sans family).
+%
+% REQUIRED IN THE MAIN PREAMBLE:
+%     \usepackage{tikz}
+%     \usetikzlibrary{arrows.meta,positioning,calc}
+%
+% Every style is declared inside the tikzpicture's own option list, so all
+% definitions are local to this picture and cannot clash with the sibling
+% schematics (fig_critic_pipeline.tex, fig_plan_graph.tex).
+%
+% CONTENT is illustrative of the method's output contract only -- the clip,
+% the counts, and the windows are a worked schematic, not a measured run, in
+% the same spirit as fig:plangraph. No accuracy or comparison number appears.
+% =====================================================================
+% The three TikZ libraries must be loaded in the PREAMBLE, not here: a figure
+% environment forms a group, and TikZ defines a library's macros locally, so a
+% \usetikzlibrary issued inside a figure does not survive to the next one.
+\makeatletter
+\@ifundefined{tikz@library@calc@loaded}{%
+  \PackageError{fig_teaser}{%
+    The preamble must contain\MessageBreak
+    \string\usetikzlibrary{arrows.meta,positioning,calc}%
+  }{Add that line after \string\usepackage{tikz}.}}{}
+\makeatother
+
+\begingroup
+\providecommand{\PhyReAct}{PhyReAct}
+\providecommand{\cfsub}[1]{{\scriptsize\color{adobegray}#1}}
+\providecommand{\cfop}[1]{{\ttfamily\scriptsize\color{adobeink}#1}}
+
+\begin{tikzpicture}[
+    x=1cm, y=1cm,
+    % --- shared box shape -------------------------------------------------
+    cfbox/.style   = {rounded corners=2pt, line width=0.7pt, align=center,
+                      inner sep=5pt, font=\sffamily\footnotesize,
+                      text=adobeink},
+    % --- LEARNED component: light gray fill --------------------------------
+    cflearn/.style = {cfbox, draw=adobeink, fill=adobegray!12},
+    % --- DETERMINISTIC component: white with an ink outline ----------------
+    cfdet/.style   = {cfbox, draw=adobeink, fill=white},
+    % --- what enters each evaluator ----------------------------------------
+    cfdata/.style  = {cfbox, draw=adobegray, fill=white, inner sep=4pt,
+                      dash pattern=on 2pt off 1.6pt, font=\sffamily\scriptsize},
+    cfline/.style  = {draw=adobeink, line width=0.8pt},
+    cfarr/.style   = {cfline, -{Straight Barb[length=4.6pt,width=5.2pt]}},
+    cfnote/.style  = {font=\sffamily\scriptsize, text=adobegray,
+                      inner sep=0pt, align=left},
+    cfhead/.style  = {font=\sffamily\bfseries\footnotesize, text=adobegray,
+                      inner sep=0pt, anchor=south west},
+    % column-role captions over the three-stage grid
+    cfcol/.style   = {font=\sffamily\scriptsize\bfseries, text=adobegray,
+                      inner sep=0pt, anchor=south},
+    % a filled dot where feed lines branch, so a bus reads as intentional
+    cfdot/.style   = {circle, fill=adobeink, inner sep=0pt, minimum size=2.8pt},
+    % --- claim-state badges (three-valued) ---------------------------------
+    badge/.style   = {rounded corners=2pt, line width=0.7pt,
+                      font=\sffamily\bfseries\scriptsize, inner sep=3pt,
+                      align=center},
+    bcon/.style    = {badge, draw=adobered, fill=adobered, text=adobeink},
+    bsup/.style    = {badge, draw=adobeink, fill=adobeink, text=white},
+    bunk/.style    = {badge, draw=adobegray, fill=white, text=adobegray},
+  ]
+
+  % =================================================================
+  %  TOP BAND -- prior art: one learned scalar
+  % =================================================================
+  \node[cfhead] at (0,0.35) {PRIOR\ \ a learned scalar judge};
+
+  \node[cfdata, text width=1.45cm, anchor=west]
+    (in1) at (0,-0.85) {\textbf{Prompt}\\$+$ video};
+  \node[cflearn, text width=3.5cm, anchor=west]
+    (scorer) at (2.4,-0.85)
+    {\textbf{Learned video--text scorer}\\[1pt]\cfsub{one forward pass}};
+  \node[cfbox, draw=adobeink, fill=adobeink, text=white, minimum width=1.9cm,
+        minimum height=0.95cm, font=\sffamily\bfseries\Large, anchor=west]
+    (score) at (7.0,-0.85) {score};
+  \node[cfnote, text width=5.2cm, anchor=west] (op1) at (9.1,-0.85)
+    {one opaque score: it cannot say \emph{which} obligation failed,
+     \emph{where} in the clip, or on \emph{what} evidence};
+
+  \draw[cfarr] (in1.east)    -- (scorer.west);
+  \draw[cfarr] (scorer.east) -- (score.west);
+
+  % =================================================================
+  %  DIVIDER
+  % =================================================================
+  \draw[cfline, dash pattern=on 2pt off 1.6pt, draw=adobegray]
+    (0,-1.85) -- (14.1,-1.85);
+  \node[fill=white, inner sep=2pt, text=adobegray,
+        font=\sffamily\itshape\footnotesize] at (7.0,-1.85) {vs.};
+
+  % =================================================================
+  %  BOTTOM BAND -- ours: plan, then measure on the timeline
+  % =================================================================
+  \node[cfhead] at (0,-2.55)
+    {\textbf{\PhyReAct{} (ours)}\ \ plan, then measure on the timeline};
+
+  \node[cfdata, text width=1.45cm, anchor=west]
+    (in2) at (0,-3.35) {\textbf{Prompt}\\$+$ video};
+  \node[cflearn, text width=5.0cm, anchor=west]
+    (planner) at (2.4,-3.35)
+    {\textbf{Planner}\\[1pt]
+     \cfsub{compiles the prompt into typed claims and an executable plan
+     --- before any frame is read}};
+  \draw[cfarr] (in2.east) -- (planner.west);
+
+  % --- three claim rows on a fixed grid ----------------------------------
+  % Uniform row pitch and a fixed minimum height on every box, so each box's
+  % vertical centre sits exactly on its row baseline and every horizontal
+  % arrow between columns is dead level. Column x-positions are shared.
+  \def\rya{-5.15}\def\ryb{-6.30}\def\ryc{-7.45}
+  \def\xC{0}\def\xS{4.7}\def\xB{9.5}
+  \tikzset{gridbox/.style={minimum height=1.02cm, text depth=0pt}}
+
+  % claim column (deterministic: white, ink outline)
+  \node[cfdet, gridbox, text width=3.7cm, anchor=west] (c1) at (\xC,\rya)
+    {\textbf{``two balls''}\\[1pt]\cfop{eq(count("ball"),\,2)}};
+  \node[cfdet, gridbox, text width=3.7cm, anchor=west] (c2) at (\xC,\ryb)
+    {\textbf{``bounces off the floor''}\\[1pt]\cfop{traj("ball",\,bounce)}};
+  \node[cfdet, gridbox, text width=3.7cm, anchor=west] (c3) at (\xC,\ryc)
+    {\textbf{``GO'' on the scoreboard}\\[1pt]\cfop{text("GO",\,scoreboard)}};
+
+  % executor column (one frozen tool per row)
+  \node[cflearn, gridbox, text width=3.4cm, anchor=west] (s1) at (\xS,\rya)
+    {\textbf{Counting instrument}\\[1pt]\cfsub{returns count $=3$}};
+  \node[cflearn, gridbox, text width=3.4cm, anchor=west] (s2) at (\xS,\ryb)
+    {\textbf{Point tracker}\\[1pt]\cfsub{rebound after contact}};
+  \node[cflearn, gridbox, text width=3.4cm, anchor=west] (s3) at (\xS,\ryc)
+    {\textbf{OCR on localized frames}\\[1pt]\cfsub{glyphs illegible}};
+
+  % three-valued claim state
+  \node[bcon, gridbox, text width=2.9cm, anchor=west] (b1) at (\xB,\rya)
+    {$\times$\, contradicted\\[1pt]\mdseries\scriptsize $1.2$--$2.4$\,s};
+  \node[bsup, gridbox, text width=2.9cm, anchor=west] (b2) at (\xB,\ryb)
+    {$\checkmark$\, supported};
+  \node[bunk, gridbox, text width=2.9cm, anchor=west] (b3) at (\xB,\ryc)
+    {\textbf{?}\, unknown\\[1pt]\mdseries\scriptsize $\to$ abstain};
+
+  % column-role captions: name each stage (the middle column IS the executor)
+  \node[cfcol] at ([yshift=3pt]c1.north) {claim $+$ typed check};
+  \node[cfcol] at ([yshift=3pt]s1.north) {executor (one tool call)};
+  \node[cfcol] at ([yshift=3pt]b1.north) {claim state};
+
+  % per-row arrows: claim -> executor -> state, all level by construction
+  \foreach \c/\s/\b in {c1/s1/b1, c2/s2/b2, c3/s3/b3}{
+    \draw[cfarr] (\c.east) -- (\s.west);
+    \draw[cfarr] (\s.east) -- (\b.west);
+  }
+
+  % --- planner fans out to the three claims -------------------------------
+  % One stub drops from the planner into a manifold that runs in the clear gap
+  % above the column captions, down a left-margin bus, and taps each claim on
+  % its own row. The manifold sits ABOVE the caption row, so it never crosses
+  % a claim box. Dots mark the taps.
+  \def\xbus{-0.9}
+  \coordinate (mani) at (\xbus,-4.15);            % manifold height: clear gap
+  \draw[cfline] (planner.south) |- (mani);        % drop, then left onto the bus
+  \draw[cfline] (mani) -- (\xbus,\ryc);           % vertical bus down the margin
+  \foreach \y in {\rya,\ryb,\ryc}{
+    \node[cfdot] at (\xbus,\y) {};
+    \draw[cfarr] (\xbus,\y) -- (\xC,\y);          % level tap into each claim
+  }
+
+  % =================================================================
+  %  DETERMINISTIC ROLL-UP + localized outputs
+  % =================================================================
+  \def\ryd{-9.05}
+  \node[cfdet, text width=3.0cm, anchor=west] (roll) at (\xC,\ryd)
+    {\textbf{Deterministic roll-up}\\[1pt]
+     \cfsub{any one contradiction $\Rightarrow$ clip implausible}};
+  \node[bcon, text width=2.6cm, anchor=west, font=\sffamily\bfseries\small,
+        minimum height=0.9cm] (clip) at (4.4,\ryd)
+    {clip:\\ IMPLAUSIBLE};
+  \node[cfdet, text width=5.6cm, anchor=west] (pkt) at (8.4,\ryd)
+    {\textbf{Localized evidence packet} $\mathcal{F}$\\[1pt]
+     \cfsub{what failed $\cdot$ the supporting evidence $\cdot$
+     where in the clip}};
+
+  \draw[cfarr] (roll.east) -- (clip.west);
+  \draw[cfarr] (clip.east) -- (pkt.west);
+
+  % the three states feed the roll-up: level exits onto a right-margin bus,
+  % one drop into a clear channel between the grid and the roll-up row, and a
+  % single arrow up into the roll-up. No feed line crosses a box.
+  \def\xret{13.45}\def\yret{-8.30}
+  \foreach \b/\y in {b1/\rya, b2/\ryb, b3/\ryc}{
+    \draw[cfline] (\b.east) -- (\xret,\y);
+    \node[cfdot] at (\xret,\y) {};
+  }
+  \draw[cfline] (\xret,\rya) -- (\xret,\ryc);      % vertical return bus
+  \coordinate (chan) at (\xret,\yret);             % channel, right end
+  \draw[cfline] (\xret,\ryc) -- (chan) -- (roll.north |- chan);
+  \draw[cfarr]  (roll.north |- chan) -- (roll.north);
+
+\end{tikzpicture}
+\endgroup
