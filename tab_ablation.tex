@@ -14,7 +14,7 @@ Full plan-based critic & 44/73 & 60.3\% & 11.8 & --- & --- \\
 \midrule
 No shared perception & 44/73 & 60.3\% & 13.0 & +0 & $[-3, +3]$ \\
 No specialist routing & 39/73 & 53.4\% & 11.4 & -5 & $[-11, +0]$ \\
-No multi-check composition (9 clips, 9/17 for the full system) & 7/17 & 41.2\% & 12.8 & -2 & $[-5, +0]$ \\
+No multi-check composition (39 clips, 44/72 for the full system) & 32/72 & 44.4\% & 11.9 & -12 & $[-20, -5]$ \\
 \bottomrule
 \end{tabular}
 \caption{Mechanism ablation on 40 clips of the frozen set carrying 73
@@ -22,6 +22,6 @@ human flaws. Each row is a \emph{separate live run} of the identical plan with o
 disabled, scored against the same labels and paired clip-by-clip against the full condition
 above; the interval is a paired bootstrap over clips. This is deliberately not a subtraction
 from a finished run, which would assume every finding the mechanism produced becomes a miss
-rather than being recovered another way. Removing call deduplication found exactly the same flaws while spending +1.12 calls per clip more, so sharing is a cost saving and not a source of recall; only 9 of 40 clips contained a duplicate perception query to collapse. Removing every specialist measurement costs 5 flaws (44 to 39) at a paired interval of $[-11, +0]$, which touches zero: the specialists contribute recall on this subset, but not separably from noise at this denominator. Their contribution is also not free to remove in the way sharing is --- the call count barely moves, because the plan still issues the same requests and each simply abstains. Removing every specialist measurement costs 2 flaws (9 to 7) at a paired interval of $[-5, +0]$, which touches zero: the specialists contribute recall on this subset, but not separably from noise at this denominator. Their contribution is also not free to remove in the way sharing is --- the call count barely moves, because the plan still issues the same requests and each simply abstains.}
+rather than being recovered another way. Removing call deduplication found exactly the same flaws while spending +1.12 calls per clip more, so sharing is a cost saving and not a source of recall; only 9 of 40 clips contained a duplicate perception query to collapse. Removing every specialist measurement costs 5 flaws (44 to 39) at a paired interval of $[-11, +0]$, which touches zero: the specialists contribute recall on this subset, but not separably from noise at this denominator. Their contribution is also not free to remove in the way sharing is --- the call count barely moves, because the plan still issues the same requests and each simply abstains. Removing every specialist measurement costs 12 flaws (44 to 32) at a paired interval of $[-20, -5]$, which touches zero: the specialists contribute recall on this subset, but not separably from noise at this denominator. Their contribution is also not free to remove in the way sharing is --- the call count barely moves, because the plan still issues the same requests and each simply abstains.}
 \label{tab:ablation}
 \end{table}

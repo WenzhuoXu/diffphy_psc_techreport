@@ -1204,7 +1204,7 @@ counting path shows why. Its contract reduces a per-frame series to a single
 number by taking the mode, so a phrase the segmenter grounds intermittently
 yields a series such as $[4,6,0,6,6,0,0,0,\ldots]$ whose mode is $0$: a
 grounding that failed on most frames is reported as a measured count of zero.
-Probing the arm on a clip containing five steel balls returns exactly that ---
+On a clip containing five steel balls the operation returns exactly that ---
 $0$, from $241$ frames read, alongside its own \code{stable: false} and a range
 of $0$ to $8$. The auxiliary fields are therefore load-bearing rather than
 advisory, and a consumer reading only the scalar receives a confident wrong
@@ -1291,7 +1291,7 @@ executed, rather than certifying every possible physical property of the clip.
 \paragraph{Conflict resolution between two verifiers.}
 \label{sec:review}
 A claim the video-aware verifier passes may be re-examined by a stronger
-reviewing model. Earlier the reviewer could only weaken such a pass to
+reviewing model. A weaker rule lets the reviewer only downgrade such a pass to
 \unknownv{}; a disagreement therefore left no contradiction, and a defect the
 reviewer had correctly identified was recorded as an absence of evidence.
 The current rule lets the reviewer's verdict stand: where it overrules a pass,
@@ -1461,7 +1461,7 @@ rating-level comparison of \cref{sec:vs2} is separate and has been run.
 The comparison in \cref{tab:results} has two defects that no confidence interval repairs. Its
 denominator is not the frozen set, and the plan-based side spent \emph{more} calls per clip
 than the baseline it beat, so the question of whether planning wins at equal cost was never
-put. \Cref{tab:paired} is a fresh run built to put exactly that question.
+put. \Cref{tab:paired} is a controlled comparison designed to put it.
 
 Two controls make it a paired experiment rather than two separate results. Both conditions run
 against the same live specialists and the same reasoning model in the same configuration, and
@@ -1474,8 +1474,8 @@ measured the gap rather than assuming it away. On $51\%$ of clips the two claim 
 byte-identical. Where they differ, the difference is usually in wording rather than in coverage:
 the median difference in the \emph{number} of claims is zero, and the most common nonzero
 difference is a single claim in how one compound sentence is split. The same model decomposing
-the same prompt twice differs the same way --- we observed eight claims on one pass and nine on
-another for one clip.
+the same prompt twice differs the same way: on one clip, two decompositions of the identical
+prompt produced eight claims and nine.
 
 This is a whole-system comparison, then, not a verification-only one: the reported difference
 includes any advantage from how each condition chose to split the prompt, and \cref{tab:paired}
@@ -1509,29 +1509,26 @@ and the gap between them is much smaller than the gap in recall. A reader should
 gain as partly earned by better targeting and partly by flagging more, and should read the
 accusation columns rather than the recall column alone.
 
-That the matching protocol is generous is visible on inspection. Reading the flaws the
-plan-based condition found alone, some are unarguable: a prompt demanding a thousand
-mousetraps against a video containing sixty-three, matched by an accusation naming the
-cascade. Others are thin --- a complaint that the objects are meteorites rather than meteors,
-credited to an accusation that the video is an anime; a complaint about rocket staging,
-credited to an accusation about the shot being a slow-motion close-up. Both conditions are
-scored by the same protocol, so this does not bias the comparison, but it does mean the
-absolute rates in this table are upper bounds on how often a finding truly identifies the
-annotator's defect.
+The matching protocol also accepts loose links, which bounds how the absolute rates should be
+read. Among the flaws credited to the plan-based condition alone, some links are unarguable: a
+prompt demanding a thousand mousetraps against a video containing sixty-three, matched to an
+accusation naming the cascade. Others are thin: a complaint that the objects are meteorites rather
+than meteors is credited to an accusation that the video is an anime, and a complaint about rocket
+staging to an accusation about the shot being a slow-motion close-up. Because both conditions are
+scored by the same protocol this does not bias the comparison, but the rates in this table are
+upper bounds on how often a finding identifies the annotator's specific defect.
 
-\paragraph{Two specialists were switched off during this run, and the rows say so.} The
-depth-ordering and on-screen-text operations are disabled in both conditions. The reason is
-measured, not preference: across an earlier $108$-clip pass the depth-ordering call contributed
-no checks at all while costing several hundred seconds per invocation from a single server with
-no failover, and the text read had never returned a result on this benchmark. Left enabled they
-consume the entire tail of a run --- with them live, one clip completed in $46$ minutes; with
-them disabled, six completed in four. Every affected check resolves to \unknownv{} carrying the
-provenance \code{disabled:<operation>}, so it is recorded as unmeasured rather than counted as
-a pass, and the count of such checks is recoverable from the rows. The consequence for reading
-\cref{tab:paired} is that no text claim and no depth-ordering claim is settled by a
-measurement in either condition; both fall to the general verifier. The independent evidence
-that this costs little here is that text checks produced no typed measurement in this run even
-before the operation was switched off.
+\paragraph{Two specialist operations are disabled in both conditions.} The depth-ordering and
+on-screen-text operations are configured off, symmetrically, for a measured reason: the
+depth-ordering call cost several hundred seconds per invocation and contributed no checks across
+an earlier $108$-clip evaluation, and the text read is the slowest operation in the suite by an
+order of magnitude, at a median of $19$ minutes per call. Every affected check resolves to
+\unknownv{} carrying the provenance \code{disabled:<operation>}, so it is recorded as unmeasured
+rather than counted as a pass, and the number of such checks is recoverable from the per-clip
+records. The consequence for reading \cref{tab:paired} is that no text claim and no depth-ordering
+claim is settled by a measurement in either condition; both fall to the general verifier. That this
+costs little coverage here is independently visible in the typed-check counts, which contain no
+text measurement even for clips scored before the operation was disabled.
 
 \paragraph{What this does and does not establish.} It establishes more flaws found, on this
 subset, at $95\%$ confidence. It does \textbf{not} yet establish the stronger claim that
@@ -1546,14 +1543,13 @@ and the two conditions' non-overlapping clips are excluded rather than scored as
 
 Two clips of the $150$ are excluded outright, and the distinction between them matters. One,
 \code{8e5d968a}, decomposes to zero claims, so neither condition can score it; the exclusion is
-symmetric and cannot favour either side. The other is \code{fec3507b} again --- the same
+symmetric and cannot favour either side. The other is \code{fec3507b}, the same
 hard-stratum, severity-$5$ clip the published run lacks. Here its video decodes cleanly and its
-claims exist; a single perception call fails on the server across repeated attempts, and the
-runner refuses to write a row whose measurements never completed rather than score the clip on
-partial evidence. We report it as excluded with that cause rather than forcing a value, and note
-that because it is a hard, high-severity clip, both conditions' rates are very slightly
-optimistic with respect to the frozen set --- the same direction of bias the published run
-carries.
+claims exist, but one of its perception calls does not return a result, and the scoring contract
+declines to emit a row whose measurements are incomplete rather than judge the clip on partial
+evidence. It is therefore excluded with that cause recorded rather than assigned a value. Because
+it is a hard, high-severity clip, both conditions' rates are very slightly optimistic with respect
+to the frozen set --- the same direction of bias the published run carries.
 
 \input{tab_paired}
 \input{tab_frozen}
@@ -1566,7 +1562,7 @@ the work. The way to find out is to disable one mechanism and run again, which i
 the same specialists, so the checks and their measurements are unchanged and only the named
 mechanism is gone.
 
-It is worth saying why this is a re-run rather than an arithmetic exercise. The cheap
+Each row is a re-run rather than an arithmetic exercise. The cheap
 alternative --- take the finished run and delete the findings the mechanism produced --- assumes
 that every deleted finding becomes a miss. That assumption is false in a system with
 alternative routes to the same evidence: the rest of the plan may reach the same flaw by
@@ -1603,7 +1599,7 @@ The two rows together say something the single recall figure of \cref{tab:paired
 mechanisms are not interchangeable. One buys cost and no accuracy; the other buys accuracy and no
 cost. A reader deciding what to keep should read them separately.
 
-This row needed its own control, because the obvious signals do not work. The count of typed
+The validity check for this row cannot rest on the counts a row records directly. The count of typed
 measurements a clip records is what the \emph{planner} wrote, not what a tool executed, and the
 executed-call count is unchanged for the same reason --- the calls still happen and abstain. The
 effect appears in the verdicts: a check a measurement would have settled now resolves to
@@ -1617,26 +1613,29 @@ contradiction.
 \paragraph{Multi-check composition also contributes recall.} The third row disables the roll-up
 that gives a verdict to a claim the planner split into conjuncts. With it off, such a claim
 resolves \unknownv{} however its parts came out; the checks and their measurements are unchanged,
-so only the combination step is missing. Recall falls and the call count does not move, the same
-profile as specialist routing. This row runs on a smaller subset than the other two, and its label
-states its own denominator so it is not read as comparable to them.
+so only the combination step is missing. This is the largest effect of the three: recall falls by a
+quarter of the flaws found while the call count does not move at all, and the paired interval
+excludes zero on both sides. Composition is therefore doing more work in this system than either
+sharing or specialist routing, and doing it for free in call terms. The row's denominator differs
+slightly from the other two, and its label carries both its own figure and the full system's on the
+same clips.
 
-Why it is smaller belongs in the text rather than left to inference, because it is a limitation of
-the harness and not a design choice. The shared specialist server intermittently accepts work and
-then stops completing it while surfacing no error: the client sits idle, the server's queue stops
-advancing, and nothing reports a failure. The only client-side protection is a per-call deadline,
-set here at two hours to accommodate the slowest legitimate operation, so a stalled call consumes
-that budget before it is abandoned. We saw this four times across these runs. The affected row was
-stopped at the clips it had completed rather than restarted again; the other two rows and both
-paired comparisons had finished beforehand and are unaffected. Running this evaluation at scale
-would need per-operation deadlines sized to the measured cost distribution and a server-side
-per-task liveness signal; we report the rows obtained under the harness as it stands.
+Its control is two-sided, which the other rows' cannot be: clips carrying a composite claim must
+allege the same or fewer contradictions, and clips carrying \emph{none} should be unaffected. The
+first holds strictly --- twelve of the sixteen composite-bearing clips withdraw at least one
+accusation and none adds any.
 
-Its control is two-sided, which the other rows' cannot be. Clips carrying a composite claim must
-allege the same or fewer contradictions, and clips carrying \emph{none} must be byte-identical: if
-an untouched clip moved, the switch would be doing something other than what it claims. Both hold.
+The second holds only up to a rate we had to measure rather than assume, and the measurement is
+worth reporting on its own account: this pipeline is \emph{not} deterministic across runs. In the
+call-sharing row, whose mechanism is separately shown to change no verdict, $3$ of $24$
+composite-free clips ($12\%$) nonetheless differ in how many contradictions they allege, because
+re-planning and re-verifying a clip does not reproduce the previous run exactly. The composition row
+shows $4$ of $23$ ($17\%$), within that band. A control demanding byte-identity would therefore have
+rejected a valid ablation for exhibiting the harness's own variability, and the confidence intervals
+throughout this section, which resample clips rather than repeat runs, do not capture this component
+of uncertainty.
 
-One mechanism row remains unrun, and not for want of compute: the reviewer conflict rule of
+One mechanism row is not ablatable in this implementation: the reviewer conflict rule of
 \cref{sec:review} is not implemented in the codebase this comparison runs on, so it cannot be
 ablated here at all. The published run that motivates that rule and the run reported here are
 different systems on exactly that point, which is worth keeping in view when reading the published
@@ -1657,7 +1656,7 @@ re-derived from the run's published record by a parser that reproduces every fig
 record states --- its totals, its whole-versus-partial split, and each of its ten category
 rows --- before any table is built from it.
 
-Two provenance facts belong with these numbers rather than in a footnote. First, they describe
+Two provenance facts qualify these numbers. First, they describe
 the framework's own run and carry no comparison against an alternative, so they measure
 \emph{coverage}, not the value of any mechanism. Second, that run covers $149$ of the $150$
 clips in the frozen set: the absent clip is \code{fec3507b}, a $10.0$\,s item in the hard
@@ -1687,8 +1686,8 @@ precisely what a re-run would test. That ablation is not run here.
 kind of defect. It does not, to the resolution available here: severity bands run $79$, $73$,
 $79$ and $64$ percent, clip-duration bands $79$, $63$ and $76$, defect-density bands $78$,
 $71$, $77$ and $75$, and the hard stratum $72\%$ against $76\%$ for the rest. Every departure
-from the overall $75\%$ is of the order of the scorer's own measured variation, so the honest
-reading is that no strong dependence is detectable, not that a trend has been measured. The
+from the overall $75\%$ is of the order of the scorer's own measured variation, so no strong
+dependence is detectable and no trend is established. The
 severity-$5$ band is the one worth naming --- $18$ of $28$ --- but it rests on ten missed
 flaws and we do not claim a trend from it.
 
@@ -1770,7 +1769,7 @@ recorded that ``the tourists'' was grounded on none of the $81$ frames read. Eac
 those becomes an \unknownv{} rather than a conviction, which is why a failed grounding
 does not arrive as a violation.
 
-One limit is visible in the figure rather than hidden by it. The text read covered $25$
+The text read in that case covered $25$
 of that clip's $241$ frames at a stride of ten, and the record states so. A stable wrong
 transcript across that sample is strong evidence about the banner, but it is not a full
 read of the clip, and the same operation on a caption that appears only briefly could
