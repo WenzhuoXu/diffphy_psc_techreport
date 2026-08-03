@@ -277,3 +277,49 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+# --------------------------------------------------------------------- fresh-run breakdown
+def fresh_category():
+    """By-category recall computed from THIS session's paired run, not the published page.
+
+    WHY THIS REPLACED THE PAGE-DERIVED VERSION. The descriptive tables originally rested on a
+    separate published run at 228/304 = 75%, which meant the report carried a THIRD recall figure
+    for the same system alongside the headline -- so whichever headline was chosen, these tables
+    contradicted it. The paired run's rows carry flaw uids and the gold file carries categories, so
+    the same breakdown is computable from the regenerable rows and sums exactly to the headline.
+    A reader can now add up any table in the Results section and land on the same total.
+    """
+    import json as _j
+    G = gold()
+    uid2cat = {f["flaw_uid"]: f["category"] for c in G.values() for f in c["flaws"]}
+    R = Path("~/diffphy_psc/artifacts/runs/exp033").expanduser()
+
+    def load(fn):
+        out = {}
+        for line in open(R / fn):
+            if line.strip():
+                r = _j.loads(line)
+                if not r.get("errored"):
+                    out[r["clip"]] = r
+        return out
+
+    graph, flat = load("graph_paired.jsonl"), load("flat_baseline_result.jsonl")
+    both = sorted(set(graph) & set(flat))
+    tot, got = collections.Counter(), collections.Counter()
+    for c in both:
+        for f in G[c]["flaws"]:
+            tot[f["category"]] += 1
+        for uid in set(graph[c].get("covered_flaws") or []):
+            got[uid2cat.get(uid, "?")] += 1
+    if sum(got.values()) != sum(len(set(graph[c].get("covered_flaws") or [])) for c in both):
+        raise SystemExit("[FAIL] category counts do not sum to the run's own total")
+    out = {}
+    for cat, n in tot.items():
+        out[cat] = dict(total=n, found=got[cat], full=got[cat], partial=0,
+                        missed=n - got[cat])
+    print(f"\n=== by-category, FRESH paired run ({len(both)} clips, {sum(tot.values())} flaws, "
+          f"{sum(got.values())} found) ===")
+    for cat, v in sorted(out.items(), key=lambda kv: -kv[1]["total"]):
+        print(f"  {cat:15s} {v['found']:3d}/{v['total']:3d} = "
+              f"{100*v['found']/v['total']:3.0f}%")
+    return out, dict(clips=len(both), flaws=sum(tot.values()), found=sum(got.values()))

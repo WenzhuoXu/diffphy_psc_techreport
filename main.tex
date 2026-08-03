@@ -1420,9 +1420,10 @@ Second, its recall is computed by a keyword-overlap matcher that the project sub
 \textbf{retracted}: the measure moves on byte-identical text, inflates with output volume, and in one
 audited case credited a bundled ``mossy stone path'' claim as covering a flaw about moss when nothing
 had tested moss. The successor comparison uses a same-defect judgement instead. Third, its
-denominator counts distinct flaw \emph{spans} ($286$, after collapsing $18$ duplicate entries from
-$304$), where \cref{tab:paired} counts flaw entries ($295$ of $306$), so the percentages are not
-directly comparable in either direction.
+denominator counts distinct flaw \emph{spans} rather than entries, where \cref{tab:paired} counts
+entries ($295$ of $306$), so the percentages are not directly comparable in either direction. Its
+stated figure of $286$ is itself unaccounted for: collapsing the $18$ duplicate entries in the
+labels gives $288$, not $286$.
 
 The obvious worry about replacing one comparison with another is that the newer one might simply
 have a weaker baseline, which would inflate the advantage without any real improvement. That is
@@ -1459,7 +1460,9 @@ Per-claim verification, one claim at a time & 179 \ (62.6\%) & 179 \ (58.9\%) & 
 \end{tabular}
 \caption{Paired results on the 149 clips of the evaluation core that both systems
 completed; the one missing clip is an infrastructure loss. Those clips carry $304$ of the
-core's $306$ flaw entries, which collapse to $286$ distinct spans (\cref{sec:bench-spec}); the second column repeats the same allegations
+core's $306$ flaw entries. Its $286$ denominator does not match the collapse this report derives
+from the labels, which gives $288$ distinct flaws (\cref{sec:bench-spec}); the discrepancy is
+unresolved and is one more reason the table is not used for any claim. The second column repeats the same allegations
 against the uncollapsed flaw list. ``Allegations that landed'' is the share of each system's accusations
 that the matching protocol linked to a human flaw; it is reported because recall alone
 rewards over-flagging. Calls count model and tool invocations and exclude the matching
@@ -1703,26 +1706,25 @@ specialist measurements and the composition roll-up contribute to it.
 \subsection{The current critic, measured by category and by difficulty}
 \label{sec:bycat}
 A single recall figure hides which defects a critic can reach. The two tables in this
-subsection break the current framework's coverage apart along the annotators' own labels and
-along four properties of the clip. Both are computed from one row per (clip, human flaw),
-re-derived from the run's published record by a parser that reproduces every figure that
-record states --- its totals, its whole-versus-partial split, and each of its ten category
-rows --- before any table is built from it.
+subsection break the plan-based condition's coverage apart along the annotators' own labels
+and along four properties of the clip.
 
-Two provenance facts qualify these numbers. First, they describe
-the framework's own run and carry no comparison against an alternative, so they measure
-\emph{coverage}, not the value of any mechanism. Second, that run covers $149$ of the $150$
-clips in the frozen set: the absent clip is \code{fec3507b}, a $10.0$\,s item in the hard
-stratum with a clip-level severity of $5$ and two \emph{action} flaws, so $306-2=304$ is
-fully accounted for. Because the omission is a hard, high-severity clip, the rate below is
-very slightly optimistic with respect to the frozen set.
+\Cref{tab:bycat} is computed from the same rows as \cref{tab:paired} and sums exactly to its
+total, so a reader can add up either table and land on $179$ of $295$. The spread is wide ---
+order and timing at $76\%$, action and spatial relations at $68\%$, against attributes at
+$38\%$ and counting at $43\%$. The ordering is partly informative and partly a statement about
+this evaluation set: categories a specialist can settle with a direct measurement do
+comparatively well, counting is among the weakest and is the one category whose measurement
+path we independently show to be unreliable (\cref{sec:contract}), and the largest category by
+far is the loosest one, ``action or event occurs'', with $131$ of the $295$ flaws.
 
-\Cref{tab:bycat} gives the breakdown by category. The spread is wide --- on-screen text at
-$84\%$ and camera or style at $90\%$ against counting at $49\%$ --- and the ordering is
-informative: the categories a specialist can settle with a direct measurement do well, while
-counting, the one category whose measurement path we independently show to be unreliable
-(\cref{sec:contract}), is the worst. Counting is also the category where partial credit is
-most common: $8$ of its $18$ found flaws are covered only in part.
+\Cref{tab:robust} is computed differently and its provenance differs accordingly: it uses one
+row per (clip, human flaw) parsed from a separate published record of this framework, whose
+totals and category rows a parser reproduces before any table is built from it. That record
+covers $149$ of the $150$ frozen clips --- the absent clip is \code{fec3507b} again --- and
+carries a partial-credit distinction the fresh run does not, so its rates are not comparable
+to \cref{tab:bycat}'s and are used here only to ask whether recall varies with clip
+properties, not to state a level.
 
 \paragraph{How often the reviewer's verdict is what carries a flaw.} Of the flaws that run
 found, $83$ were credited to a finding whose record carries a reviewer override

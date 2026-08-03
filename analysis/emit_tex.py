@@ -50,31 +50,28 @@ def tab_category(cat: dict) -> str:
     rows = []
     tot = full = part = 0
     for c, v in sorted(cat.items(), key=lambda kv: -kv[1]["total"]):
-        rows.append(f"{esc(CAT_LABEL.get(c, c))} & {v['total']} & {v['full']} & "
-                    f"{v['partial']} & {v['found']} & "
+        rows.append(f"{esc(CAT_LABEL.get(c, c))} & {v['total']} & {v['found']} & "
                     f"{100.0*v['found']/v['total']:.0f}\\% \\\\")
-        tot += v["total"]; full += v["full"]; part += v["partial"]
+        tot += v["total"]; full += v["found"]
     rows.append(r"\midrule")
-    rows.append(f"All & {tot} & {full} & {part} & {full+part} & "
-                f"{100.0*(full+part)/tot:.0f}\\% \\\\")
+    rows.append(f"All & {tot} & {full} & {100.0*full/tot:.0f}\\% \\\\")
     body = "\n".join(rows)
     return rf"""
 \begin{{table}}[t]
 \centering\small
 \setlength{{\tabcolsep}}{{6pt}}\renewcommand{{\arraystretch}}{{1.15}}
-\begin{{tabular}}{{@{{}}p{{4.6cm}} c c c c c@{{}}}}
+\begin{{tabular}}{{@{{}}p{{6.0cm}} c c c@{{}}}}
 \toprule
-\textbf{{What the annotator complained about}} & \textbf{{Flaws}} & \textbf{{Whole}}
- & \textbf{{Part}} & \textbf{{Found}} & \textbf{{Rate}} \\
+\textbf{{What the annotator complained about}} & \textbf{{Flaws}} & \textbf{{Found}}
+ & \textbf{{Rate}} \\
 \midrule
 {body}
 \bottomrule
 \end{{tabular}}
-\caption{{Recall by the annotators' own flaw category on the published run. ``Whole'' counts
-flaws a single finding covers completely; ``Part'' counts flaws for which our findings cover
-an aspect but no one finding is the whole defect; ``Found'' is their sum. Categories are the
+\caption{{Recall by the annotators' own flaw category, computed from the same paired run as
+\cref{{tab:paired}}, so the rows sum exactly to its total of $179$ of $295$. Categories are the
 annotators' labels, assigned before any critic ran, so this table is a property of the
-evaluation set as much as of the critic. Counting is the weakest category and the
+evaluation set as much as of the critic. Counting is among the weakest categories and the
 measurement path behind it is unreliable (\cref{{sec:contract}}).}}
 \label{{tab:bycat}}
 \end{{table}}
@@ -357,8 +354,11 @@ def main() -> int:
     with redirect_stdout(buf):
         rows = t.joined()
         _, sev = t.t_severity(rows)
-        cat = t.t_category(rows)
         rob = t.t_robustness(rows)
+        # By-category now comes from the FRESH paired run, not the published page. Using the page
+        # meant the report carried a third recall figure (75%) for the same system, contradicting
+        # whichever headline was chosen. The fresh breakdown sums exactly to tab:paired's total.
+        cat, cat_meta = t.fresh_category()
     print(buf.getvalue().splitlines()[-1] if buf.getvalue() else "")
 
     paired = None

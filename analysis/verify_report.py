@@ -99,11 +99,17 @@ def main() -> int:
             checks.append((f"abstract: retired figure {stale!r} ABSENT", f"NOT {stale}",
                            stale not in head))
 
-    # the published-run figures the descriptive tables rest on
-    for label, needle in (("published: found/total", "228"),
-                          ("published: denominator", "304"),
+    # The published record now backs only tab:robust (the by-category table was re-based onto
+    # the fresh paired run so the report carries one recall level, not three). So check the
+    # figures that record still supplies, and assert the by-category table sums to the HEADLINE
+    # -- which is the property that removing the third figure bought.
+    for label, needle in (("published: robustness base rate", "75"),
                           ("published: omitted clip", "fec3507b")):
         want(label, needle)
+    if PAIRED.exists():
+        pj2 = json.loads(PAIRED.read_text())
+        want("by-category sums to the headline", f"{pj2['caught']['graph']}")
+        want("by-category denominator = headline", f"{pj2['flaws']}")
 
     bad = [(l, s) for l, s, ok in checks if not ok]
     for label, needle, ok in checks:

@@ -4,30 +4,29 @@
 \begin{table}[t]
 \centering\small
 \setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.15}
-\begin{tabular}{@{}p{4.6cm} c c c c c@{}}
+\begin{tabular}{@{}p{6.0cm} c c c@{}}
 \toprule
-\textbf{What the annotator complained about} & \textbf{Flaws} & \textbf{Whole}
- & \textbf{Part} & \textbf{Found} & \textbf{Rate} \\
+\textbf{What the annotator complained about} & \textbf{Flaws} & \textbf{Found}
+ & \textbf{Rate} \\
 \midrule
-action or event occurs & 137 & 100 & 14 & 114 & 83\% \\
-how many & 37 & 10 & 8 & 18 & 49\% \\
-object identity & 30 & 14 & 6 & 20 & 67\% \\
-on-screen text & 25 & 21 & 0 & 21 & 84\% \\
-spatial relation & 18 & 10 & 1 & 11 & 61\% \\
-order and timing & 17 & 10 & 3 & 13 & 76\% \\
-attribute & 16 & 10 & 2 & 12 & 75\% \\
-camera and style & 10 & 7 & 2 & 9 & 90\% \\
-other & 7 & 5 & 1 & 6 & 86\% \\
-physical motion & 7 & 4 & 0 & 4 & 57\% \\
+action or event occurs & 131 & 89 & 68\% \\
+how many & 35 & 15 & 43\% \\
+object identity & 30 & 18 & 60\% \\
+on-screen text & 24 & 13 & 54\% \\
+spatial relation & 19 & 13 & 68\% \\
+order and timing & 17 & 13 & 76\% \\
+attribute & 16 & 6 & 38\% \\
+camera and style & 10 & 5 & 50\% \\
+physical motion & 7 & 3 & 43\% \\
+other & 6 & 4 & 67\% \\
 \midrule
-All & 304 & 191 & 37 & 228 & 75\% \\
+All & 295 & 179 & 61\% \\
 \bottomrule
 \end{tabular}
-\caption{Recall by the annotators' own flaw category on the published run. ``Whole'' counts
-flaws a single finding covers completely; ``Part'' counts flaws for which our findings cover
-an aspect but no one finding is the whole defect; ``Found'' is their sum. Categories are the
+\caption{Recall by the annotators' own flaw category, computed from the same paired run as
+\cref{tab:paired}, so the rows sum exactly to its total of $179$ of $295$. Categories are the
 annotators' labels, assigned before any critic ran, so this table is a property of the
-evaluation set as much as of the critic. Counting is the weakest category and the
+evaluation set as much as of the critic. Counting is among the weakest categories and the
 measurement path behind it is unreliable (\cref{sec:contract}).}
 \label{tab:bycat}
 \end{table}
