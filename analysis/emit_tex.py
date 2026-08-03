@@ -149,9 +149,10 @@ Per-claim verification & {f} & {100.0*f/n:.1f}\% & {cpc['flat']:.1f}
 \bottomrule
 \end{{tabular}}
 \caption{{Paired comparison on the {p['clips']} clips of the frozen evaluation set that both
-conditions have scored in this run, carrying {n} human flaws. Both conditions read the
-\emph{{same}} frozen claim decomposition per prompt, so neither is handed easier claims, and
-both are scored by the same matching protocol against the same labels. Calls count model and
+conditions have scored in this run, carrying {n} human flaws. Both conditions are scored by the
+same matching protocol against the same labels and run against the same models and specialists.
+Each decomposes the prompt into claims with its own call, so this is a whole-system comparison
+and the difference includes any advantage from how the prompt was split. Calls count model and
 tool invocations and exclude the matching protocol, which is the scorer rather than the
 critic. The difference of {p['net']:+d} flaws has a paired $95\%$ interval of
 $[{lo:+d}, {hi:+d}]$ from {p['bootstrap']:,} clip resamples with seed {p['seed']}:

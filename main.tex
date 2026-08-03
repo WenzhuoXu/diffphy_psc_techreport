@@ -1463,13 +1463,27 @@ denominator is not the frozen set, and the plan-based side spent \emph{more} cal
 than the baseline it beat, so the question of whether planning wins at equal cost was never
 put. \Cref{tab:paired} is a fresh run built to put exactly that question.
 
-Three controls make it a paired experiment rather than two separate results. Both conditions
-run against the same live specialists and the same reasoning model in the same configuration.
-Both are scored by the same matching protocol against the same human labels. And both read the
-\emph{same frozen claim decomposition}: each prompt is decomposed once, written to disk, and
-read by both conditions, so neither can be handed an easier set of claims than the other ---
-which, absent the control, would produce a recall difference that has nothing to do with
-orchestration. Clips are drawn in a seeded order fixed before any of their outcomes existed.
+Two controls make it a paired experiment rather than two separate results. Both conditions run
+against the same live specialists and the same reasoning model in the same configuration, and
+both are scored by the same matching protocol against the same human labels. Clips are drawn in
+a seeded order fixed before any of their outcomes existed.
+
+\paragraph{What is \emph{not} controlled: the decomposition.} Each condition splits the prompt
+into claims with its own call, so the two do not necessarily verify an identical claim set. We
+measured the gap rather than assuming it away. On $51\%$ of clips the two claim lists are
+byte-identical. Where they differ, the difference is usually in wording rather than in coverage:
+the median difference in the \emph{number} of claims is zero, and the most common nonzero
+difference is a single claim in how one compound sentence is split. The same model decomposing
+the same prompt twice differs the same way --- we observed eight claims on one pass and nine on
+another for one clip.
+
+This is a whole-system comparison, then, not a verification-only one: the reported difference
+includes any advantage from how each condition chose to split the prompt, and it cannot be
+attributed to orchestration alone. That is the correct reading of \cref{tab:paired}, and it is
+weaker than a claims-matched comparison would support. The apparatus for the stronger version
+exists --- the plan-based condition already reads a frozen per-prompt decomposition, and the
+baseline can be made to read the same one --- but running both conditions that way is a separate
+experiment that this report does not contain.
 
 The table reports the flaw-by-flaw disagreement, not only the totals, because a net difference
 can hide movement in both directions. Here it does not: the flaws found by the plan-based
