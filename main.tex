@@ -1407,8 +1407,18 @@ denominator counts distinct flaw \emph{spans} ($286$, after collapsing $18$ dupl
 $304$), where \cref{tab:paired} counts flaw entries ($295$ of $306$), so the percentages are not
 directly comparable in either direction.
 
+The obvious worry about replacing one comparison with another is that the newer one might simply
+have a weaker baseline, which would inflate the advantage without any real improvement. That is
+checkable, and it is not what happened. Rows survive for the earlier per-claim baseline on all
+$150$ clips, and scoring them beside the current baseline on identical clips, identical labels and
+the identical field gives $125$ of $306$ for the earlier arm against $135$ of $306$ for the current
+one: the baseline in \cref{tab:paired} is the \emph{stronger} of the two. The advantage grows
+between the tables because the earlier comparison's recall was inflated on \emph{both} sides ---
+its reported baseline figure of $179$ exceeds what those rows support on any available field --- not
+because the comparison arm was weakened.
+
 We therefore report \cref{tab:paired} as the result and this table as prior context. Its figures
-cannot be regenerated from rows available here, and no claim in this report rests on them.
+cannot be regenerated, and no claim in this report rests on them.
 
 \Cref{tab:results} compares the plan-based
 critic against per-claim verification, on the 149 clips of the evaluation core both
