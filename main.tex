@@ -1614,19 +1614,28 @@ contradiction.
 
 \input{tab_ablation}
 
-Two mechanism rows remain unrun, for different reasons that are worth separating. The reviewer
-conflict rule of \cref{sec:review} is not implemented in the codebase this comparison runs on, so
-it cannot be ablated here at all --- the published run that motivates it and the run reported here
-are different systems on that point. Multi-measurement composition \emph{is} implemented and
-\emph{is} a real gap: $80$ of the $209$ composite claims in this run, $38\%$, have at least one
-conjunct settled by a specialist measurement, so disabling the roll-up would plausibly move
-verdicts. It is unrun because the specialist server became unavailable before the row could be
-started, not because the mechanism is inert on this data.
+\paragraph{Multi-check composition also contributes recall.} The third row disables the roll-up
+that gives a verdict to a claim the planner split into conjuncts. With it off, such a claim
+resolves \unknownv{} however its parts came out; the checks and their measurements are unchanged,
+so only the combination step is missing. Recall falls and the call count does not move, the same
+profile as specialist routing. This row runs on a smaller subset than the other two, and its label
+states its own denominator so it is not read as comparable to them.
 
-\Cref{tab:ablation} therefore isolates two of four mechanisms. It is not a full decomposition, and
-the advantage in \cref{tab:paired} and \cref{tab:frozen} remains only partly attributed: we can say
-it is not an artifact of decomposition and is not explained by call sharing, and we can say the
-specialists contribute to it, but we cannot yet apportion it among the remaining parts.
+Its control is two-sided, which the other rows' cannot be. Clips carrying a composite claim must
+allege the same or fewer contradictions, and clips carrying \emph{none} must be byte-identical: if
+an untouched clip moved, the switch would be doing something other than what it claims. Both hold.
+
+One mechanism row remains unrun, and not for want of compute: the reviewer conflict rule of
+\cref{sec:review} is not implemented in the codebase this comparison runs on, so it cannot be
+ablated here at all. The published run that motivates that rule and the run reported here are
+different systems on exactly that point, which is worth keeping in view when reading the published
+figure alongside these.
+
+\Cref{tab:ablation} therefore covers three of four mechanisms. It is still not a full
+decomposition --- the three rows are separate subsets and their effects are not additive --- but
+the advantage in \cref{tab:paired} and \cref{tab:frozen} is now substantially attributed: it is not
+an artifact of how the prompt was decomposed, it is not explained by call sharing, and both the
+specialist measurements and the composition roll-up contribute to it.
 
 \subsection{The current critic, measured by category and by difficulty}
 \label{sec:bycat}

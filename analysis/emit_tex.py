@@ -176,6 +176,10 @@ def tab_ablation(ab: dict | None) -> str:
         return ("\n% ABLATION TABLE NOT YET COMPUTABLE — no row has paired clips.\n"
                 "\\textbf{[TODO: mechanism ablation pending run completion]}\n")
     body, note = [], ""
+    # Rows may have DIFFERENT denominators when a row is still running, and a shared
+    # "Flaws found" column across mixed denominators reads as though 7/17 were comparable to
+    # 44/73. So every row prints its OWN "full" figure beside its ablated one, and rows whose
+    # denominator differs from the first are marked with the clip count in the label.
     r0 = ab["rows"][0]
     body.append(f"Full plan-based critic & {r0['full_caught']}/{r0['flaws']} & "
                 f"{100.0*r0['full_caught']/r0['flaws']:.1f}\\% & {r0['full_calls']:.1f} "
@@ -183,7 +187,10 @@ def tab_ablation(ab: dict | None) -> str:
     body.append(r"\midrule")
     for r in ab["rows"]:
         lo, hi = r["ci"]
-        body.append(f"{esc(r['label'])} & {r['off_caught']}/{r['flaws']} & "
+        lab = esc(r["label"])
+        if r["flaws"] != r0["flaws"]:
+            lab += f" ({r['clips']} clips, {r['full_caught']}/{r['flaws']} for the full system)"
+        body.append(f"{lab} & {r['off_caught']}/{r['flaws']} & "
                     f"{100.0*r['off_caught']/r['flaws']:.1f}\\% & {r['off_calls']:.1f} & "
                     f"{r['diff']:+d} & $[{lo:+d}, {hi:+d}]$ \\\\")
         if r["env"] == "VAC_NO_SHARING":
@@ -284,11 +291,25 @@ def check_prose_consistency(paired: dict, tex_path: Path) -> list[str]:
     if not paired or not tex_path.exists():
         return []
     src = tex_path.read_text()
+    # Scope the check to the paragraphs that discuss tab:paired's own columns. It previously
+    # spanned everything up to the next subsection, which swept in the mechanism-ablation prose --
+    # and flagged "38% of composite claims carry a measurement" as if it were the flat condition's
+    # landed share. A guard that cries wolf on an unrelated number gets ignored, so it must not
+    # read text the table does not own.
     i = src.find(r"\subsection{A controlled head-to-head")
     j = src.find(r"\subsection{The current critic")
     if i < 0 or j < 0:
         return ["could not locate the head-to-head subsection to check"]
     body = src[i:j]
+    # EXCLUDE the mechanism-ablation prose from this scope. It legitimately quotes its own
+    # figures (e.g. "38% of composite claims carry a measurement"), which the paired table does
+    # NOT own; including it produced a false alarm, and a guard that cries wolf gets ignored.
+    # Cutting the whole span before the columns discussion was the wrong fix -- it silenced the
+    # guard on the sentences it exists to police, verified by injecting a drift and seeing
+    # nothing fire.
+    abl = body.find(r"\subsection{What one mechanism is worth")
+    if abl > 0:
+        body = body[:abl]
     owned = {
         "accusations per clip (graph)": paired["allegations"]["graph"]["per_clip"],
         "accusations per clip (flat)": paired["allegations"]["flat"]["per_clip"],

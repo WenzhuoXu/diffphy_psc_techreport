@@ -32,6 +32,8 @@ ROWS = [
     ("ablate_nosharing.jsonl", "No shared perception", "call deduplication", "VAC_NO_SHARING"),
     ("ablate_norouting.jsonl", "No specialist routing", "every specialist measurement",
      "VAC_DISABLE_OPS"),
+    ("ablate_nocomposition.jsonl", "No multi-check composition", "the conjunct roll-up",
+     "VAC_NO_COMPOSITION"),
 ]
 
 
@@ -97,6 +99,18 @@ def main() -> int:
                       if (full[c].get("cost") or {}).get("saved_by_sharing", 0) > 0]
             leaked = [c for c in both
                       if (R[c].get("cost") or {}).get("saved_by_sharing", 0) > 0]
+        elif env == "VAC_NO_COMPOSITION":
+            # COMPOSITION control. The roll-up only ever ADDS verdicts to composite claims, so
+            # switching it off can only REMOVE allegations, and only on clips that HAVE a
+            # composite claim. Two-sided: clips with composites must allege fewer (or equal),
+            # and clips WITHOUT composites must be byte-identical -- if an untouched clip moved,
+            # the flag is doing something other than what it says.
+            active = [(c, len(full[c].get("composite") or {}),
+                       len(R[c].get("alleged") or []) - len(full[c].get("alleged") or []))
+                      for c in both if full[c].get("composite")]
+            untouched = [c for c in both if not full[c].get("composite")
+                         and len(R[c].get("alleged") or []) != len(full[c].get("alleged") or [])]
+            leaked = [c for c, _, d in active if d > 0] + untouched
         else:
             # ROUTING row control. The obvious signals do NOT work here, and both were tried:
             #   * n_measured counts what the PLANNER TYPED, not what a tool executed, so it is
@@ -142,7 +156,21 @@ def main() -> int:
               f"{ab_calls - fu_calls:+.2f} per clip")
         print(f"  difference (off - full): {ab-fu:+d} flaws, paired 95% [{lo:+d}, {hi:+d}] "
               f"-> {eff}")
-        if env == "VAC_NO_SHARING":
+        if env == "VAC_NO_COMPOSITION":
+            fewer = [c for c, _, d in active if d < 0]
+            print(f"  flag control: {len(active)} of {len(both)} clips carry a composite claim; "
+                  f"{len(fewer)} allege fewer without the roll-up, "
+                  f"{len([1 for _, _, d in active if d > 0])} allege more, "
+                  f"{len(untouched)} composite-free clips changed (must be 0)")
+            if leaked:
+                print(f"    -> FAIL: {len(leaked)} clip(s) moved the wrong way; VOID")
+            elif fewer:
+                print("    -> PASS: removing the roll-up demonstrably withdrew verdicts on "
+                      "composite claims, and left composite-free clips untouched")
+            else:
+                print("    -> INCONCLUSIVE: no composite clip changed; the roll-up decided "
+                      "nothing on this subset")
+        elif env == "VAC_NO_SHARING":
             print(f"  flag control: {len(active)} of {len(both)} clips had sharing genuinely "
                   f"active in the full condition")
             if active:
