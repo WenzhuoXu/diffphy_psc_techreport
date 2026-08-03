@@ -1494,7 +1494,7 @@ without video or tool access. On 233 claims from 22 annotated clips, every claim
 produced a valid, compilable plan at one to two planner calls per clip.
 Twenty-seven claims (11.6\%) contained at least one specialist action that
 survived validation, compared with 2.3\% for an earlier tabular plan format.
-On deliberately measurement-dense diagnostics the corresponding rates were
+On measurement-dense diagnostics the corresponding rates were
 19/30 for counting, spatial, and ordering claims, and 10/10 for synthetic
 counting prompts. These diagnostics test routing and syntax; they are not
 estimates of verdict accuracy or coverage on the evaluation core. The present
@@ -1566,13 +1566,13 @@ dividing the prompt more favourably.
 
 \input{tab_frozen}
 
-Two limits bound these figures. The plan-based condition spends more calls per clip in both
-comparisons, so an equal-cost claim is unsupported; establishing one needs a hard call budget or a
-sweep across budgets, neither of which was run. And the matching protocol accepts loose links: among
-credited flaws, a complaint that objects are meteorites rather than meteors is matched to an
-accusation that the video is an anime. Both conditions are scored by the same protocol, so the
-comparison holds, but the absolute rates are upper bounds on how often a finding identifies the
-annotator's specific defect.
+The plan-based condition spends more calls per clip in both comparisons. Equal-cost behaviour was
+not measured; that requires a fixed call budget or a sweep across budgets.
+
+The matching protocol accepts loose links. Among credited flaws, a complaint that objects are
+meteorites, not meteors, is matched to an accusation that the video is an anime. Both conditions are
+scored by the same protocol, and the absolute rates are upper bounds on how often a finding
+identifies the annotator's specific defect.
 
 The depth-ordering and on-screen-text operations are disabled in both conditions: the first
 contributed no checks across an earlier $108$-clip evaluation at several hundred seconds per call,
@@ -1588,9 +1588,7 @@ the rates are marginally optimistic with respect to the frozen set.
 \subsection{Mechanism ablations}
 \label{sec:ablation}
 \Cref{tab:ablation} isolates three orchestration mechanisms by disabling each and re-running the
-identical plan on the same $40$ clips. Each row is a separate live pass, not a subtraction from a
-finished run: removing a mechanism's findings post hoc would assume every one becomes a miss when
-another check may reach the same flaw.
+identical plan on the same $40$ clips. Each row is a separate live pass.
 
 \input{tab_ablation}
 
@@ -1618,10 +1616,9 @@ present in the codebase these comparisons run on, so \cref{tab:ablation} covers 
 
 \subsection{Recall against clip properties}
 \label{sec:bycat}
-\Cref{tab:bycat} repeats the category breakdown on the paired run's own rows, summing to its total
-rather than the headline's, so the two comparisons can each be read internally. \Cref{tab:robust}
-asks whether recall depends on properties of the clip rather than the kind of defect, using the
-headline record's rows.
+\Cref{tab:bycat} gives the category breakdown of the paired run, computed from its own rows.
+\Cref{tab:robust} reports recall against four properties of the clip, computed from the headline
+record's rows.
 
 \input{tab_bycat}
 \input{tab_robust}
@@ -1633,12 +1630,9 @@ severity-$5$ band is the lowest at $18$ of $28$, but rests on ten missed flaws.
 
 \subsection{Six measured catches in full}
 \label{sec:cases}
-A recall figure says how many flaws were found; it does not show what finding one
-consists of. \Cref{fig:criticcases} therefore opens six catches in full: the clip, the
-annotator's sentence, the measurement a specialist returned, and the verdict that
-measurement forced. In all six the accusation came from a specialist rather than from a
-yes-or-no judgement by the video-aware verifier, so the number shown in each panel is
-the reason the flaw was reported, and a reader can disagree with it on its own terms.
+\Cref{fig:criticcases} opens six catches in full: the clip, the annotator's sentence, the
+measurement a specialist returned, and the resulting verdict. In all six the accusation came from a
+specialist measurement, so each panel shows the number on which the flaw was reported.
 
 \begin{figure}[tp]
   \centering
@@ -1648,11 +1642,10 @@ the reason the flaw was reported, and a reader can disagree with it on its own t
   annotator's sentence verbatim, the specialist's own required-versus-measured pair with
   its evidence, and the resulting claim state. The frame choice is fixed for every panel
   --- always the first and the last decoded frame, never a selected one --- so the pair
-  brackets the whole clip and cannot be picked to flatter a case. Displacements are
+  brackets the whole clip. Displacements are
   reported in multiples of the subject's own radius, which needs no scene calibration.
   In the text case, the boxed banner region of that same last frame is magnified in
-  place, so the reader sees the render's own glyphs rather than taking the transcript on
-  trust. Measurement text is copied from the run's records, not paraphrased.}
+  place, showing the render's own glyphs. Measurement text is copied from the run's records.}
   \label{fig:criticcases}
 \end{figure}
 
@@ -1682,9 +1675,9 @@ furthest departure from its starting height rather than on net displacement, bec
 rise followed by a fall cancels; $0.71$ radii of peak departure sits below the $0.75$
 threshold, and the camera moved $0.67$ radii over the same interval. The two counting
 cases are the simplest, and are exact-match. The banner is read by a recognition head and
-compared as a string, deliberately: a generative model asked what a garbled banner says
-will often repair it into the phrase the prompt requested, whereas the recognition head
-returns \code{GOBADRAEAT(CRSTRORISEUND} and the comparison fails.
+compared as a string. The head returns \code{GOBADRAEAT(CRSTRORISEUND} and the comparison fails;
+a generative model asked the same question repairs the string into the phrase the prompt
+requested.
 
 \paragraph{Independent measurements on one clip.} The dolphin clip carries
 a second annotator sentence --- that the animal never disappears into the depths --- and
