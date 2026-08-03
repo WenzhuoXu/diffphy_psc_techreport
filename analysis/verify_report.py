@@ -77,6 +77,12 @@ def main() -> int:
     # different system than the headline. Their rows remain on disk; nothing in the document cites
     # them, so nothing here checks them.
 
+    # our own row's cost cell, from the headline run's records
+    CJ = Path("/tmp/headline_cost.json")
+    if CJ.exists():
+        cj = json.loads(CJ.read_text())
+        want("external table: our calls/clip", str(cj["calls_mean"]))
+
     # The published record now backs only tab:robust (the by-category table was re-based onto
     # the fresh paired run so the report carries one recall level, not three). So check the
     # figures that record still supplies, and assert the by-category table sums to the HEADLINE

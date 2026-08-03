@@ -1750,33 +1750,22 @@ the critic runs a decomposition and a set of tool calls per clip, VideoScore2 a 
 forward pass, so nothing here speaks to efficiency.
 
 \subsection{The intended flaw-level comparison}
-The rating comparison above does not settle the flaw-level question, because a clip-level
-scalar cannot be matched to a localized human flaw. \Cref{tab:external} fixes that
-comparison, so that the protocol is stated before the numbers exist. Each will be scored on
-the same frozen set, against the same human labels, with the same matching protocol, and
-each will be given the same claim decomposition where it accepts one.
+The rating comparison above leaves the flaw-level question open, and \cref{tab:external} sets
+out how we intend to settle it, with the protocol fixed before any of the numbers exist.
 
-\begin{table}[t]
-\centering\small
-\setlength{\tabcolsep}{5.5pt}\renewcommand{\arraystretch}{1.18}
-\begin{tabular}{@{}p{4.6cm} p{3.5cm} c c c@{}}
-\toprule
-\textbf{Evaluator} & \textbf{Output it produces} & \textbf{Caught} & \textbf{Recall} & \textbf{Calls} \\
-\midrule
-This work & localized allegation & 228 & 75.0\% & --- \\
-Question-decomposition scoring~\cite{tifa2023,dsg2024} & per-question answers & --- & --- & --- \\
-Alignment scoring~\cite{vqascore2024,clipscore2021} & clip-level scalar & --- & --- & --- \\
-Learned quality scoring~\cite{videoscore2024,videoscore2_2025} & clip-level scalar & --- & --- & --- \\
-Modular video question answering~\cite{proviq2023,morevqa2024} & per-question answers & --- & --- & --- \\
-\bottomrule
-\end{tabular}
-\caption{The intended external comparison, stated before it is run. The first two rows
-is this work on the evaluation core (\cref{tab:headline}), on 304 flaws over 149 clips. Dashes
-are unrun. A clip-level scalar has no allegation
-to match against a localized human flaw, so scoring it requires a stated rule for turning
-a score into a decision; that rule will be fixed in advance and reported with the result.}
-\label{tab:external}
-\end{table}
+The candidates do not all admit the same treatment, and that is the reason this table is not
+yet filled in. Two of them emit an answer per question, which is enough to localize: a failed
+question maps back to the claim that produced it, and our matching protocol can then ask
+whether that claim and an annotator's sentence describe the same defect. Those two will be run
+on the same frozen set, against the same labels, with the same matcher, and given the same
+claim decomposition. The other two emit one number for the whole clip. A score of $0.42$
+identifies no defect and points at no moment, so there is nothing for the matcher to compare;
+turning it into an allegation would require a threshold of our choosing, and the resulting
+recall would measure that choice as much as the system. We leave those rows unscored and
+compare against a learned scalar judge on the axis where the comparison is sound, which is the
+clip-level rating of \cref{tab:vs2}.
+
+\input{tab_external}
 
 The set was inspected and used during optimization, the wording-controlled per-claim
 baseline was introduced after treatment outputs had been observed, and no retroactive

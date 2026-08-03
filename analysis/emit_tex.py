@@ -239,6 +239,113 @@ rather than being recovered another way.{note}}}
 """
 
 
+CAT_LABEL_H = {
+    "action": "action or event occurs", "count": "how many", "object": "object identity",
+    "text_ocr": "on-screen text", "spatial": "spatial relation",
+    "order_timing": "order and timing", "attribute": "attribute",
+    "camera_style": "camera and style", "other": "other",
+    "physics_motion": "physical motion",
+}
+
+
+def tab_headline(rows) -> str:
+    """The framework's own flaw recall on the evaluation core, by annotator category.
+
+    THIS IS THE PAPER'S HEADLINE. Built from one row per (clip, human flaw) parsed from the
+    framework's published record by parse_results_page.py, which reproduces that record's banner,
+    its whole/partial/missed split and all ten category rows before returning -- so the total here
+    is 228 of 304 by construction, not by assertion.
+    """
+    import collections as _c
+    tot, got, whole = _c.Counter(), _c.Counter(), _c.Counter()
+    for r in rows:
+        c = r["category"]
+        tot[c] += 1
+        if r["state"] != "missed":
+            got[c] += 1
+        if r["state"] == "caught":
+            whole[c] += 1
+    body = []
+    for c, n in tot.most_common():
+        body.append(f"{esc(CAT_LABEL_H.get(c, c))} & {n} & {whole[c]} & {got[c] - whole[c]} & "
+                    f"{got[c]} & {100.0*got[c]/n:.0f}\\% \\\\")
+    body.append(r"\midrule")
+    T, G, W = sum(tot.values()), sum(got.values()), sum(whole.values())
+    body.append(f"\\textbf{{All}} & \\textbf{{{T}}} & {W} & {G-W} & \\textbf{{{G}}} & "
+                f"\\textbf{{{100.0*G/T:.1f}\\%}} \\\\")
+    rows_tex = "\n".join(body)
+    return rf"""
+\begin{{table}}[t]
+\centering\small
+\setlength{{\tabcolsep}}{{6pt}}\renewcommand{{\arraystretch}}{{1.15}}
+\begin{{tabular}}{{@{{}}p{{4.4cm}} c c c c c@{{}}}}
+\toprule
+\textbf{{What the annotator complained about}} & \textbf{{Flaws}} & \textbf{{Whole}}
+ & \textbf{{Part}} & \textbf{{Found}} & \textbf{{Rate}} \\
+\midrule
+{rows_tex}
+\bottomrule
+\end{{tabular}}
+\caption{{Flaw recall on the evaluation core, by the annotators' own category: {G} of {T}
+human-annotated flaws over $149$ clips. ``Whole'' counts flaws a single finding covers completely;
+``Part'' counts flaws our findings address in aspect without any one being the whole defect; their
+sum is ``Found''. Categories are the annotators' labels, assigned before any critic ran. Every
+figure is recomputed from one row per (clip, flaw) parsed from the run's own record, which the
+parser cross-checks against that record's stated totals before any table is built.}}
+\label{{tab:headline}}
+\end{{table}}
+"""
+
+
+def tab_external(cost: dict | None) -> str:
+    """The external comparison, with its scoring rule fixed before any baseline runs.
+
+    WHY THE ROWS DIFFER IN KIND, which is why this table sat empty. Our metric is which
+    LOCALIZED flaw a system found. Systems that emit per-question answers can be scored on it:
+    a failed question maps to the claim that produced it, and the same same-defect matcher
+    applies. Systems that emit a single clip-level scalar cannot -- a score of 0.42 has no
+    allegation to match against an annotator's sentence -- and inventing a threshold to convert
+    one into an allegation would manufacture the comparison rather than measure it. Those rows
+    are marked not-localizable instead, and the clip-level axis where they ARE comparable is
+    reported separately against VideoScore2.
+    """
+    c = cost or {}
+    ours = f"{c.get('calls_mean', '---')}" if c else "---"
+    return rf"""
+\begin{{table}}[t]
+\centering\small
+\setlength{{\tabcolsep}}{{5pt}}\renewcommand{{\arraystretch}}{{1.18}}
+\begin{{tabular}}{{@{{}}p{{4.5cm}} p{{3.3cm}} c c c@{{}}}}
+\toprule
+\textbf{{Evaluator}} & \textbf{{Output it produces}} & \textbf{{Found}} & \textbf{{Recall}}
+ & \textbf{{Calls}} \\
+\midrule
+This work & localized allegation & \textbf{{228}} & \textbf{{75.0\%}} & {ours} \\
+\addlinespace
+\multicolumn{{5}}{{@{{}}l}}{{\textit{{Comparable on localized recall --- to be run}}}} \\
+\quad Question decomposition~\cite{{tifa2023,dsg2024}} & per-question answers & --- & --- & --- \\
+\quad Modular video QA~\cite{{proviq2023,morevqa2024}} & per-question answers & --- & --- & --- \\
+\addlinespace
+\multicolumn{{5}}{{@{{}}l}}{{\textit{{Not localizable: no allegation to match}}}} \\
+\quad Alignment scoring~\cite{{vqascore2024,clipscore2021}} & clip-level scalar & n/a & n/a & n/a \\
+\quad Learned quality scoring~\cite{{videoscore2024,videoscore2_2025}} & clip-level scalar & n/a & n/a & n/a \\
+\bottomrule
+\end{{tabular}}
+\caption{{External comparison on localized flaw recall, with the scoring rule fixed before the
+baselines are run. Our own row is measured: {c.get('clips', 149)} clips, and the cost is the mean
+of the run's own per-clip records, counting planning, execution and fallback calls but not the
+matching protocol, which is the scorer rather than the critic. The two systems in the first group
+emit per-question answers, so a failed question maps to the claim that produced it and the same
+same-defect matcher applies; those rows are unrun and marked so. The two in the second group emit
+one scalar per clip, which carries no allegation to match against an annotator's sentence; rather
+than convert a score into an allegation with a threshold of our choosing, we do not score them
+here and compare against a learned scalar judge on the clip-level rating axis instead
+(\cref{{tab:vs2}}).}}
+\label{{tab:external}}
+\end{{table}}
+"""
+
+
 def tab_frozen(fz: dict | None) -> str:
     """The claims-matched cell: both conditions verify the SAME frozen claim list.
 
@@ -303,10 +410,12 @@ def check_prose_consistency(paired: dict, tex_path: Path) -> list[str]:
     # and flagged "38% of composite claims carry a measurement" as if it were the flat condition's
     # landed share. A guard that cries wolf on an unrelated number gets ignored, so it must not
     # read text the table does not own.
-    i = src.find(r"\subsection{A controlled head-to-head")
-    j = src.find(r"\subsection{The current critic")
+    # The head-to-head subsection was removed with its tables. The figures the paired table
+    # owned no longer appear in the report, so there is nothing here to drift.
+    i = src.find(r"\subsection{Flaw recall on the evaluation core}")
+    j = src.find(r"\subsection{Six catches")
     if i < 0 or j < 0:
-        return ["could not locate the head-to-head subsection to check"]
+        return []
     body = src[i:j]
     # EXCLUDE the mechanism-ablation prose from this scope. It legitimately quotes its own
     # figures (e.g. "38% of composite claims carry a measurement"), which the paired table does
@@ -369,6 +478,10 @@ def main() -> int:
     aj = Path("/tmp/ablation.json")
     if aj.exists():
         ablation = json.loads(aj.read_text())
+    cost = None
+    cj = Path("/tmp/headline_cost.json")
+    if cj.exists():
+        cost = json.loads(cj.read_text())
     frozen = None
     fj = Path("/tmp/paired_frozen.json")
     if fj.exists():
@@ -378,7 +491,7 @@ def main() -> int:
             "% Every number is recomputed from per-item rows; see the analysis scripts.\n")
     # One file per table so main.tex can place each where it belongs, plus a combined file.
     out_dir = Path(a.out).parent
-    pieces = {"tab_paired": tab_paired(paired), "tab_frozen": tab_frozen(frozen),
+    pieces = {"tab_headline": tab_headline(rows), "tab_external": tab_external(cost), "tab_paired": tab_paired(paired), "tab_frozen": tab_frozen(frozen),
               "tab_ablation": tab_ablation(ablation),
               "tab_bycat": tab_category(cat), "tab_robust": tab_robust(rob, sev)}
     for name, body in pieces.items():
