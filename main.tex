@@ -1521,6 +1521,17 @@ smaller than the frozen set because the plan-based condition costs substantially
 per clip than the baseline, so the denominator in the caption is what was actually completed,
 and the two conditions' non-overlapping clips are excluded rather than scored as misses.
 
+Two clips of the $150$ are excluded outright, and the distinction between them matters. One,
+\code{8e5d968a}, decomposes to zero claims, so neither condition can score it; the exclusion is
+symmetric and cannot favour either side. The other is \code{fec3507b} again --- the same
+hard-stratum, severity-$5$ clip the published run lacks. Here its video decodes cleanly and its
+claims exist; a single perception call fails on the server across repeated attempts, and the
+runner refuses to write a row whose measurements never completed rather than score the clip on
+partial evidence. We report it as excluded with that cause rather than forcing a value, and note
+that because it is a hard, high-severity clip, both conditions' rates are very slightly
+optimistic with respect to the frozen set --- the same direction of bias the published run
+carries.
+
 \input{tab_paired}
 
 \subsection{What one mechanism is worth, measured by removing it}
