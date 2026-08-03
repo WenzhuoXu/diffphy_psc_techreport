@@ -37,6 +37,32 @@ def pdf_text() -> str:
     return re.sub(r"\s+", " ", r.stdout)
 
 
+# Vocabulary that is work-log voice, not report voice. Each entry was ACTUALLY FOUND in this
+# document and removed by hand at least once; "again" and "the runner" were removed and then
+# REINTRODUCED by a later edit, which is why a one-off sweep is not enough and this has to be a
+# gate. A reader cannot resolve "the harness", "the runner" or "the fresh run" -- they name the
+# authors' own tooling and runs -- and phrases like "the honest reading" vouch for the authors'
+# candour instead of stating what the data show.
+WORKLOG_VOCAB = [
+    "the harness", "the runner", "fresh run", "probing the arm",
+    "not for want of compute", "honest reading", "worth saying",
+    "belongs in the text", "we saw this", "intermittently accepts",
+    "liveness signal", "again ---",
+]
+
+# "again" is only work-log when it is attached to a named artefact -- "clip abc123 again" carries
+# the authors' cumulative history with one item and means nothing to a reader. Plain "run again"
+# describing the method is correct English and must NOT be flagged; the crude pattern did flag it.
+WORKLOG_REGEX = [r"\b[0-9a-f]{8}\b[^.]{0,30}\bagain\b"]
+
+
+def check_worklog_voice(txt: str) -> list[str]:
+    """Report every work-log phrase present in the delivered PDF text."""
+    hits = [v for v in WORKLOG_VOCAB if v.lower() in txt.lower()]
+    hits += [f"pattern {pat}" for pat in WORKLOG_REGEX if re.search(pat, txt, re.I)]
+    return hits
+
+
 def main() -> int:
     if not PDF.exists():
         raise SystemExit(f"[FAIL] {PDF} does not exist — build before verifying")
@@ -110,6 +136,10 @@ def main() -> int:
         pj2 = json.loads(PAIRED.read_text())
         want("by-category sums to the headline", f"{pj2['caught']['graph']}")
         want("by-category denominator = headline", f"{pj2['flaws']}")
+
+    # work-log voice is a defect in the delivered artefact, checked alongside the figures
+    for v in check_worklog_voice(txt):
+        checks.append((f"work-log voice: {v!r} absent", f"NOT {v}", False))
 
     bad = [(l, s) for l, s, ok in checks if not ok]
     for label, needle, ok in checks:

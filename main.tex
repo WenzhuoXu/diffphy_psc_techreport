@@ -1402,7 +1402,8 @@ differences matter more than the change in numbers.
 First and decisively, that run's plan-based arm was executing against \emph{the wrong videos}. The
 per-clip context was held in shared mutable state while five clips ran concurrently, so a
 specialist measurement requested for one clip could be answered from another's frames. A test
-reproducing the runner's exact shape puts the rate at $57$ of $72$ measurements --- $79.2\%$ ---
+reproducing that execution shape --- twelve clips, five concurrent, eight parallel calls each ---
+puts the rate at $57$ of $72$ measurements --- $79.2\%$ ---
 reading a clip other than the one that asked. The defect is specific to the plan-based path;
 per-claim verification passes an explicit clip identifier and was unaffected. So that comparison
 set a clean baseline against a plan-based arm whose measurements were largely attributed
@@ -1717,8 +1718,8 @@ far is the loosest one, ``action or event occurs'', with $131$ of the $295$ flaw
 \Cref{tab:robust} is computed differently and its provenance differs accordingly: it uses one
 row per (clip, human flaw) parsed from a separate published record of this framework, whose
 totals and category rows a parser reproduces before any table is built from it. That record
-covers $149$ of the $150$ frozen clips --- the absent clip is \code{fec3507b} again --- and
-carries a partial-credit distinction the fresh run does not, so its rates are not comparable
+covers $149$ of the $150$ frozen clips, the absent one being \code{fec3507b}, and it
+carries a partial-credit distinction that \cref{tab:bycat}'s source does not, so its rates are not comparable
 to \cref{tab:bycat}'s and are used here only to ask whether recall varies with clip
 properties, not to state a level.
 
