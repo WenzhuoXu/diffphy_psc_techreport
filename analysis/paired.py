@@ -90,6 +90,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--graph", default="graph_paired.jsonl")
     ap.add_argument("--flat", default="flat_baseline_result.jsonl")
+    ap.add_argument("--label", default="",
+                    help="tag for the cell, e.g. 'claims-matched' (used in the json)")
     ap.add_argument("--json", default="")
     a = ap.parse_args()
 
@@ -168,7 +170,8 @@ def main() -> int:
                calls_per_clip={k: round(sum(calls((G if k == "graph" else F)[c])
                                             for c in both) / len(both), 2)
                                for k in ("graph", "flat")},
-               seed=SEED, bootstrap=BOOT)
+               seed=SEED, bootstrap=BOOT, label=a.label,
+               flat_file=a.flat)
     if a.json:
         Path(a.json).write_text(json.dumps(res, indent=2))
         print(f"\n[write] {a.json}")

@@ -25,6 +25,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 PDF = HERE.parent / "main.pdf"
 PAIRED = Path("/tmp/paired.json")
+FROZEN = Path("/tmp/paired_frozen.json")
 ABLATION = Path("/tmp/ablation.json")
 
 
@@ -71,6 +72,14 @@ def main() -> int:
                  f"{100.0*r['off_caught']/r['flaws']:.1f}%")
     else:
         print("[warn] /tmp/ablation.json absent — ablation figures unverified")
+
+    if FROZEN.exists():
+        z = json.loads(FROZEN.read_text())
+        want("claims-matched: plan-based", f"{z['caught']['graph']}/{z['flaws']}")
+        want("claims-matched: per-claim", f"{z['caught']['flat']}/{z['flaws']}")
+        want("claims-matched: clips", str(z["clips"]))
+    else:
+        print("[warn] /tmp/paired_frozen.json absent — claims-matched figures unverified")
 
     # the published-run figures the descriptive tables rest on
     for label, needle in (("published: found/total", "228"),

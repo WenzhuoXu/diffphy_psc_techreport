@@ -1478,12 +1478,21 @@ the same prompt twice differs the same way --- we observed eight claims on one p
 another for one clip.
 
 This is a whole-system comparison, then, not a verification-only one: the reported difference
-includes any advantage from how each condition chose to split the prompt, and it cannot be
-attributed to orchestration alone. That is the correct reading of \cref{tab:paired}, and it is
-weaker than a claims-matched comparison would support. The apparatus for the stronger version
-exists --- the plan-based condition already reads a frozen per-prompt decomposition, and the
-baseline can be made to read the same one --- but running both conditions that way is a separate
-experiment that this report does not contain.
+includes any advantage from how each condition chose to split the prompt, and \cref{tab:paired}
+alone cannot attribute it to orchestration.
+
+\paragraph{The advantage survives when both sides verify identical claims.}
+\Cref{tab:frozen} supplies that missing control. The baseline is handed the plan-based condition's
+own frozen claim list and verifies exactly those claims, spending no decomposition call of its
+own, so the two systems answer the same questions and differ only in how they gather and combine
+evidence. The gap persists at a similar magnitude, and its paired interval excludes zero. The
+recall advantage is therefore not an artifact of one condition dividing the prompt more
+favourably.
+
+Two limits on that statement. The cell is a separate, smaller run --- its denominator is printed
+in the caption --- so it is a confirmation on a subset rather than a re-run of the whole
+comparison. And it does not repair the cost imbalance: the plan-based condition still spends more
+calls per clip here, so this strengthens the accuracy claim without touching the equal-cost one.
 
 The table reports the flaw-by-flaw disagreement, not only the totals, because a net difference
 can hide movement in both directions. Here it does not: the flaws found by the plan-based
@@ -1547,6 +1556,7 @@ optimistic with respect to the frozen set --- the same direction of bias the pub
 carries.
 
 \input{tab_paired}
+\input{tab_frozen}
 
 \subsection{What one mechanism is worth, measured by removing it}
 \label{sec:ablation}
