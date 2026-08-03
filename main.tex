@@ -1621,6 +1621,17 @@ so only the combination step is missing. Recall falls and the call count does no
 profile as specialist routing. This row runs on a smaller subset than the other two, and its label
 states its own denominator so it is not read as comparable to them.
 
+Why it is smaller belongs in the text rather than left to inference, because it is a limitation of
+the harness and not a design choice. The shared specialist server intermittently accepts work and
+then stops completing it while surfacing no error: the client sits idle, the server's queue stops
+advancing, and nothing reports a failure. The only client-side protection is a per-call deadline,
+set here at two hours to accommodate the slowest legitimate operation, so a stalled call consumes
+that budget before it is abandoned. We saw this four times across these runs. The affected row was
+stopped at the clips it had completed rather than restarted again; the other two rows and both
+paired comparisons had finished beforehand and are unaffected. Running this evaluation at scale
+would need per-operation deadlines sized to the measured cost distribution and a server-side
+per-task liveness signal; we report the rows obtained under the harness as it stands.
+
 Its control is two-sided, which the other rows' cannot be. Clips carrying a composite claim must
 allege the same or fewer contradictions, and clips carrying \emph{none} must be byte-identical: if
 an untouched clip moved, the switch would be doing something other than what it claims. Both hold.
