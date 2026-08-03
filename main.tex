@@ -1537,8 +1537,8 @@ clip, the same imbalance that undermines \cref{tab:results}. Establishing that c
 either a hard call budget applied to both conditions or a sweep across several budgets, and
 neither has been run. We also report calls rather than accelerator seconds; calls are not
 computationally interchangeable, and a per-call cost accounting remains unrun. The subset is
-smaller than the frozen set because the plan-based condition costs substantially more wall time
-per clip than the baseline, so the denominator in the caption is what was actually completed,
+smaller than the frozen set because the plan-based condition is substantially more expensive per
+clip, so the denominator in the caption is the set both conditions completed,
 and the two conditions' non-overlapping clips are excluded rather than scored as misses.
 
 Two clips of the $150$ are excluded outright, and the distinction between them matters. One,
@@ -1631,7 +1631,7 @@ call-sharing row, whose mechanism is separately shown to change no verdict, $3$ 
 composite-free clips ($12\%$) nonetheless differ in how many contradictions they allege, because
 re-planning and re-verifying a clip does not reproduce the previous run exactly. The composition row
 shows $4$ of $23$ ($17\%$), within that band. A control demanding byte-identity would therefore have
-rejected a valid ablation for exhibiting the harness's own variability, and the confidence intervals
+rejected a valid ablation for exhibiting the pipeline's own run-to-run variability, and the intervals
 throughout this section, which resample clips rather than repeat runs, do not capture this component
 of uncertainty.
 
