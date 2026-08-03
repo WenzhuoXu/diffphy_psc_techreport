@@ -62,10 +62,13 @@ def main() -> int:
         print("[warn] /tmp/paired.json absent — paired figures unverified")
 
     if ABLATION.exists():
-        a = json.loads(ABLATION.read_text())["rows"][0]
-        want("ablation: flaws (full)", f"{a['full_caught']}/{a['flaws']}")
-        want("ablation: flaws (off)", f"{a['off_caught']}/{a['flaws']}")
-        want("ablation: clips", str(a["clips"]))
+        rows = json.loads(ABLATION.read_text())["rows"]
+        want("ablation: flaws (full)", f"{rows[0]['full_caught']}/{rows[0]['flaws']}")
+        want("ablation: clips", str(rows[0]["clips"]))
+        for r in rows:                       # EVERY row, so a new one cannot go unverified
+            want(f"ablation[{r['env']}]: flaws off", f"{r['off_caught']}/{r['flaws']}")
+            want(f"ablation[{r['env']}]: rate off",
+                 f"{100.0*r['off_caught']/r['flaws']:.1f}%")
     else:
         print("[warn] /tmp/ablation.json absent — ablation figures unverified")
 

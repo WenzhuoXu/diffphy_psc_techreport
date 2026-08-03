@@ -13,6 +13,7 @@
 Full plan-based critic & 44/73 & 60.3\% & 11.8 & --- & --- \\
 \midrule
 No shared perception & 44/73 & 60.3\% & 13.0 & +0 & $[-3, +3]$ \\
+No specialist routing & 39/73 & 53.4\% & 11.4 & -5 & $[-11, +0]$ \\
 \bottomrule
 \end{tabular}
 \caption{Mechanism ablation on 40 clips of the frozen set carrying 73
@@ -20,6 +21,6 @@ human flaws. Each row is a \emph{separate live run} of the identical plan with o
 disabled, scored against the same labels and paired clip-by-clip against the full condition
 above; the interval is a paired bootstrap over clips. This is deliberately not a subtraction
 from a finished run, which would assume every finding the mechanism produced becomes a miss
-rather than being recovered another way. Removing call deduplication found exactly the same flaws --- the paired interval is zero --- while spending +1.12 calls per clip more. Sharing is therefore a cost saving on this data and not a source of recall. The saving is concentrated rather than spread: only 9 of 40 clips had any duplicate perception query to collapse, and on those the ablation spent between two and fourteen extra calls. A positive control confirms the mechanism really was disabled rather than the switch having no effect: on every clip where the full condition deduplicated, the ablation demonstrably spent more calls, and no ablation row reports a saving.}
+rather than being recovered another way. Removing call deduplication found exactly the same flaws while spending +1.12 calls per clip more, so sharing is a cost saving and not a source of recall; only 9 of 40 clips contained a duplicate perception query to collapse. Removing every specialist measurement costs 5 flaws (44 to 39) at a paired interval of $[-11, +0]$, which touches zero: the specialists contribute recall on this subset, but not separably from noise at this denominator. Their contribution is also not free to remove in the way sharing is --- the call count barely moves, because the plan still issues the same requests and each simply abstains.}
 \label{tab:ablation}
 \end{table}

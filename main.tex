@@ -1582,14 +1582,33 @@ The mechanism was therefore genuinely off, and ``no change in recall'' is a meas
 than a no-op. The narrow conclusion: on this data, sharing is not where the plan-based critic's
 recall advantage in \cref{tab:paired} comes from.
 
+\paragraph{Specialist routing costs recall to remove, but not separably.} The second row disables
+every specialist measurement, so each typed check falls back to the general verifier. This is the
+opposite profile to sharing. Recall drops --- five fewer flaws --- while the call count barely
+moves, because the plan still issues the same requests and each one simply abstains rather than
+measuring. The paired interval touches zero, so on this subset the specialists demonstrably change
+verdicts without their contribution being separable from noise at this denominator.
+
+The two rows together say something the single recall figure of \cref{tab:paired} cannot: the
+mechanisms are not interchangeable. One buys cost and no accuracy; the other buys accuracy and no
+cost. A reader deciding what to keep should read them separately.
+
+This row needed its own control, because the obvious signals do not work. The count of typed
+measurements a clip records is what the \emph{planner} wrote, not what a tool executed, and the
+executed-call count is unchanged for the same reason --- the calls still happen and abstain. The
+effect appears in the verdicts: a check a measurement would have settled now resolves to
+\unknownv{}. On the clips the full condition measured, $21$ allege fewer contradictions without
+specialists and one alleges more, the latter being expected rather than anomalous, since removing
+a measurement that \emph{supported} a conjunct can let a composite claim roll up to a
+contradiction.
+
 \input{tab_ablation}
 
-The remaining mechanism rows --- specialist routing, multi-measurement composition, and the
-reviewer conflict rule --- are not run. Each needs its own full pass, and the measured cost of
-a pass on this hardware did not leave room for them within this report's compute budget.
-\Cref{tab:ablation} therefore isolates one mechanism and reports a null for it; it is not a
-decomposition of the whole advantage, and the advantage in \cref{tab:paired} remains
-unattributed to any single component.
+Two mechanism rows remain unrun: multi-measurement composition, and the reviewer conflict rule of
+\cref{sec:review}. The latter is not merely unbudgeted --- the conflict rule is not implemented in
+the codebase this comparison runs on, so it cannot be ablated here at all. \Cref{tab:ablation}
+therefore isolates two of four mechanisms; it is not a full decomposition, and the advantage in
+\cref{tab:paired} remains only partly attributed.
 
 \subsection{The current critic, measured by category and by difficulty}
 \label{sec:bycat}

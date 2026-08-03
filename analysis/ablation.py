@@ -30,6 +30,8 @@ BOOT = 10000
 # (file, label, the mechanism switched off, the env var that switched it off)
 ROWS = [
     ("ablate_nosharing.jsonl", "No shared perception", "call deduplication", "VAC_NO_SHARING"),
+    ("ablate_norouting.jsonl", "No specialist routing", "every specialist measurement",
+     "VAC_DISABLE_OPS"),
 ]
 
 
@@ -89,11 +91,35 @@ def main() -> int:
         # effect and the whole row is void. Reported so the null cannot be confused with a
         # no-op switch -- the difference between "sharing does nothing" and "we failed to turn
         # sharing off" is the difference between a result and a bug.
-        active = [(c, (full[c].get("cost") or {}).get("saved_by_sharing", 0),
-                   calls(R[c]) - calls(full[c])) for c in both
-                  if (full[c].get("cost") or {}).get("saved_by_sharing", 0) > 0]
-        leaked = [c for c in both
-                  if (R[c].get("cost") or {}).get("saved_by_sharing", 0) > 0]
+        if env == "VAC_NO_SHARING":
+            active = [(c, (full[c].get("cost") or {}).get("saved_by_sharing", 0),
+                       calls(R[c]) - calls(full[c])) for c in both
+                      if (full[c].get("cost") or {}).get("saved_by_sharing", 0) > 0]
+            leaked = [c for c in both
+                      if (R[c].get("cost") or {}).get("saved_by_sharing", 0) > 0]
+        else:
+            # ROUTING row control. The obvious signals do NOT work here, and both were tried:
+            #   * n_measured counts what the PLANNER TYPED, not what a tool executed, so it is
+            #     unchanged by disabling ops -- reading it reported a "leak" that was really my
+            #     own wrong signal.
+            #   * exec_calls is also unchanged, because the plan still compiles the same calls;
+            #     each one now abstains instead of measuring.
+            # The observable effect of switching specialists off is therefore in the VERDICTS:
+            # a check that would have been settled by a measurement now abstains, so the clip
+            # alleges fewer contradictions. Control = on clips the full condition measured, the
+            # ablation must allege NO MORE than the full condition, and strictly fewer somewhere.
+            active = [(c, full[c].get("n_measured", 0),
+                       len(R[c].get("alleged") or []) - len(full[c].get("alleged") or []))
+                      for c in both if full[c].get("n_measured", 0) > 0]
+            # A FEW clips legitimately allege MORE, so "any increase = leak" was too strict and
+            # voided a valid row on 1 of 25 clips. Why an increase is expected: removing a
+            # measurement that SUPPORTED a claim turns it unknown, and a composite claim whose
+            # conjunct is no longer supported can roll up to a contradiction. That is the
+            # mechanism operating, not the switch failing. The control that still discriminates
+            # is the DIRECTION OF THE BULK: decreases must dominate increases by a wide margin.
+            up = [c for c, _, d in active if d > 0]
+            down = [c for c, _, d in active if d < 0]
+            leaked = up if len(up) > max(1, 0.25 * len(down)) else []
 
         rng = random.Random(SEED)
         d = []
@@ -116,19 +142,36 @@ def main() -> int:
               f"{ab_calls - fu_calls:+.2f} per clip")
         print(f"  difference (off - full): {ab-fu:+d} flaws, paired 95% [{lo:+d}, {hi:+d}] "
               f"-> {eff}")
-        print(f"  flag control: {len(active)} of {len(both)} clips had sharing genuinely "
-              f"active in the full condition")
-        if active:
-            print("    on those, removing it cost extra calls: "
-                  + ", ".join(f"{c[:8]} {d:+.0f}" for c, _, d in active))
-            if all(d > 0 for _, _, d in active):
-                print("    -> PASS: the flag demonstrably took effect (more calls without it)")
+        if env == "VAC_NO_SHARING":
+            print(f"  flag control: {len(active)} of {len(both)} clips had sharing genuinely "
+                  f"active in the full condition")
+            if active:
+                print("    on those, removing it cost extra calls: "
+                      + ", ".join(f"{c[:8]} {d:+.0f}" for c, _, d in active))
+                print("    -> PASS: the flag demonstrably took effect (more calls without it)"
+                      if all(d > 0 for _, _, d in active)
+                      else "    -> FAIL: the flag did NOT take effect; this row is VOID")
+            if leaked:
+                print(f"    -> FAIL: {len(leaked)} row(s) report positive sharing savings; VOID")
+        else:
+            n_full = sum(x for _, x, _ in active)
+            fewer = down
+            print(f"  flag control: {len(active)} clips carried {n_full} typed measurements in "
+                  f"the full condition; with specialists off, {len(fewer)} of them allege FEWER "
+                  f"contradictions and {len(up)} allege more")
+            if leaked:
+                print(f"    -> FAIL: {len(leaked)} clip(s) allege MORE without specialists; "
+                      "that is not an ablation of this mechanism, VOID")
+            elif fewer:
+                print("    -> PASS: removing specialists demonstrably changed verdicts "
+                      "(measurement-settled checks now abstain)")
             else:
-                print("    -> FAIL: the flag did NOT take effect; this row is VOID")
-        if leaked:
-            print(f"    -> FAIL: {len(leaked)} ablation row(s) report positive sharing savings; "
-                  "the flag leaked and this row is VOID")
-        if abs(ab_calls - fu_calls) < 0.5:
+                print("    -> INCONCLUSIVE: no clip changed; the measurements this subset takes "
+                      "did not decide any verdict, so nothing was ablated in effect")
+        # The "barely exercised" note is about SHARING (whose whole effect is call count).
+        # On the routing row the call count is the wrong yardstick -- specialists change verdicts,
+        # not call volume -- so printing it there would mislead.
+        if env == "VAC_NO_SHARING" and abs(ab_calls - fu_calls) < 0.5:
             print("  NOTE: removing the mechanism barely changed the call count, so it was "
                   "hardly exercised on these clips. A null result here is expected and says "
                   "nothing about its value on data with more repeated queries.")

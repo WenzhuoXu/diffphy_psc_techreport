@@ -186,19 +186,20 @@ def tab_ablation(ab: dict | None) -> str:
         body.append(f"{esc(r['label'])} & {r['off_caught']}/{r['flaws']} & "
                     f"{100.0*r['off_caught']/r['flaws']:.1f}\\% & {r['off_calls']:.1f} & "
                     f"{r['diff']:+d} & $[{lo:+d}, {hi:+d}]$ \\\\")
-        if r["effect"] == "no measurable effect":
-            extra = r.get("extra_calls", 0.0)
-            act, tot = r.get("flag_active_clips", 0), r["clips"]
-            note = (f" Removing call deduplication found exactly the same flaws --- the paired "
-                    f"interval is zero --- while spending {extra:+.2f} calls per clip more. "
-                    f"Sharing is therefore a cost saving on this data and not a source of "
-                    f"recall. The saving is concentrated rather than spread: only {act} of "
-                    f"{tot} clips had any duplicate perception query to collapse, and on those "
-                    f"the ablation spent between two and fourteen extra calls. A positive "
-                    f"control confirms the mechanism really was disabled rather than the "
-                    f"switch having no effect: on every clip where the full condition "
-                    f"deduplicated, the ablation demonstrably spent more calls, and no "
-                    f"ablation row reports a saving.")
+        if r["env"] == "VAC_NO_SHARING":
+            note += (f" Removing call deduplication found exactly the same flaws while spending "
+                     f"{r['extra_calls']:+.2f} calls per clip more, so sharing is a cost saving "
+                     f"and not a source of recall; only {r.get('flag_active_clips', 0)} of "
+                     f"{r['clips']} clips contained a duplicate perception query to collapse.")
+        else:
+            lo2, hi2 = r["ci"]
+            note += (f" Removing every specialist measurement costs {abs(r['diff'])} flaws "
+                     f"({r['full_caught']} to {r['off_caught']}) at a paired interval of "
+                     f"$[{lo2:+d}, {hi2:+d}]$, which touches zero: the specialists contribute "
+                     f"recall on this subset, but not separably from noise at this denominator. "
+                     f"Their contribution is also not free to remove in the way sharing is --- "
+                     f"the call count barely moves, because the plan still issues the same "
+                     f"requests and each simply abstains.")
     rows = "\n".join(body)
     return rf"""
 \begin{{table}}[t]
