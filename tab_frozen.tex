@@ -9,22 +9,22 @@
 \textbf{Condition, same claims for both} & \textbf{Flaws found} & \textbf{Rate}
  & \textbf{Calls per clip} \\
 \midrule
-Plan-based critic & 34/54 & 63.0\% & 12.9 \\
-Per-claim verification & 24/54 & 44.4\% & 10.3 \\
+Plan-based critic & 56/96 & 58.3\% & 11.8 \\
+Per-claim verification & 43/96 & 44.8\% & 9.5 \\
 \midrule
 \multicolumn{4}{@{}l}{\textit{Where they disagree, flaw by flaw}} \\
-\quad found by both & 23 & & \\
-\quad plan-based only & 11 & & \\
+\quad found by both & 42 & & \\
+\quad plan-based only & 14 & & \\
 \quad per-claim only & 1 & & \\
-\quad found by neither & 19 & & \\
+\quad found by neither & 39 & & \\
 \bottomrule
 \end{tabular}
-\caption{Claims-matched comparison on 23 clips carrying 54 human flaws. Unlike
+\caption{Claims-matched comparison on 45 clips carrying 96 human flaws. Unlike
 \cref{tab:paired}, the baseline here does not decompose the prompt itself: it is handed the
 plan-based condition's own frozen claim list and verifies exactly those claims, spending no
 decomposition call. A difference that survives this control is attributable to verification and
 orchestration rather than to how each system chose to split the prompt. The gap of
-+10 flaws has a paired $95\%$ interval of $[+4, +16]$ over clip resamples with
++13 flaws has a paired $95\%$ interval of $[+6, +20]$ over clip resamples with
 seed 20260803: graph ahead. The subset is smaller than \cref{tab:paired}'s because
 this cell is a separate run; the denominator shown is what it completed.}
 \label{tab:frozen}
