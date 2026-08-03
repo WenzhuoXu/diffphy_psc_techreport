@@ -109,12 +109,27 @@ def main() -> int:
         ov["flat_only"] += len(f - g)
         ov["neither"] += len(allg - g - f)
 
+    # Recall alone rewards over-flagging, so the allegation volume and the share of
+    # allegations that land must sit next to it. A condition that accuses more gets more
+    # chances at the matcher; without these columns a volume effect reads as an accuracy win.
+    alleg = {}
+    for k in ("graph", "flat"):
+        R = G if k == "graph" else F
+        n_al = sum(len(R[c].get("alleged") or []) for c in both)
+        n_hit = sum(1 for c in both for a in (R[c].get("alleged") or [])
+                    if a.get("matched_flaw"))
+        alleg[k] = dict(alleged=n_al, landed=n_hit,
+                        per_clip=round(n_al / len(both), 2),
+                        precision=round(100.0 * n_hit / n_al, 1) if n_al else 0.0)
+
     for k in ("graph", "flat"):
         R = G if k == "graph" else F
         cps = [calls(R[c]) for c in both]
         lab = "plan-based (graph)" if k == "graph" else "per-claim (flat)"
+        al = alleg[k]                     # NOT `a`: that is the argparse namespace
         print(f"  {lab:22s} caught {tot[k]:3d}/{n_flaws} = {100*tot[k]/n_flaws:4.1f}%   "
-              f"calls/clip {sum(cps)/len(cps):5.1f}")
+              f"calls/clip {sum(cps)/len(cps):5.1f}   "
+              f"allegations/clip {al['per_clip']:4.1f}   landed {al['precision']:4.1f}%")
     print(f"  overlap: both {ov['both']}  graph-only {ov['graph_only']}  "
           f"flat-only {ov['flat_only']}  neither {ov['neither']}")
     print(f"  net difference: {tot['graph'] - tot['flat']:+d} flaws")
@@ -134,6 +149,7 @@ def main() -> int:
     print(f"  verdict: {verdict}")
 
     res = dict(clips=len(both), flaws=n_flaws, caught=tot, overlap=dict(ov),
+               allegations=alleg,
                net=tot["graph"] - tot["flat"], ci=[lo, hi], verdict=verdict,
                calls_per_clip={k: round(sum(calls((G if k == "graph" else F)[c])
                                             for c in both) / len(both), 2)

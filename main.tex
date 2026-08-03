@@ -1472,9 +1472,28 @@ which, absent the control, would produce a recall difference that has nothing to
 orchestration. Clips are drawn in a seeded order fixed before any of their outcomes existed.
 
 The table reports the flaw-by-flaw disagreement, not only the totals, because a net difference
-can hide movement in both directions. Here it does not: of the flaws either condition found,
-six were found by the plan-based critic alone against one for per-claim verification, and the
-$7$ found by both are the easy majority. The paired interval on the difference excludes zero.
+can hide movement in both directions. Here it does not: the flaws found by the plan-based
+critic alone outnumber those found only by per-claim verification by roughly three to one,
+while the flaws both conditions find are the easy majority. The paired interval on the
+difference excludes zero.
+
+Two columns exist to stop a volume effect passing for an accuracy gain. Recall alone rewards
+accusing more, and the plan-based condition does accuse more --- about $5.7$ accusations per
+clip against $4.2$, a third again as many, which buys it more chances at the matching
+protocol. Its accusations also land more often ($33\%$ against $27\%$), so the gain is not
+purely volume, but neither figure is high, and the difference in precision is smaller than the
+difference in recall. A reader should take the recall gain as partly earned by better targeting
+and partly by flagging more.
+
+That the matching protocol is generous is visible on inspection. Reading the flaws the
+plan-based condition found alone, some are unarguable: a prompt demanding a thousand
+mousetraps against a video containing sixty-three, matched by an accusation naming the
+cascade. Others are thin --- a complaint that the objects are meteorites rather than meteors,
+credited to an accusation that the video is an anime; a complaint about rocket staging,
+credited to an accusation about the shot being a slow-motion close-up. Both conditions are
+scored by the same protocol, so this does not bias the comparison, but it does mean the
+absolute rates in this table are upper bounds on how often a finding truly identifies the
+annotator's defect.
 
 \paragraph{What this does and does not establish.} It establishes more flaws found, on this
 subset, at $95\%$ confidence. It does \textbf{not} yet establish the stronger claim that

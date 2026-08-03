@@ -122,24 +122,29 @@ def tab_paired(p: dict | None) -> str:
     g, f = p["caught"]["graph"], p["caught"]["flat"]
     n = p["flaws"]
     cpc = p["calls_per_clip"]
+    al = p["allegations"]
     ov = p["overlap"]
     lo, hi = p["ci"]
     return rf"""
 \begin{{table}}[t]
 \centering\small
 \setlength{{\tabcolsep}}{{6pt}}\renewcommand{{\arraystretch}}{{1.15}}
-\begin{{tabular}}{{@{{}}p{{5.0cm}} c c c@{{}}}}
+\begin{{tabular}}{{@{{}}p{{4.3cm}} c c c c c@{{}}}}
 \toprule
-\textbf{{Condition}} & \textbf{{Flaws found}} & \textbf{{Rate}} & \textbf{{Calls per clip}} \\
+\textbf{{Condition}} & \textbf{{Flaws found}} & \textbf{{Rate}} & \textbf{{Calls}}
+ & \textbf{{Accusations}} & \textbf{{That}} \\
+ & of {n} & & per clip & per clip & \textbf{{landed}} \\
 \midrule
-Plan-based critic & {g}/{n} & {100.0*g/n:.1f}\% & {cpc['graph']:.1f} \\
-Per-claim verification & {f}/{n} & {100.0*f/n:.1f}\% & {cpc['flat']:.1f} \\
+Plan-based critic & {g} & {100.0*g/n:.1f}\% & {cpc['graph']:.1f}
+ & {al['graph']['per_clip']:.1f} & {al['graph']['precision']:.0f}\% \\
+Per-claim verification & {f} & {100.0*f/n:.1f}\% & {cpc['flat']:.1f}
+ & {al['flat']['per_clip']:.1f} & {al['flat']['precision']:.0f}\% \\
 \midrule
-\multicolumn{{4}}{{@{{}}l}}{{\textit{{Where they disagree, flaw by flaw}}}} \\
-\quad found by both & {ov['both']} & & \\
-\quad plan-based only & {ov['graph_only']} & & \\
-\quad per-claim only & {ov['flat_only']} & & \\
-\quad found by neither & {ov['neither']} & & \\
+\multicolumn{{6}}{{@{{}}l}}{{\textit{{Where they disagree, flaw by flaw}}}} \\
+\quad found by both & {ov['both']} & & & & \\
+\quad plan-based only & {ov['graph_only']} & & & & \\
+\quad per-claim only & {ov['flat_only']} & & & & \\
+\quad found by neither & {ov['neither']} & & & & \\
 \bottomrule
 \end{{tabular}}
 \caption{{Paired comparison on the {p['clips']} clips of the frozen evaluation set that both
@@ -152,7 +157,9 @@ $[{lo:+d}, {hi:+d}]$ from {p['bootstrap']:,} clip resamples with seed {p['seed']
 {esc(p['verdict'])}. Both conditions ran against the same served reasoning model
 (Qwen3-VL-30B-A3B-Instruct, BF16) and the same live specialist servers; the counting
 specialist was measured broken during this run (\cref{{sec:contract}}) and its checks are
-recorded as such rather than scored as passes.}}
+recorded as such rather than scored as passes. The last two columns guard against a
+volume effect: recall alone rewards accusing more, so the accusation rate and the share of
+accusations the matching protocol links to a human flaw are reported beside it.}}
 \label{{tab:paired}}
 \end{{table}}
 """
