@@ -141,6 +141,39 @@ def main() -> int:
     for v in check_worklog_voice(txt):
         checks.append((f"work-log voice: {v!r} absent", f"NOT {v}", False))
 
+    # HOLE 1 (found by adversarial probe): every check above asserts a correct value is PRESENT
+    # somewhere in the PDF. That cannot catch a WRONG value being present too -- hand-editing a
+    # generated table to "180" leaves "179" elsewhere, so the presence check still passes. So also
+    # assert the generated table files are byte-identical to what the emitter produces right now:
+    # a hand edit to a generated file is a defect regardless of what the number is.
+    import subprocess as _sp, tempfile as _tf, filecmp as _fc, os as _os
+    gen = ["tab_paired.tex", "tab_frozen.tex", "tab_ablation.tex", "tab_bycat.tex",
+           "tab_robust.tex"]
+    with _tf.TemporaryDirectory() as td:
+        for g in gen:
+            src = HERE.parent / g
+            if src.exists():
+                _sp.run(["cp", str(src), _os.path.join(td, g)], check=False)
+        r = _sp.run([_os.sys.executable if False else "python3",
+                     str(HERE / "emit_tex.py")], capture_output=True, text=True,
+                    cwd=str(HERE.parent))
+        for g in gen:
+            src, saved = HERE.parent / g, _os.path.join(td, g)
+            if src.exists() and _os.path.exists(saved):
+                same = _fc.cmp(str(src), saved, shallow=False)
+                checks.append((f"generated file {g} not hand-edited",
+                               "regenerates identically", same))
+
+    # HOLE 2 (same probe): the retired-figure check looked only at the first 6000 characters, so
+    # reintroducing "68.9" further into the document slipped past. Scan the WHOLE text -- that
+    # figure was produced by a retracted metric on a wrong-video run and must not appear as a
+    # live claim anywhere, only inside the passage that explains why it is retired.
+    for stale in ("68.9", "197 of 286"):
+        n = txt.count(stale)
+        # the superseding subsection legitimately mentions it; more than that is a regression
+        checks.append((f"retired figure {stale!r} appears at most once", f"count<=1 (got {n})",
+                       n <= 1))
+
     bad = [(l, s) for l, s, ok in checks if not ok]
     for label, needle, ok in checks:
         print(f"  {'OK  ' if ok else 'FAIL'} {label:32s} expects {needle!r}")
