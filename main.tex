@@ -1194,10 +1194,24 @@ but its cost is charged once by execution identifier.
 The three statuses are mutually exclusive. A \code{measured} record carries a
 payload and no abstention or error; \code{abstained} carries a reason and no
 payload; \code{errored} carries an infrastructure message. A valid negative
-measurement---for example a measured count of zero or a complete usable track
+measurement---for example a complete usable track
 that does not exhibit the requested motion---remains \code{measured} and may
 contradict a claim. Failure to track because of blur, occlusion, low quality, or
 an instrument refusal is \code{abstained}, not a negative observation.
+
+The boundary between the two is harder to hold than the schema suggests, and the
+counting path shows why. Its contract reduces a per-frame series to a single
+number by taking the mode, so a phrase the segmenter grounds intermittently
+yields a series such as $[4,6,0,6,6,0,0,0,\ldots]$ whose mode is $0$: a
+grounding that failed on most frames is reported as a measured count of zero.
+Probing the arm on a clip containing five steel balls returns exactly that ---
+$0$, from $241$ frames read, alongside its own \code{stable: false} and a range
+of $0$ to $8$. The auxiliary fields are therefore load-bearing rather than
+advisory, and a consumer reading only the scalar receives a confident wrong
+number. We report this as a measured property of the current implementation, not
+as a resolved case: a zero that means \emph{absent} and a zero that means
+\emph{never found} are not distinguishable in the present payload, and
+\cref{sec:limitations} states the consequence for count-derived figures.
 A terminal \code{errored} record is retried and, if still terminal, produces
 no semantic verdict; the clip is marked $\bot_{\mathrm{infra}}$ and excluded
 from the completed evaluation set rather than relabeled \unknownv{}.
@@ -1273,6 +1287,34 @@ implausible clip; plausible is emitted only when every planned claim is
 supported; and a trace with no contradiction but at least one unknown
 abstains. Plausible therefore summarizes the validated claims that were
 executed, rather than certifying every possible physical property of the clip.
+
+\paragraph{Conflict resolution between two verifiers.}
+\label{sec:review}
+A claim the video-aware verifier passes may be re-examined by a stronger
+reviewing model. Earlier the reviewer could only weaken such a pass to
+\unknownv{}; a disagreement therefore left no contradiction, and a defect the
+reviewer had correctly identified was recorded as an absence of evidence.
+The current rule lets the reviewer's verdict stand: where it overrules a pass,
+the claim resolves to \contradicted{} rather than \unknownv{}. Formally, for a
+claim whose sub-checks would roll up to $\mathsf{S}$ under
+\cref{eq:claim-clip-rollup}, the reviewer's state replaces $y_i$; every such
+substitution is recorded with both verdicts, so a row can be reconstructed under
+either rule. The direction is deliberately asymmetric --- the reviewer resolves a
+claim the first verifier passed, and is not invoked to overturn a specialist
+measurement, because a measurement carries evidence a second opinion cannot
+inspect.
+
+\paragraph{Reading on-screen text.}
+Text claims are settled by a recognition engine reading frames directly, rather
+than by asking a generative model what a sign says. The distinction is not
+incidental: a generative reader repairs what it sees, turning a rendered
+\code{Stly your} into the well-formed \code{Style your} that the prompt
+requested, and so conceals exactly the defect the check exists to find. A
+recognition head returns the malformed string, which a deterministic comparison
+then rejects. Coverage matters for the same reason --- a caption present for part
+of a clip can fall between sampled frames --- so the engine reads every frame
+rather than a sampled fraction, and each record carries the frames actually read
+so partial coverage is visible in the row rather than assumed away.
 
 \subsection{Diagnostic interface for future refinement}
 \label{sec:loop}
@@ -1413,6 +1455,87 @@ specialists, and those clips set the wall-clock rather than the typical one.
 The cost-matched comparison in both directions and per-clip GPU-second accounting remain
 unrun, as does every flaw-level external comparison in \cref{tab:external}; the
 rating-level comparison of \cref{sec:vs2} is separate and has been run.
+
+\subsection{A controlled head-to-head on the frozen set}
+\label{sec:paired}
+The comparison in \cref{tab:results} has two defects that no confidence interval repairs. Its
+denominator is not the frozen set, and the plan-based side spent \emph{more} calls per clip
+than the baseline it beat, so the question of whether planning wins at equal cost was never
+put. \Cref{tab:paired} is a fresh run built to put exactly that question.
+
+Three controls make it a paired experiment rather than two separate results. Both conditions
+run against the same live specialists and the same reasoning model in the same configuration.
+Both are scored by the same matching protocol against the same human labels. And both read the
+\emph{same frozen claim decomposition}: each prompt is decomposed once, written to disk, and
+read by both conditions, so neither can be handed an easier set of claims than the other ---
+which, absent the control, would produce a recall difference that has nothing to do with
+orchestration. Clips are drawn in a seeded order fixed before any of their outcomes existed.
+
+The table reports the flaw-by-flaw disagreement, not only the totals, because a net difference
+can hide movement in both directions. Here it does not: of the flaws either condition found,
+six were found by the plan-based critic alone against one for per-claim verification, and the
+$7$ found by both are the easy majority. The paired interval on the difference excludes zero.
+
+\paragraph{What this does and does not establish.} It establishes more flaws found, on this
+subset, at $95\%$ confidence. It does \textbf{not} yet establish the stronger claim that
+planning wins at equal or lower cost: the plan-based condition spends about one more call per
+clip, the same imbalance that undermines \cref{tab:results}. Establishing that claim needs
+either a hard call budget applied to both conditions or a sweep across several budgets, and
+neither has been run. We also report calls rather than accelerator seconds; calls are not
+computationally interchangeable, and a per-call cost accounting remains unrun. The subset is
+smaller than the frozen set because the plan-based condition costs about ten times as much
+wall time per clip as the baseline, so the denominator in the caption is what was actually
+completed, and the two conditions' non-overlapping clips are excluded rather than scored as
+misses.
+
+\input{tab_paired}
+
+\subsection{The current critic, measured by category and by difficulty}
+\label{sec:bycat}
+A single recall figure hides which defects a critic can reach. The two tables in this
+subsection break the current framework's coverage apart along the annotators' own labels and
+along four properties of the clip. Both are computed from one row per (clip, human flaw),
+re-derived from the run's published record by a parser that reproduces every figure that
+record states --- its totals, its whole-versus-partial split, and each of its ten category
+rows --- before any table is built from it.
+
+Two provenance facts belong with these numbers rather than in a footnote. First, they describe
+the framework's own run and carry no comparison against an alternative, so they measure
+\emph{coverage}, not the value of any mechanism. Second, that run covers $149$ of the $150$
+clips in the frozen set: the absent clip is \code{fec3507b}, a $10.0$\,s item in the hard
+stratum with a clip-level severity of $5$ and two \emph{action} flaws, so $306-2=304$ is
+fully accounted for. Because the omission is a hard, high-severity clip, the rate below is
+very slightly optimistic with respect to the frozen set.
+
+\Cref{tab:bycat} gives the breakdown by category. The spread is wide --- on-screen text at
+$84\%$ and camera or style at $90\%$ against counting at $49\%$ --- and the ordering is
+informative: the categories a specialist can settle with a direct measurement do well, while
+counting, the one category whose measurement path we independently show to be unreliable
+(\cref{sec:contract}), is the worst. Counting is also the category where partial credit is
+most common: $8$ of its $18$ found flaws are covered only in part.
+
+\paragraph{How often the reviewer's verdict is what carries a flaw.} Of the flaws that run
+found, $83$ were credited to a finding whose record carries a reviewer override
+(\cref{sec:review}): $67$ covering a whole defect and $16$ an aspect, across $70$ clips. That
+figure is \emph{provenance}, not attribution --- it counts flaws whose finding passed through
+the reviewer, not flaws that would have been missed without it, and many of the $83$ would
+have been reached by another check. The two quantities differ by roughly a factor of two on
+this run, and separating them properly needs a controlled ablation that re-runs the pipeline
+with the rule disabled rather than an arithmetic subtraction: removing a credited finding from
+a completed record assumes that nothing else would have recovered the same flaw, which is
+precisely what a re-run would test. That ablation is not run here.
+
+\Cref{tab:robust} asks whether recall depends on properties of the clip rather than on the
+kind of defect. It does not, to the resolution available here: severity bands run $79$, $73$,
+$79$ and $64$ percent, clip-duration bands $79$, $63$ and $76$, defect-density bands $78$,
+$71$, $77$ and $75$, and the hard stratum $72\%$ against $76\%$ for the rest. Every departure
+from the overall $75\%$ is of the order of the scorer's own measured variation, so the honest
+reading is that no strong dependence is detectable, not that a trend has been measured. The
+severity-$5$ band is the one worth naming --- $18$ of $28$ --- but it rests on ten missed
+flaws and we do not claim a trend from it.
+
+\input{tab_bycat}
+\input{tab_robust}
 
 \subsection{What a caught flaw looks like}
 \label{sec:cases}
