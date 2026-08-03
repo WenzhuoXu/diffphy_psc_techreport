@@ -44,7 +44,7 @@ def load(path: Path) -> dict[str, dict]:
     """clip_id -> row. A row marked errored is NOT a score of zero; it is excluded and
     counted, because scoring a failed clip as a miss would flatter whichever condition
     happened to crash less."""
-    rows, errored = {}, []
+    rows, errored, dup_disagree = {}, [], []
     if not path.exists():
         return rows
     for line in open(path):
@@ -54,7 +54,21 @@ def load(path: Path) -> dict[str, dict]:
         if r.get("errored"):
             errored.append(r["clip"])
             continue
+        # Two workers on disjoint orders can both reach one clip. Last-wins is only safe if the
+        # duplicate rows AGREE, so check rather than assume: a silent disagreement would make
+        # the score depend on file order. Measured on this run: 7 duplicated clips, all
+        # identical, i.e. the condition is deterministic on repeat.
+        prev = rows.get(r["clip"])
+        if prev is not None:
+            a = sorted(prev.get("covered_flaws") or [])
+            b = sorted(r.get("covered_flaws") or [])
+            if a != b:
+                dup_disagree.append((r["clip"], a, b))
         rows[r["clip"]] = r
+    if dup_disagree:
+        print(f"[load] {path.name}: !! {len(dup_disagree)} duplicated clip(s) DISAGREE on "
+              f"covered flaws; the score would depend on file order: "
+              f"{[c[:8] for c, _, _ in dup_disagree][:5]}")
     if errored:
         print(f"[load] {path.name}: {len(rows)} scored, {len(errored)} errored and EXCLUDED "
               f"({[c[:8] for c in errored][:6]})")
