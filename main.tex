@@ -1595,9 +1595,14 @@ moves, because the plan still issues the same requests and each one simply absta
 measuring. The paired interval touches zero, so on this subset the specialists demonstrably change
 verdicts without their contribution being separable from noise at this denominator.
 
-The two rows together say something the single recall figure of \cref{tab:paired} cannot: the
-mechanisms are not interchangeable. One buys cost and no accuracy; the other buys accuracy and no
-cost. A reader deciding what to keep should read them separately.
+Taken together the rows say something the single recall figure of \cref{tab:paired} cannot: the
+three mechanisms are not interchangeable, and they do not even trade in the same currency. Call
+sharing buys cost and no accuracy. Specialist routing and the composition roll-up both buy accuracy
+at no cost in calls --- but not in equal measure, and the gap between them is not an artifact of how
+the rows were run: per-clip cost is comparable across all three, so the difference in effect size is
+a property of the mechanisms. Composition accounts for more than twice the recall that routing does
+and is the only mechanism whose interval clears zero on this subset. A reader deciding what to keep
+should read the rows separately rather than treating ``orchestration'' as one thing.
 
 The validity check for this row cannot rest on the counts a row records directly. The count of typed
 measurements a clip records is what the \emph{planner} wrote, not what a tool executed, and the
