@@ -1509,52 +1509,59 @@ generalist fallbacks.
 
 \subsection{Flaw recall on the evaluation core}
 \label{sec:headline}
-On the evaluation core, \PhyReAct{} localizes \textbf{228 of 304 human-annotated flaws
-($75.0\%$)} across $149$ clips. Of those, $191$ are covered whole --- one finding accounts for the
-annotator's complaint --- and $37$ are covered in part, meaning our findings address an aspect of
-the defect without any single one being the whole of it. Seventy-six are missed. Ninety-one of the
-$149$ clips have every annotated flaw found.
+Across the $149$ clips of the evaluation core, which carry $304$ human-annotated flaws,
+\PhyReAct{} finds \textbf{228 of them ($75.0\%$)}. A flaw counts as found when one of our
+findings and the annotator's sentence are judged to describe the same defect, a comparison
+made on meaning rather than on shared words (\cref{sec:bench-spec}). Of the $228$, $191$ are
+covered by a single finding that accounts for the whole complaint; the remaining $37$ are
+addressed only in part, where our findings speak to an aspect of the defect but no one of
+them is the defect itself. On $91$ of the $149$ clips, every annotated flaw is found.
 
-Each flaw is judged caught, partial or missed by a same-defect comparison between our finding and
-the annotator's sentence, never by word overlap; \cref{sec:bench-spec} gives the convention and
-\cref{tab:headline} the breakdown by the annotators' own categories.
+Two mechanisms carry a large share of this. The first is the fallback verifier, gpt-5.6-sol,
+which re-examines claims the dense semantic pass has passed. Where it disagrees, its verdict
+resolves the claim as a contradiction instead of being discarded for want of evidence, and
+$83$ of the $228$ found flaws are credited to a finding whose record carries such an
+override. The second is how on-screen text is read. A generative model asked what a sign says
+tends to repair what it sees, reporting the phrase the prompt requested rather than the
+garbled string the video rendered; a recognition engine reading every frame returns the
+malformed glyphs instead, and the comparison then fails as it should.
 
 \input{tab_headline}
 
-Two mechanisms account for much of this coverage. The fallback verifier is
-gpt-5.6-sol: when it overrules a pass by the served model, that verdict stands as a
-contradiction rather than being discarded as \unknownv{}, and $83$ of the $228$ found flaws are
-credited to a finding whose record carries such an override. On-screen text is read from every frame
-by a recognition engine rather than a sampled fraction, because a generative reader repairs what it
-sees --- turning a rendered \code{Stly your} into the well-formed string the prompt asked for --- and
-so conceals the defect the check exists to find.
+\Cref{tab:headline} breaks the $228$ down by the annotators' own categories, and the range is
+wide. Camera and style ($90\%$) and on-screen text ($84\%$) sit at the top: both are settled
+by a direct measurement against an explicit target. Counting is the weakest at $49\%$, and
+\cref{sec:contract} shows why --- the counting path reduces a per-frame series to its mode, so
+a subject the segmenter finds intermittently is reported as absent. Physical motion is low for
+an unrelated reason. At $57\%$ it is also among the smallest categories, with seven flaws, and the ones the annotators file
+under it are mostly deformations --- cloth that folds wrongly, a body that bends where it
+should not --- which the trajectory measurements were never built to reach.
 
-The spread across categories is wide and informative. On-screen text ($84\%$) and camera or style
-($90\%$) are settled by direct measurement and do well. Counting ($49\%$) is the weakest, and it is
-the one category whose measurement path we independently show to be unreliable
-(\cref{sec:contract}). Physical motion ($57\%$) is weak for a different reason: the flaws the
-annotators file under it are largely deformations rather than trajectories, which the trackable
-measurements do not reach.
-
-Because this core was used during development, these figures characterize the current system rather
-than held-out generalization.
+These figures describe the system as it stands on the core it was developed against, not its
+behaviour on unseen data.
 
 \subsection{Recall against clip properties}
 \label{sec:bycat}
-\Cref{tab:robust} reports recall against annotator severity, clip duration, the number of flaws in
-the clip, and the hard stratum, on the same record as \cref{tab:headline}.
+Category tells us what kind of defect the critic reaches. A separate question is whether it
+does worse on harder clips --- longer ones, clips carrying many flaws, clips the annotators
+marked severe. \Cref{tab:robust} groups the same $304$ flaws four ways to answer it.
 
 \input{tab_robust}
 
-No band departs from the overall rate by more than about ten points, and every departure is of the
-order of the scorer's own measured variation. The severity-$5$ band is the lowest at $18$ of $28$,
-on ten missed flaws.
+Recall is close to flat across all four. No band sits more than about ten points from the
+overall rate, and each departure is of the order of the variation the scorer shows when
+re-scoring unchanged text. The lowest band is severity~$5$ at $18$ of $28$, which is
+suggestive but rests on ten missed flaws --- too few to separate from noise. On the evidence
+here, difficulty as the annotators marked it does not predict whether the critic finds the
+defect.
 
-\subsection{Six measured catches in full}
+\subsection{Six catches, opened up}
 \label{sec:cases}
-\Cref{fig:criticcases} opens six catches in full: the clip, the annotator's sentence, the
-measurement a specialist returned, and the resulting verdict. In all six the accusation came from a
-specialist measurement, so each panel shows the number on which the flaw was reported.
+A recall figure says how many flaws were found. It says nothing about what a single catch is
+made of. \Cref{fig:criticcases} shows six of them end to end: the clip, the annotator's
+sentence, the measurement a specialist returned, and the verdict that measurement forced. In
+each case the accusation rests on a number rather than on a yes-or-no judgement, so the panel
+shows the number the flaw was reported on.
 
 \begin{figure}[tp]
   \centering
@@ -1571,10 +1578,9 @@ specialist measurement, so each panel shows the number on which the flaw was rep
   \label{fig:criticcases}
 \end{figure}
 
-\paragraph{Case selection.} These come from an earlier
-physics-routing run over clips of the evaluation core, not from the run behind
-\cref{tab:headline}; they are shown for their measurement traces and carry no recall
-figure of their own. Selection was mechanical rather than by eye. Beginning from the
+\paragraph{Case selection.} These six come from an earlier physics-routing pass over clips
+of the core rather than from the run of \cref{tab:headline}, and they carry no recall figure of
+their own; they are here for their measurement traces. The selection rule was fixed in advance. Beginning from the
 clips whose every human flaw the matching protocol had linked, a case was kept only if
 the raw per-check record showed a specialist, with its numbers, as the source of the
 accusation for \emph{that} flaw. Ten candidates failed and were dropped: in two the
