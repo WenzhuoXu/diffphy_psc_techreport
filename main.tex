@@ -1515,12 +1515,34 @@ backends are those in \cref{tab:arms}.
 \paragraph{Target and ground truth.} The evaluation core of \cref{sec:dataset}, scored
 under the conventions of \cref{sec:bench-spec}. Human labels are the only ground truth.
 
-\paragraph{Matching is outside the critic.} To decide whether a critic output
-corresponds to a human-flagged flaw, a separate protocol uses two judge models (a
-GPT-family and a Gemini-family model, majority over runs). These judges perform
-\emph{flaw matching only}; they are not components of the critic, do not produce
-its verdict, and are not treated as ground truth. Any ``majority-of-three'' in
-this project refers to such a model-vote protocol, never to human annotators.
+\subsection{How a finding is matched to a human flaw}\label{sec:matching}
+Deciding whether a critic output corresponds to a human-flagged flaw is a separate protocol,
+run after the critic has finished and never able to influence it. The unit of comparison is a
+pair of sentences: what the annotator wrote about the clip, and what the critic says the video
+showed instead. It is never the prompt fragment against the critic's restatement of it --- those
+are two assertions of the same requirement, and comparing them measures agreement about the
+prompt rather than about the video.
+
+Each pair is judged twice, on meaning and never on shared words. The first question is strict:
+do these two statements point at the same defect? Different wording, a different name for the
+same object, and a measured quantity in place of a description all still count as the same
+defect, while two different problems with the same object do not. The second question is asked
+only where the first says no: does the critic's finding identify \emph{part} of what the
+annotator describes? An annotator writes one sentence that can span several aspects, whereas the
+critic reports one specific thing at a time, so a finding can account for half a compound
+complaint. Without the second question that case scores as nothing found.
+
+Surviving pairs are then assigned optimally, one finding per flaw, rather than by taking the
+first acceptable match. Taking the first loses flaws: if one flaw can be matched by either of
+two findings and a second flaw only by one of them, spending that finding on the first leaves
+the second unmatched. Each flaw ends as \emph{whole}, \emph{partial}, or \emph{missed}, and the
+three are reported separately --- partial is never folded into whole. Judging is done by the
+same served model used elsewhere in the system, at temperature zero, one pair per call; a call
+that fails to return a parsable answer is retried and then recorded as a matching error, never
+as a non-match, since silently reading an error as ``no match'' would understate recall.
+
+The judge performs \emph{flaw matching only}. It is not a component of the critic, does not
+produce its verdict, and is not treated as ground truth; the human labels are.
 
 \paragraph{Dense-frame requirement.} The critic must observe the video densely.
 The evaluated components extract frames densely under a logged sampling policy,
@@ -1554,7 +1576,7 @@ generalist fallbacks.
 Across the $149$ clips of the evaluation core, which carry $304$ human-annotated flaws,
 \PhyReAct{} finds \textbf{228 of them ($75.0\%$)}. A flaw counts as found when one of our
 findings and the annotator's sentence are judged to describe the same defect, a comparison
-made on meaning rather than on shared words (\cref{sec:bench-spec}). Of the $228$, $191$ are
+made on meaning rather than on shared words (\cref{sec:matching}). Of the $228$, $191$ are
 covered by a single finding that accounts for the whole complaint; the remaining $37$ are
 addressed only in part, where our findings speak to an aspect of the defect but no one of
 them is the defect itself. On $91$ of the $149$ clips, every annotated flaw is found.
@@ -1749,28 +1771,57 @@ that sample rather than across the benchmark. And the two judges are not cost-ma
 the critic runs a decomposition and a set of tool calls per clip, VideoScore2 a single
 forward pass, so nothing here speaks to efficiency.
 
-\subsection{The intended flaw-level comparison}
-The rating comparison above leaves the flaw-level question open, and \cref{tab:external} sets
-out how we intend to settle it, with the protocol fixed before any of the numbers exist.
+\subsection{Comparison against published evaluators}
+The rating comparison settles agreement on a clip-level score. The flaw-level question --- how
+many of the same $304$ localized defects a published evaluator finds --- needs a different
+protocol, and \cref{tab:external} states it.
 
-The candidates do not all admit the same treatment, and that is the reason this table is not
-yet filled in. Two of them emit an answer per question, which is enough to localize: a failed
-question maps back to the claim that produced it, and our matching protocol can then ask
-whether that claim and an annotator's sentence describe the same defect. Those two will be run
-on the same frozen set, against the same labels, with the same matcher, and given the same
-claim decomposition. The other two emit one number for the whole clip. A score of $0.42$
-identifies no defect and points at no moment, so there is nothing for the matcher to compare;
-turning it into an allegation would require a threshold of our choosing, and the resulting
-recall would measure that choice as much as the system. We leave those rows unscored and
-compare against a learned scalar judge on the axis where the comparison is sound, which is the
+The candidates split into two kinds, and only one kind can be scored this way. Question
+decomposition and modular video question answering both emit an answer per question. That is
+enough to localize a complaint: a failed question maps back to the claim that produced it, and
+the protocol of \cref{sec:matching} can then ask whether that claim and an annotator's sentence
+describe the same defect. Each is scored on the same $149$ clips, against the same labels, with
+the same two-tier judge, and given the same claim decomposition, so a difference in recall cannot
+come from one side being handed a different set of things to check. A row still showing dashes
+has not been run under that protocol.
+
+Question decomposition finds \textbf{164 of the $304$ flaws ($53.9\%$)}: $125$ whole and $39$ in
+part. The comparison is close to controlled: the same served model answers the questions, the same
+clips are read densely, and on $148$ of the $149$ clips both sides work from an identical list of
+claims. The exception is one clip whose questions were generated afresh from its prompt. What
+differs is how a claim is interrogated --- one closed question per claim, answered by looking,
+against a plan that decides what to check and how, and that may check a claim from more than one
+angle.
+
+The shortfall is not a matter of accuracy. Per accusation the baseline is marginally the better of
+the two, linking $0.29$ of its accusations to a human flaw against our $0.26$. It simply accuses
+far less often --- $557$ times against our $871$ --- and answers ``yes, that is fine'' to two
+thirds of the questions it asks. The reason is visible in the questions themselves: roughly a
+third are static existence checks, of the form \emph{is there a vending machine}, which a single
+frame answers and which the generator usually satisfies, because scenery is the part of a prompt
+that diffusion models render reliably. On $12$ clips it accused nothing at all. Clip-level, it
+loses to the critic on $70$ clips, ties on $63$, and wins on $16$.
+
+Alignment scoring and learned quality scoring emit one number for the whole clip. A score of
+$0.42$ identifies no defect and points at no moment, so the matcher has nothing to compare it
+against; converting it into a localized allegation would require a threshold of our choosing,
+and the resulting recall would measure that threshold as much as the system. Those rows stay
+unscored, and the comparison against a learned scalar judge is made where it is sound --- the
 clip-level rating of \cref{tab:vs2}.
 
 \input{tab_external}
 
-The set was inspected and used during optimization, the wording-controlled per-claim
-baseline was introduced after treatment outputs had been observed, and no retroactive
-held-out split exists within these 150 clips; a claim of generalization therefore
-requires evaluation on a new frozen set.
+\subsection{What these numbers do and do not establish}
+Two boundaries apply to everything above. The first is that this evaluation core was inspected
+during development: the wording-controlled per-claim baseline was written after treatment
+outputs had been seen, and no held-out split exists inside these $150$ clips. The recall figures
+therefore describe performance on a set the system was tuned against, and a claim of
+generalization requires a new frozen set.
+
+The second is the denominator. Every figure in this section is measured against what human
+annotators wrote down, so a defect nobody flagged cannot be scored either way. Recall here means
+agreement with a human reader on the defects that reader named, not detection of everything
+wrong with a clip.
 
 % =====================================================================
 \section{Framework: Learning as State Optimization}\label{sec:framework}

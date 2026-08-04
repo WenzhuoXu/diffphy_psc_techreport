@@ -311,6 +311,16 @@ def tab_external(cost: dict | None) -> str:
     """
     c = cost or {}
     ours = f"{c.get('calls_mean', '---')}" if c else "---"
+
+    # The question-decomposition row is filled from the run's own scored output, never typed in.
+    # score_qdecomp.py writes row_qdecomp.tex ONLY when the run covered the full core, so an
+    # unfinished run leaves dashes here rather than a recall computed on fewer clips.
+    qd_row = (r"\quad Question decomposition~\cite{tifa2023,dsg2024} & per-question answers "
+              r"& --- & --- & --- \\")
+    _qd = Path("~/diffphy_psc/artifacts/runs/exp034/row_qdecomp.tex").expanduser()
+    if _qd.exists():
+        qd_row = _qd.read_text().strip()
+
     return rf"""
 \begin{{table}}[t]
 \centering\small
@@ -322,8 +332,8 @@ def tab_external(cost: dict | None) -> str:
 \midrule
 This work & localized allegation & \textbf{{228}} & \textbf{{75.0\%}} & {ours} \\
 \addlinespace
-\multicolumn{{5}}{{@{{}}l}}{{\textit{{Comparable on localized recall --- to be run}}}} \\
-\quad Question decomposition~\cite{{tifa2023,dsg2024}} & per-question answers & --- & --- & --- \\
+\multicolumn{{5}}{{@{{}}l}}{{\textit{{Comparable on localized recall}}}} \\
+{qd_row}
 \quad Modular video QA~\cite{{proviq2023,morevqa2024}} & per-question answers & --- & --- & --- \\
 \addlinespace
 \multicolumn{{5}}{{@{{}}l}}{{\textit{{Not localizable: no allegation to match}}}} \\
@@ -331,16 +341,17 @@ This work & localized allegation & \textbf{{228}} & \textbf{{75.0\%}} & {ours} \
 \quad Learned quality scoring~\cite{{videoscore2024,videoscore2_2025}} & clip-level scalar & n/a & n/a & n/a \\
 \bottomrule
 \end{{tabular}}
-\caption{{External comparison on localized flaw recall, with the scoring rule fixed before the
-baselines are run. Our own row is measured: {c.get('clips', 149)} clips, and the cost is the mean
-of the run's own per-clip records, counting planning, execution and fallback calls but not the
-matching protocol, which is the scorer rather than the critic. The two systems in the first group
-emit per-question answers, so a failed question maps to the claim that produced it and the same
-same-defect matcher applies; those rows are unrun and marked so. The two in the second group emit
-one scalar per clip, which carries no allegation to match against an annotator's sentence; rather
-than convert a score into an allegation with a threshold of our choosing, we do not score them
-here and compare against a learned scalar judge on the clip-level rating axis instead
-(\cref{{tab:vs2}}).}}
+\caption{{External comparison on localized flaw recall, over the same {c.get('clips', 149)} clips
+and the same $304$ flaws, judged by the same two-tier protocol of \cref{{sec:matching}}. Cost is the
+mean of each run's own per-clip records and excludes the matching protocol, which is the scorer
+rather than the evaluator. The systems in the first group emit per-question answers, so a failed
+question maps to the claim that produced it and a localized comparison is possible; each is given
+the same claim decomposition our own run used, so a recall difference cannot come from one side
+being handed a different set of things to check. A row still showing dashes has not been run. The
+second group emits one scalar per clip, which carries no allegation to match against an annotator's
+sentence; rather than convert a score into an allegation with a threshold of our choosing, we do
+not score them here and compare against a learned scalar judge on the clip-level rating axis
+instead (\cref{{tab:vs2}}).}}
 \label{{tab:external}}
 \end{{table}}
 """

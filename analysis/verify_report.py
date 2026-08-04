@@ -89,6 +89,21 @@ def main() -> int:
     # -- which is the property that removing the third figure bought.
     # fec3507b was an exclusion of the removed paired run, not of the headline record.
     want("published: robustness base rate", "75")
+
+    # The question-decomposition baseline row, from the two-tier scorer's own output. Checked here
+    # because the row is generated but the SENTENCES around it are typed, and a reader compares the
+    # two. If this fails, either the run was rescored or the prose drifted from it.
+    QD = Path("~/diffphy_psc/artifacts/runs/exp034/coverage_qdecomp.json").expanduser()
+    if QD.exists():
+        q = json.loads(QD.read_text())["qdecomp"]
+        # Anchor to the SURROUNDING PHRASE, never a bare number. A 45-page document contains
+        # page numbers and citation keys, so "171" was already present three times and a bare
+        # "171" check passed even after the scored value was tampered with -- a check that cannot
+        # fail. The phrase makes the assertion specific to this claim.
+        want("baseline: found of 304",
+             f"{q['caught_or_partial']} of the 304 flaws")
+        want("baseline: whole and partial",
+             f"{q['caught']} whole and {q['partial_only']} in part")
     # The headline: 228 of 304, regenerated from the framework record's own rows.
     want("headline flaws found", "228")
     want("headline denominator", "304")
@@ -103,8 +118,11 @@ def main() -> int:
     # assert the generated table files are byte-identical to what the emitter produces right now:
     # a hand edit to a generated file is a defect regardless of what the number is.
     import subprocess as _sp, tempfile as _tf, filecmp as _fc, os as _os
+    # tab_external and tab_headline are generated too, and tab_external is the one whose
+    # baseline row gets FILLED from a run's scored output -- exactly the file where a
+    # hand-typed number would be least visible. Omitting them left the check blind there.
     gen = ["tab_paired.tex", "tab_frozen.tex", "tab_ablation.tex", "tab_bycat.tex",
-           "tab_robust.tex"]
+           "tab_robust.tex", "tab_external.tex", "tab_headline.tex"]
     with _tf.TemporaryDirectory() as td:
         for g in gen:
             src = HERE.parent / g

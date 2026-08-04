@@ -16,3 +16,7 @@ guardrails.md
 figs/*.png
 figs/visual_review*
 figs/methods_prose_patch.md
+__pycache__/
+# emit_tex.py also writes a combined results_tables.tex; main.tex \inputs the individual
+# tab_*.tex files instead, so it is an unused byproduct and is not published.
+results_tables.tex
