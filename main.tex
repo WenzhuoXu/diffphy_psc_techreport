@@ -601,11 +601,10 @@ thresholds were fixed before scoring.
 \end{figure}
 
 \paragraph{Result: the flight survives an early release; the ground contact does
-not.} \Cref{fig:injstep} shows the measurement. Two scenes were repeated over
-$16$ seeds each at one release point, $\sigma = 0.952$, in two variants (with and
-without a reset of the sampler's internal history at the release), against the
-never-released baseline: $96$ clips in total, $16$ per cell. \Cref{fig:injstep} shows that
-comparison. Releasing the control
+not.} Two scenes were repeated over $16$ seeds each at one release point,
+$\sigma = 0.952$, in two variants (with and without a reset of the sampler's
+internal history at the release), against the never-released baseline: $96$ clips
+in total, $16$ per cell (\cref{fig:injstep}). Releasing the control
 at $\sigma = 0.952$ leaves the airborne flight of the thrown ball essentially
 untouched --- per-seed horizontal agreement drops by $0.003$ relative to never
 releasing ($95\%$ confidence interval $0.001$ to $0.004$, $n=16$ paired seeds),
@@ -1447,18 +1446,15 @@ executed, rather than certifying every possible physical property of the clip.
 \paragraph{Conflict resolution between two verifiers.}
 \label{sec:review}
 A claim the video-aware verifier passes may be re-examined by a stronger
-reviewing model. A weaker rule lets the reviewer only downgrade such a pass to
-\unknownv{}; a disagreement therefore left no contradiction, and a defect the
-reviewer had correctly identified was recorded as an absence of evidence.
-The current rule lets the reviewer's verdict stand: where it overrules a pass,
-the claim resolves to \contradicted{} rather than \unknownv{}. Formally, for a
-claim whose sub-checks would roll up to $\mathsf{S}$ under
-\cref{eq:claim-clip-rollup}, the reviewer's state replaces $y_i$; every such
-substitution is recorded with both verdicts, so a row can be reconstructed under
-either rule. The direction is deliberately asymmetric --- the reviewer resolves a
-claim the first verifier passed, and is not invoked to overturn a specialist
-measurement, because a measurement carries evidence a second opinion cannot
-inspect.
+reviewing model, and that model's verdict stands: where it overrules a pass, the
+claim resolves to \contradicted{} rather than to \unknownv{}. Formally, for a claim
+whose sub-checks would roll up to $\mathsf{S}$ under \cref{eq:claim-clip-rollup},
+the reviewer's state replaces $y_i$. Both verdicts are kept in the record, so a row
+can be re-scored on the first verifier's alone.
+
+The direction is asymmetric by design. The reviewer examines only claims the first
+verifier passed, and never a specialist measurement, because a measurement carries
+evidence that a second opinion has no way to inspect.
 
 \paragraph{Reading on-screen text.}
 Text claims are settled by a recognition engine reading frames directly, rather
@@ -1686,23 +1682,24 @@ tracked frames. Persistence required the dolphin to vanish and found it on $121$
 frames, with no gap of three frames or more. Neither is a stronger claim than the other;
 they fail the same assertion through different evidence.
 
-\paragraph{Rate of measurement refusal.} Across that run $175$
-checks were answered by a specialist, of which $114$ returned \unknownv{} and $57$
-contradicted the prompt. Refusal is the common outcome and is the intended one, and the
-reasons are recorded rather than inferred. Nineteen noun phrases were never grounded on
-any frame read. A semantic guard on the segmenter --- shown one frame with the boxes
-drawn on it and asked only whether the boxed regions are the thing the phrase named ---
-rejected $17$ groundings; on the fighter-jet clip it discarded the boxes returned for
-``the seagulls'' because they showed the jets, and a separate check on the same clip
-recorded that ``the tourists'' was grounded on none of the $81$ frames read. Each of
-those becomes an \unknownv{} rather than a conviction, which is why a failed grounding
-does not arrive as a violation.
+\paragraph{Most specialist calls end in abstention.} Physical specialists were called on $227$
+checks in the evaluated run. They abstained on $166$ and contradicted the prompt on $61$, so
+abstention is the ordinary outcome rather than the exception, and each one carries the reason it
+occurred.
 
-The text read in that case covered $25$
-of that clip's $241$ frames at a stride of ten, and the record states so. A stable wrong
-transcript across that sample is strong evidence about the banner, but it is not a full
-read of the clip, and the same operation on a caption that appears only briefly could
-miss it.
+The usual reason is that the subject was never grounded: nothing the segmenter returned for the
+noun phrase survived, leaving no track to measure over. Groundings are screened by a semantic
+guard, shown one frame with the candidate boxes drawn on it and asked only whether those regions
+are the thing the phrase named. On a clip requesting seagulls scattering in the wake of fighter
+jets, the boxes offered for ``the seagulls'' contained the jets, and the guard discarded them.
+The check then yields \unknownv{}, which is why a failure to find the subject cannot arrive as a
+violation by the subject.
+
+Partial coverage is disclosed the same way. In the banner case the recognition head read $25$
+of that clip's $241$ frames, at a stride of ten, and the record states both figures. A wrong
+transcript that is stable across those $25$ frames is strong evidence about a banner present
+throughout the clip, but it is not a full read, and a caption appearing only briefly could fall
+between the frames sampled.
 
 \subsection{Agreement with human ratings}
 \label{sec:vs2}
@@ -2231,8 +2228,9 @@ dashed arrows are the roadmap of \Cref{sec:roadmap}.}
 The framework of \Cref{sec:framework} defines one learned object, the state
 $S=(\Pi,M,K)$, and three maps over it: a read operator (built) and two write
 channels (roadmap). We phase the work accordingly. Phase~0 is the read path and
-the two frozen endpoints already instantiated in this paper; Phase~1
-consolidates the real experiment onto an honest protocol; Phases~2--6 exercise
+the two frozen endpoints already instantiated in this paper; Phase~1 moves the
+evaluation onto a held-out split scored for precision as well as recall;
+Phases~2--6 exercise
 the write paths, each with a measurable success metric and each a strict
 superset of what precedes it. No number below the Phase~0 line is a result;
 Phases~1+ state \emph{targets and protocols}, not outcomes.
@@ -2371,7 +2369,7 @@ Phases~1+ state \emph{targets and protocols}, not outcomes.
     elitism-borderline updates for human attention.
 \end{itemize}
 
-\noindent\emph{Ordering rationale.} Phase~1 makes the real result honest;
+\noindent\emph{Ordering rationale.} Phase~1 secures the evaluation;
 Phases~2--3 grow the two components of $S$ that the inward channel writes ($\Pi$,
 $M$); Phase~4 exercises the outward channel; Phase~5 opens $K$; Phase~6 wraps
 everything in human oversight. Each phase reuses the Phase~0 read path unchanged,
@@ -2645,12 +2643,16 @@ three-valued verdict (\supported{}/\contradicted{}/\unknownv{}, surfaced as
 \emph{plausible}, \emph{implausible}, or \abstain{}) with a human-traceable
 evidence chain.
 
-Our central empirical result is narrow and stated as such: against human labels,
-on a development core, plan-grounded execution recalls more of the localized
-defects than per-claim verification does, at a modestly higher operator-call
-cost. This core is recall-only, singly annotated, and not held out---the system
-was developed on it---so an equal-cost control and a held-out evaluation both
-remain to be run before the comparison can be trusted beyond this setting.
+On a development core of $149$ clips carrying $304$ human-marked defects,
+\PhyReAct{} accounts for $228$. A published question-decomposition evaluator,
+reading the same clips and checking the same claims with the same served model,
+accounts for $164$. The difference is not accuracy --- judged per accusation, the
+simpler evaluator is marginally the more reliable of the two --- but what each one
+thinks to ask. A third of its questions ask whether some object is present, which a
+single frame settles and a generator rarely gets wrong, so much of its budget goes on
+confirming what was never in doubt. The core is
+recall-only, singly annotated, and not held out---the system was developed on
+it---so both a held-out evaluation and a precision measurement remain to be run.
 
 The trajectory the framing implies is clear even where the experiments are not
 yet done. The traceable evidence \PhyReAct{} already emits is the raw material for
