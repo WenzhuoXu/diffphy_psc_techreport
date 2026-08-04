@@ -55,11 +55,32 @@ WORKLOG_VOCAB = [
 # describing the method is correct English and must NOT be flagged; the crude pattern did flag it.
 WORKLOG_REGEX = [r"\b[0-9a-f]{8}\b[^.]{0,30}\bagain\b"]
 
+# SELF-REFERENTIAL VOICE: sentences whose subject is the document's own apparatus -- a table, a
+# section, "the comparison", "the shortfall" -- instead of a video, a flaw, or an evaluator. The
+# owner caught "The rating comparison settles agreement... and table 9 states it" by eye and it
+# had already been pushed; eleven instances were then found in one subsection. The reader wants to
+# know what the systems did, not what the paper is about to do, so this is a gate and not a habit.
+SELFREF_REGEX = [
+    r"[Tt]able~?\\?\d* ?(states|says|sets out|gives)",
+    r"\\cref\{tab:[^}]*\} (states|says|sets out|gives|fixes)",
+    r"[Tt]his (section|subsection|table) (states|shows|gives|reports|settles)",
+    r"[Tt]he (comparison|rating comparison|scoring rule) (settles|leaves|applies)",
+    r"[Aa] row (still )?showing",
+    r"scored this way|under that protocol",
+    r"[Tt]he (shortfall|candidates) (is|are|split)",
+    r"(Two|Three) (boundaries|limits|things) apply",
+]
+
 
 def check_worklog_voice(txt: str) -> list[str]:
     """Report every work-log phrase present in the delivered PDF text."""
     hits = [v for v in WORKLOG_VOCAB if v.lower() in txt.lower()]
     hits += [f"pattern {pat}" for pat in WORKLOG_REGEX if re.search(pat, txt, re.I)]
+    for pat in SELFREF_REGEX:
+        m = re.search(pat, txt)
+        if m:
+            hits.append(f"self-referential voice: {m.group(0)!r} — the subject should be a "
+                        f"video, a flaw or an evaluator, not the document")
     return hits
 
 

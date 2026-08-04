@@ -1500,8 +1500,9 @@ generated clip more physically correct.
 % =====================================================================
 \section{Evaluation Protocol and Measurement}\label{sec:eval}
 % =====================================================================
-This section states how the critic is measured and reports what those measurements
-returned. A dash marks a measurement that has not been run.
+\PhyReAct{} is measured against what human annotators wrote about the same clips, under the
+protocol below and the conventions of \cref{sec:bench-spec}. A dash anywhere in what follows marks
+a measurement nobody has run.
 
 \paragraph{Implementation.}
 Qwen3-VL-30B-A3B-Instruct~\cite{qwen3vl2025}, served in BF16 without
@@ -1772,56 +1773,45 @@ the critic runs a decomposition and a set of tool calls per clip, VideoScore2 a 
 forward pass, so nothing here speaks to efficiency.
 
 \subsection{Comparison against published evaluators}
-The rating comparison settles agreement on a clip-level score. The flaw-level question --- how
-many of the same $304$ localized defects a published evaluator finds --- needs a different
-protocol, and \cref{tab:external} states it.
+How many of the same $304$ defects does a published evaluator find? Only evaluators that name a
+defect can be asked, because only a named defect can be matched to an annotator's sentence.
+Question decomposition and modular video question answering both answer question by question, so
+a failed question points back to the claim that raised it. Alignment scoring and learned quality
+scoring return a single number for the clip, which names nothing.
 
-The candidates split into two kinds, and only one kind can be scored this way. Question
-decomposition and modular video question answering both emit an answer per question. That is
-enough to localize a complaint: a failed question maps back to the claim that produced it, and
-the protocol of \cref{sec:matching} can then ask whether that claim and an annotator's sentence
-describe the same defect. Each is scored on the same $149$ clips, against the same labels, with
-the same two-tier judge, and given the same claim decomposition, so a difference in recall cannot
-come from one side being handed a different set of things to check. A row still showing dashes
-has not been run under that protocol.
+Question decomposition finds \textbf{164 of the $304$ flaws ($53.9\%$)}, $125$ whole and $39$ in
+part, against \PhyReAct{}'s $228$. Both read the same $149$ clips densely, both send their
+questions to the same served model, and on $148$ of those clips both work from an identical list
+of claims, so neither side benefits from being asked easier things. They differ in one respect:
+question decomposition puts one closed question to each claim and accepts the answer, while
+\PhyReAct{} plans what to measure and may return to a claim from several directions.
 
-Question decomposition finds \textbf{164 of the $304$ flaws ($53.9\%$)}: $125$ whole and $39$ in
-part. The comparison is close to controlled: the same served model answers the questions, the same
-clips are read densely, and on $148$ of the $149$ clips both sides work from an identical list of
-claims. The exception is one clip whose questions were generated afresh from its prompt. What
-differs is how a claim is interrogated --- one closed question per claim, answered by looking,
-against a plan that decides what to check and how, and that may check a claim from more than one
-angle.
+Accuracy is not what separates them. Question decomposition is marginally the more reliable
+accuser, $0.29$ of its accusations reaching a human flaw against \PhyReAct{}'s $0.26$; it simply
+accuses less, $557$ times against $871$, and passes two thirds of the questions it raises. Its
+questions explain why. Roughly a third ask whether something is present --- \emph{is there a
+vending machine} --- which one frame settles and which the generator almost always gets right,
+since a static object is the easiest part of a prompt to render. Twelve clips draw no accusation
+at all. Across clips, question decomposition finds fewer flaws on $70$, the same number on $63$,
+and more on $16$.
 
-The shortfall is not a matter of accuracy. Per accusation the baseline is marginally the better of
-the two, linking $0.29$ of its accusations to a human flaw against our $0.26$. It simply accuses
-far less often --- $557$ times against our $871$ --- and answers ``yes, that is fine'' to two
-thirds of the questions it asks. The reason is visible in the questions themselves: roughly a
-third are static existence checks, of the form \emph{is there a vending machine}, which a single
-frame answers and which the generator usually satisfies, because scenery is the part of a prompt
-that diffusion models render reliably. On $12$ clips it accused nothing at all. Clip-level, it
-loses to the critic on $70$ clips, ties on $63$, and wins on $16$.
-
-Alignment scoring and learned quality scoring emit one number for the whole clip. A score of
-$0.42$ identifies no defect and points at no moment, so the matcher has nothing to compare it
-against; converting it into a localized allegation would require a threshold of our choosing,
-and the resulting recall would measure that threshold as much as the system. Those rows stay
-unscored, and the comparison against a learned scalar judge is made where it is sound --- the
-clip-level rating of \cref{tab:vs2}.
+A single clip-level number cannot enter this comparison. A score of $0.42$ names no defect and
+points at no moment, so nothing exists to place beside an annotator's sentence; turning it into
+an accusation would take a threshold of our choosing, and the recall would then measure that
+threshold. Against a learned scalar judge the sound axis is the clip-level rating of
+\cref{tab:vs2}, and that is where we compare.
 
 \input{tab_external}
 
 \subsection{What these numbers do and do not establish}
-Two boundaries apply to everything above. The first is that this evaluation core was inspected
-during development: the wording-controlled per-claim baseline was written after treatment
-outputs had been seen, and no held-out split exists inside these $150$ clips. The recall figures
-therefore describe performance on a set the system was tuned against, and a claim of
-generalization requires a new frozen set.
+These $149$ clips were inspected while \PhyReAct{} was being built. The per-claim baseline was
+written after its outputs had been seen, and no held-out split exists inside the set. Every recall
+figure above therefore describes a system measured on clips it was tuned against; whether it
+generalizes is a question for a set nobody has looked at.
 
-The second is the denominator. Every figure in this section is measured against what human
-annotators wrote down, so a defect nobody flagged cannot be scored either way. Recall here means
-agreement with a human reader on the defects that reader named, not detection of everything
-wrong with a clip.
+Human annotators also fix what can be counted. A defect nobody wrote down cannot be scored either
+way, so recall here means agreement with a reader about the defects that reader named --- not
+detection of everything wrong with a clip.
 
 % =====================================================================
 \section{Framework: Learning as State Optimization}\label{sec:framework}

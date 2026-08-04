@@ -26,9 +26,9 @@ mean of each run's own per-clip records and excludes the matching protocol, whic
 rather than the evaluator. The systems in the first group emit per-question answers, so a failed
 question maps to the claim that produced it and a localized comparison is possible; each is given
 the same claim decomposition our own run used, so a recall difference cannot come from one side
-being handed a different set of things to check. A row still showing dashes has not been run. The
-second group emits one scalar per clip, which carries no allegation to match against an annotator's
-sentence; rather than convert a score into an allegation with a threshold of our choosing, we do
+being handed a different set of things to check. Dashes mark an evaluator nobody has run under this
+protocol. The second group returns one scalar per clip, which names no defect to place beside an
+annotator's sentence; rather than convert a score into an allegation with a threshold of our choosing, we do
 not score them here and compare against a learned scalar judge on the clip-level rating axis
 instead (\cref{tab:vs2}).}
 \label{tab:external}
