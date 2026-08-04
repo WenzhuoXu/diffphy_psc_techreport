@@ -502,9 +502,11 @@ def main() -> int:
             "% Every number is recomputed from per-item rows; see the analysis scripts.\n")
     # One file per table so main.tex can place each where it belongs, plus a combined file.
     out_dir = Path(a.out).parent
-    pieces = {"tab_headline": tab_headline(rows), "tab_external": tab_external(cost), "tab_paired": tab_paired(paired), "tab_frozen": tab_frozen(frozen),
-              "tab_ablation": tab_ablation(ablation),
-              "tab_bycat": tab_category(cat), "tab_robust": tab_robust(rob, sev)}
+    # Only the tables the document actually \input. tab_paired, tab_frozen, tab_ablation and
+    # tab_bycat described the removed per-claim comparison; they were still being written to disk
+    # every run with nothing including them.
+    pieces = {"tab_headline": tab_headline(rows), "tab_external": tab_external(cost),
+              "tab_robust": tab_robust(rob, sev)}
     for name, body in pieces.items():
         p = out_dir / f"{name}.tex"
         p.write_text(head + body)

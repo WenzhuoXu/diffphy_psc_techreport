@@ -198,15 +198,11 @@ through which critic feedback could later update \emph{how a clip is generated}.
 In this report the critic and the generator are studied separately; closing the
 critic-to-generator loop remains future work.
 
-On the 148 development-core clips completed by both systems, \PhyReAct{}
-recovers 179 of 295 localized flaws ($60.7\%$), compared with 135
-($45.8\%$) for one-at-a-time claim verification. This gain
-of 44 recovered flaws has a paired whole-clip bootstrap interval of $[+29,+59]$, while
-requiring 12.7 rather than 11.8 model and tool calls per clip. These results
-support planned, timeline-aware evidence collection over isolated per-claim
-verification at a modest additional call cost; because the core was used during
-system development, they characterize the current system rather than held-out
-generalization.
+Across the $149$ development-core clips and the $304$ flaws their annotators marked,
+\PhyReAct{} accounts for $228$. A published question-decomposition evaluator,
+reading the same clips and checking the same claims with the same served model,
+accounts for $164$. Because the core was used during system development, these
+figures characterize the current system rather than held-out generalization.
 
 Reading physical evaluation as a reason--act--observe framework also makes
 several extensions natural, which we state as design directions rather than
@@ -767,8 +763,8 @@ appears.}
 \end{figure}
 
 \subsection{How the evaluation set is derived}
-Selection runs in three recorded stages, and the denominator of every later measurement
-depends on them. \Cref{tab:datastats} gives the counts and \cref{fig:benchcomp} the same
+Three recorded stages narrow $1{,}500$ clips to the $149$ every recall figure in this report
+is measured over. \Cref{tab:datastats} gives the counts and \cref{fig:benchcomp} the same
 derivation as a sequence of steps.
 
 \emph{Stage one, clip selection.} A clip enters the pool if its video is retrievable and
@@ -801,6 +797,13 @@ The core is an \emph{optimization set}: system and prompt decisions are made aga
 so results on it measure fit to that core, and a generalization claim requires a set that
 has not influenced system design. A separate pool of $711$ annotated clips is held
 disjoint from both frozen sets for any learning that consumes this data.
+
+One clip of the $150$ produced no measurement in the evaluated run and is absent from every
+figure in \cref{sec:eval}: a ten-second classroom scene carrying two flaws, both marked at the
+highest severity. Recall is therefore reported over $149$ clips and the $304$ flaw entries they
+carry, and never over the full $306$. Those two flaws are excluded rather than counted as missed,
+because nothing was measured on that clip either way, which makes the reported rate very slightly
+optimistic.
 
 \begin{figure}[t]
   \centering
@@ -878,11 +881,12 @@ and precision is not: a detector that flags everything scores perfectly on recal
 so results on this set are reported alongside the rate at which accusations land on a
 real flaw.
 
-Scoring is over \emph{distinct} flaw spans. Twelve clips record the same failure two or
-three times under different identifiers---eighteen duplicate entries across the core---and
-an accusation can be credited to at most one flaw, so identical spans on a clip count as
-one flaw. The core's $306$ entries are therefore $288$ distinct flaws. A run that covers a
-subset of clips carries its own share of both counts; \cref{sec:eval} states them.
+Two counts describe the same core, and they differ. Eleven clips record the same failure
+two or three times under different identifiers, seventeen duplicate entries in all, so the
+core's $306$ entries are $289$ distinct flaws. Recall in \cref{sec:eval} is reported over
+entries rather than distinct spans, because the matching protocol there assigns each finding
+to at most one entry and a duplicate entry can be claimed only once; the $149$ clips it
+scores carry $304$ of the $306$.
 
 \subsection{Relation to existing video benchmarks}\label{sec:bench-vs}
 The closest annotated resource is Physion-Eval~\cite{physioneval2026}, which pairs
@@ -1291,9 +1295,10 @@ for it across frames; every physical operation then measures over those tracks. 
 are exposed to the planner, and each exists because a class of human complaint could not be settled
 without it.
 
-The largest class is displacement. Of the $288$ distinct flaws in the core, $131$ concern physical
-motion, and within those the complaint ``it should have moved and did not'' --- or moved the wrong
-way --- appears twenty-one times, against twice for anything resembling a ballistic arc. Three
+The largest class is displacement, because the dominant physical complaint is one sentence in many
+costumes: the sun remains stationary instead of rising, the tornado stays in place, the plate never
+rotates, the clouds are static. Something the prompt sets in motion does not move, or moves the
+wrong way. Complaints resembling a ballistic arc are rare by comparison. Three
 conventions make that measurable. Displacement is reported in multiples of the subject's own
 radius, so no scene calibration is required and a sun crossing a tenth of its own width is
 distinguishable from one crossing three. Direction is taken from the furthest excursion off the
@@ -1303,19 +1308,19 @@ motion is reported. An earlier version used a second mask as a rigid landmark, w
 when the camera and the subject move together; a flow field measured over the whole frame does
 not depend on finding a stationary object.
 
-Three more operations exist because a subject can fail without going anywhere. Contact measures
-the closest approach between two tracked masks, rather than whether their boxes overlap, and settles
-thirteen complaints about whether two things touch. Shape change measures how much the subject's own
-surface moves relative to the background flow, which catches a scroll that rolls when it should lie
-still --- a case a displacement measurement reports as zero. Path shape reads the trajectory's form,
-distinguishing a circle from a figure of eight.
+Three more operations exist because a subject can fail without going anywhere. Contact measures the
+closest approach between two tracked masks rather than whether their boxes overlap, which is what
+decides whether two things touch. Shape change measures how much the subject's own surface moves
+relative to the background flow, catching a scroll that rolls when it should lie still --- a case
+displacement reports as zero. Path shape reads the trajectory's form, distinguishing a circle from
+a figure of eight.
 
 The rest address time and existence. Permanence asks whether a subject that should vanish instead
 persists, and hop counting whether one that should leave the ground ever does. Damping detects a
-spinning object that never slows, the complaint about the arrow of time. Onset ordering covers the
-thirty-nine complaints about which of two events comes first. Clip timing handles duration and
-playback rate, and viewpoint motion separates a moving camera from a moving subject when the claim
-concerns the camera.
+spinning object that never slows, the complaint about the arrow of time. Onset ordering decides
+which of two events comes first, and covers the more common case in which one of them never happens
+at all. Clip timing handles duration and playback rate, and viewpoint motion separates a moving
+camera from a moving subject when the claim concerns the camera.
 
 Two properties hold across all eleven. Each returns a number together with the evidence behind it
 --- the frames read, the tracker used, the threshold applied --- and never a verdict; the decision
@@ -1623,11 +1628,10 @@ defect.
 
 \subsection{Six catches, opened up}
 \label{sec:cases}
-A recall figure says how many flaws were found. It says nothing about what a single catch is
-made of. \Cref{fig:criticcases} shows six of them end to end: the clip, the annotator's
-sentence, the measurement a specialist returned, and the verdict that measurement forced. In
-each case the accusation rests on a number rather than on a yes-or-no judgement, so the panel
-shows the number the flaw was reported on.
+What is a single catch made of? \Cref{fig:criticcases} opens six of them: the clip, the
+annotator's sentence, the measurement a specialist returned, and the verdict that measurement
+forced. Each accusation rests on a number rather than a yes-or-no judgement, so each panel
+carries the number the flaw was reported on.
 
 \begin{figure}[tp]
   \centering
@@ -1645,9 +1649,10 @@ shows the number the flaw was reported on.
 \end{figure}
 
 \paragraph{Case selection.} These six come from an earlier physics-routing pass over clips
-of the core rather than from the run of \cref{tab:headline}, and they carry no recall figure of
-their own; they are here for their measurement traces. The selection rule was fixed in advance. Beginning from the
-clips whose every human flaw the matching protocol had linked, a case was kept only if
+of the core rather than from the run of \cref{tab:headline}; they carry no recall figure of
+their own and are here for their measurement traces. The selection rule was fixed in advance.
+Beginning from the clips whose every human flaw the matching protocol had linked, a case was kept
+only if
 the raw per-check record showed a specialist, with its numbers, as the source of the
 accusation for \emph{that} flaw. Ten candidates failed and were dropped: in two the
 protocol had linked a flaw other than the one the tool addressed; in seven the accusation
@@ -2097,9 +2102,9 @@ today (Phase~0):} the frozen generator pipeline $\mathrm{Gen}$
 read path (\Cref{sec:dataset}); the episode read operator
 \eqref{eq:retrieve}--\eqref{eq:trace} with a fixed operator set $\Pi_0$, typed
 obligations $C$, three-valued deterministic adjudication $\Phi$, and provenance
-traces $T$; and the comparison in \Cref{sec:eval} of plan-based vs.\ per-claim
-adjudication ($179/295=60.7\%$ vs.\ $135/295=45.8\%$, recall-only, on the
-development core, \emph{not} a held-out split). \textbf{Roadmap (Phase~1+):} the
+traces $T$; and the flaw-level measurement in \Cref{sec:eval} against human labels
+($228$ of $304$ for \PhyReAct{}, $164$ for question decomposition, recall-only, on
+the development core, \emph{not} a held-out split). \textbf{Roadmap (Phase~1+):} the
 outward control map $\delta$ and the closed critic$\rightarrow$generator loop
 \eqref{eq:control}; the scaling-up of $\Pi$; the culminating context-training
 self-evolution of $M$ via \eqref{eq:distill}--\eqref{eq:elitism}; the external
@@ -2239,9 +2244,9 @@ Phases~1+ state \emph{targets and protocols}, not outcomes.
     human-authored defect benchmark (\Cref{sec:dataset}); the episode read
     operator with fixed $\Pi_0$, typed obligations $C$, three-valued
     deterministic adjudication $\Phi$, and provenance traces $T$
-    (\Cref{sec:critic}); and the plan-based vs.\ per-claim comparison
-    ($179/295=60.7\%$ vs.\ $135/295=45.8\%$ recall on the development core,
-    non-held-out, \Cref{sec:eval}).
+    (\Cref{sec:critic}); and the flaw-level measurement against human labels
+    ($228$ of $304$ for \PhyReAct{} against $164$ for question decomposition, on
+    the development core, non-held-out, \Cref{sec:eval}).
   \item \textbf{Covers.} P1 (physicalized ReAct read path), and the read side of
     P2 (programs over $\Pi_0$) and P4 (provenance traces).
   \item \textbf{Honest limits.} Recall-only, single non-held-out split; critic
