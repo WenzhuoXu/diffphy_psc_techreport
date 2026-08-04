@@ -57,11 +57,11 @@ composes these measurements into a three-valued state (\supported{},
 \emph{implausible}, or \abstain{}) together with full provenance, yielding a
 human-auditable trace rather than an opaque number. We anchor evaluation in a
 1{,}500-clip corpus of human-annotated flaw records that localize real
-generation failures in prompt reference, space, and time. On the current
-development core---used during system development and not held out---plan-grounded
-ReAct execution recovers more localized flaws than one-at-a-time per-claim
-verification, at a cost of roughly one additional operator call per clip; precise
-figures and their uncertainty are reported in the body. The resulting evidence
+generation failures in prompt reference, space, and time. On a $149$-clip
+development core carrying $304$ such records---used during development and not
+held out---the critic accounts for $228$ of them; a published
+question-decomposition evaluator, given the same clips and the same claims,
+accounts for $164$. The resulting evidence
 traces are designed as an interface for context-training self-evolution,
 operator-library growth, external-knowledge retrieval, and critic-to-generator
 refinement through a control channel. Closing this optimization loop remains
@@ -228,22 +228,24 @@ compiles a prompt into typed physical obligations, gates and scopes a set of
 frozen physical operators over the video timeline, and composes their
 measurements into a three-valued, fully attributable verdict. Second, we
 introduce a $1{,}500$-clip corpus of human-annotated, prompt-grounded flaw
-records together with a paired flaw-level evaluation that isolates the benefit
-and cost of plan-based execution against one-at-a-time per-claim verification.
-Third, we connect this critic to a simulation-conditioned generation testbed,
-establishing a concrete control-channel interface for future critic-guided
-refinement. As a fourth, forward-looking element, the framework's inspectable
-traces are designed to support operator-library growth and weight-free
-context-training self-evolution, which we leave to future work.
+records, and a flaw-level evaluation protocol on which a critic and a published
+evaluator can be compared at all: each defect is judged whole, partial, or
+missed against what an annotator wrote, so a system that finds one aspect of a
+compound complaint is neither credited with the whole nor scored as having found
+nothing. Third, we connect this critic to a simulation-conditioned generation
+testbed, establishing a concrete control-channel interface for future
+critic-guided refinement. As a fourth, forward-looking element, the framework's
+inspectable traces are designed to support operator-library growth and
+weight-free context-training self-evolution, which we leave to future work.
 
-On the direction of the measured comparison, plan-based, timeline-aware
-evidence collection recovers more human-marked flaws than isolated per-claim
-verification, at the price of about one extra model or tool call per clip. This
-comparison is made on a $149$-clip development core that is recall-only,
-single-annotator, and \emph{not} held out---the system was developed against
-it---so the result characterizes the current system rather than held-out
-generalization; \Cref{sec:eval} reports the precise figures and their
-uncertainty.
+Measured on that protocol, the critic accounts for $228$ of the $304$ annotated
+defects. A published question-decomposition evaluator, given the same clips, the
+same claims, and the same served model, accounts for $164$. The gap is not one of
+accuracy---per accusation the simpler evaluator is marginally the more
+reliable---but of what each thinks to ask. The $149$ clips are recall-only,
+single-annotator, and \emph{not} held out: the system was developed against them,
+so these figures characterize the system as it stands rather than its
+generalization. \Cref{sec:eval} reports them in full.
 
 
 % =====================================================================
@@ -1500,9 +1502,9 @@ generated clip more physically correct.
 % =====================================================================
 \section{Evaluation Protocol and Measurement}\label{sec:eval}
 % =====================================================================
-\PhyReAct{} is measured against what human annotators wrote about the same clips, under the
-protocol below and the conventions of \cref{sec:bench-spec}. A dash anywhere in what follows marks
-a measurement nobody has run.
+Human annotators are the only ground truth here: \PhyReAct{} is measured against what they wrote
+about these clips, under the conventions of \cref{sec:bench-spec}. A dash anywhere below marks a
+measurement nobody has run.
 
 \paragraph{Implementation.}
 Qwen3-VL-30B-A3B-Instruct~\cite{qwen3vl2025}, served in BF16 without
@@ -1513,8 +1515,33 @@ receives densely decoded, timestamped frames and a single declared predicate.
 The specialist revisions are frozen for the evaluated run and the running
 backends are those in \cref{tab:arms}.
 
-\paragraph{Target and ground truth.} The evaluation core of \cref{sec:dataset}, scored
-under the conventions of \cref{sec:bench-spec}. Human labels are the only ground truth.
+\paragraph{Target.} The evaluation core of \cref{sec:dataset}: $149$ clips carrying $304$
+annotated flaws.
+
+\paragraph{Dense-frame requirement.} The critic must observe the video densely.
+The evaluated components extract frames densely under a logged sampling policy,
+and any measurement obtained from a sparsely sampled input is excluded. A re-run
+counts only if it uses the dense path on the unchanged frozen target with BF16
+tools at pinned revisions.
+
+\paragraph{Cost and uncertainty.} A detector call, a tracker call and a full vision-language
+judgement do not cost the same, so cost is reported as model and tool calls per clip rather than
+as wall-clock time. Uncertainty is estimated by resampling whole clips, because two flaws in one
+clip are not independent.
+
+\paragraph{Planner validity and measurement coverage.}\label{sec:planner-gaps}
+Before end-to-end evaluation, the prompt-only planning stage was inspected
+without video or tool access. On 233 claims from 22 annotated clips, every claim
+produced a valid, compilable plan at one to two planner calls per clip.
+Twenty-seven claims (11.6\%) contained at least one specialist action that
+survived validation, compared with 2.3\% for an earlier tabular plan format.
+On measurement-dense diagnostics the corresponding rates were
+19/30 for counting, spatial, and ordering claims, and 10/10 for synthetic
+counting prompts. These diagnostics test routing and syntax; they are not
+estimates of verdict accuracy or coverage on the evaluation core. The present
+surface vocabulary also lacks an ``on top of'' spatial predicate and rejects
+negated quantitative measurements; such terms become recorded, charged
+generalist fallbacks.
 
 \subsection{How a finding is matched to a human flaw}\label{sec:matching}
 Deciding whether a critic output corresponds to a human-flagged flaw is a separate protocol,
@@ -1545,33 +1572,6 @@ as a non-match, since silently reading an error as ``no match'' would understate
 The judge performs \emph{flaw matching only}. It is not a component of the critic, does not
 produce its verdict, and is not treated as ground truth; the human labels are.
 
-\paragraph{Dense-frame requirement.} The critic must observe the video densely.
-The evaluated components extract frames densely under a logged sampling policy,
-and any measurement obtained from a sparsely sampled input is excluded. A re-run
-counts only if it uses the dense path on the unchanged frozen target with BF16
-tools at pinned revisions.
-
-\paragraph{The comparison.} The critic is compared against per-claim verification: the
-same claims, verified one at a time by the general verifier, with the question phrased as
-the critic phrases it, since the phrasing alone changes how readily a verifier answers.
-Because a detector call, a tracker call and a full vision-language judgement do not cost
-the same, cost is reported as model and tool calls per clip. Uncertainty is estimated by
-resampling whole clips, because flaws within a clip are not independent.
-
-\paragraph{Planner validity and measurement coverage.}\label{sec:planner-gaps}
-Before end-to-end evaluation, the prompt-only planning stage was inspected
-without video or tool access. On 233 claims from 22 annotated clips, every claim
-produced a valid, compilable plan at one to two planner calls per clip.
-Twenty-seven claims (11.6\%) contained at least one specialist action that
-survived validation, compared with 2.3\% for an earlier tabular plan format.
-On measurement-dense diagnostics the corresponding rates were
-19/30 for counting, spatial, and ordering claims, and 10/10 for synthetic
-counting prompts. These diagnostics test routing and syntax; they are not
-estimates of verdict accuracy or coverage on the evaluation core. The present
-surface vocabulary also lacks an ``on top of'' spatial predicate and rejects
-negated quantitative measurements; such terms become recorded, charged
-generalist fallbacks.
-
 \subsection{Flaw recall on the evaluation core}
 \label{sec:headline}
 Across the $149$ clips of the evaluation core, which carry $304$ human-annotated flaws,
@@ -1593,14 +1593,15 @@ malformed glyphs instead, and the comparison then fails as it should.
 
 \input{tab_headline}
 
-\Cref{tab:headline} breaks the $228$ down by the annotators' own categories, and the range is
-wide. Camera and style ($90\%$) and on-screen text ($84\%$) sit at the top: both are settled
-by a direct measurement against an explicit target. Counting is the weakest at $49\%$, and
-\cref{sec:contract} shows why --- the counting path reduces a per-frame series to its mode, so
-a subject the segmenter finds intermittently is reported as absent. Physical motion is low for
-an unrelated reason. At $57\%$ it is also among the smallest categories, with seven flaws, and the ones the annotators file
-under it are mostly deformations --- cloth that folds wrongly, a body that bends where it
-should not --- which the trajectory measurements were never built to reach.
+Broken down by the annotators' own categories (\cref{tab:headline}), recall runs from $90\%$ to
+$49\%$. Camera and style ($90\%$) and on-screen text ($84\%$) sit at the top: both are settled by
+a direct measurement against an explicit target. Counting is weakest at $49\%$, and
+\cref{sec:contract} shows why --- the counting path reduces a per-frame series to its mode, so a
+subject the segmenter finds intermittently is reported as absent. Physical motion falls low for an
+unrelated reason: the annotators file only seven flaws under it, of which four are found, and most
+of those seven are deformations --- cloth that folds wrongly, a body that bends where it should
+not --- which the trajectory measurements were never built to reach. Seven flaws is too few to
+read a rate from, and the category is listed for completeness rather than as a measurement.
 
 These figures describe the system as it stands on the core it was developed against, not its
 behaviour on unseen data.
@@ -1700,11 +1701,11 @@ miss it.
 
 \subsection{Agreement with human ratings}
 \label{sec:vs2}
-Flaw recall is not commensurate with what most published evaluators emit, which is a
-clip-level scalar rather than an allegation that can be matched to a localized human
-flaw. There is, however, common ground: both kinds of system can be asked to rate a clip
-on the scale a human used. VideoScore2~\cite{videoscore2_2025} is the natural opponent
-there---a judge trained for exactly this task, with a published evaluation script.
+Many published evaluators emit a clip-level scalar and nothing else, which cannot be set
+against a localized human flaw. There is common ground elsewhere: any of these systems can
+be asked to rate a clip on the scale a human used. VideoScore2~\cite{videoscore2_2025} is
+the natural opponent there---a judge trained for exactly this task, with a published
+evaluation script.
 
 The comparison follows that script rather than a protocol of our own. On a sample of
 VideoPhy-2~\cite{videophy2_2025} test clips, each judge emits an integer $1$--$5$ per
@@ -1779,28 +1780,28 @@ Question decomposition and modular video question answering both answer question
 a failed question points back to the claim that raised it. Alignment scoring and learned quality
 scoring return a single number for the clip, which names nothing.
 
-Question decomposition finds \textbf{164 of the $304$ flaws ($53.9\%$)}, $125$ whole and $39$ in
-part, against \PhyReAct{}'s $228$ (\cref{tab:external}). Both read the same $149$ clips densely,
-both send their
-questions to the same served model, and on $148$ of those clips both work from an identical list
-of claims, so neither side benefits from being asked easier things. They differ in one respect:
-question decomposition puts one closed question to each claim and accepts the answer, while
-\PhyReAct{} plans what to measure and may return to a claim from several directions.
+Question decomposition accounts for \textbf{164 of the $304$ flaws ($53.9\%$)}, $125$ whole and
+$39$ in part, against \PhyReAct{}'s $228$ (\cref{tab:external}). Both read the same $149$ clips
+densely, both send their questions to the same served model, and on $148$ of those clips both work
+from an identical list of claims, so neither side benefits from being asked easier things. They
+differ in one respect: question decomposition puts one closed question to each claim and accepts
+the answer, while \PhyReAct{} plans what to measure and may return to a claim from several
+directions.
 
-Accuracy is not what separates them. Question decomposition is marginally the more reliable
-accuser, $0.29$ of its accusations reaching a human flaw against \PhyReAct{}'s $0.26$; it simply
-accuses less, $557$ times against $871$, and passes two thirds of the questions it raises. Its
-questions explain why. Roughly a third ask whether something is present --- \emph{is there a
-vending machine} --- which one frame settles and which the generator almost always gets right,
-since a static object is the easiest part of a prompt to render. Twelve clips draw no accusation
-at all. Across clips, question decomposition finds fewer flaws on $70$, the same number on $63$,
-and more on $16$.
+The gap is not accuracy, and runs the other way. Question decomposition is the more reliable
+accuser of the two: $0.29$ of its accusations reach a human flaw, against \PhyReAct{}'s $0.26$. It
+accuses far less often --- $557$ times against $871$ --- and passes two thirds of the questions it
+raises. Its questions show why. Roughly a third ask whether something is present, \emph{is there a
+vending machine}, which one frame settles and which the generator almost always gets right, a
+static object being the easiest part of a prompt to render. Twelve clips draw no accusation at
+all. Clip by clip, question decomposition finds fewer flaws than \PhyReAct{} on $70$, the same
+number on $63$, and more on $16$.
 
-A single clip-level number cannot enter this comparison. A score of $0.42$ names no defect and
-points at no moment, so nothing exists to place beside an annotator's sentence; turning it into
-an accusation would take a threshold of our choosing, and the recall would then measure that
-threshold. Against a learned scalar judge the sound axis is the clip-level rating of
-\cref{tab:vs2}, and that is where we compare.
+Turning a clip-level scalar into a localized accusation would take a threshold of our choosing,
+and the recall would then measure that threshold rather than the evaluator. A score of $0.42$
+names no defect and points at no moment, so nothing exists to set beside an annotator's sentence.
+The sound axis against a learned scalar judge is therefore the clip-level rating of
+\cref{tab:vs2}.
 
 \input{tab_external}
 
@@ -1810,9 +1811,9 @@ written after its outputs had been seen, and no held-out split exists inside the
 figure above therefore describes a system measured on clips it was tuned against; whether it
 generalizes is a question for a set nobody has looked at.
 
-Human annotators also fix what can be counted. A defect nobody wrote down cannot be scored either
-way, so recall here means agreement with a reader about the defects that reader named --- not
-detection of everything wrong with a clip.
+What can be counted is also bounded by what the annotators noticed. A defect nobody wrote down
+cannot be scored either way, so recall here means agreement with a reader about the defects that
+reader named --- not detection of everything wrong with a clip.
 
 % =====================================================================
 \section{Framework: Learning as State Optimization}\label{sec:framework}
