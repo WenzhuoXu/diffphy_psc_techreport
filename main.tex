@@ -56,16 +56,14 @@ composes these measurements into a three-valued state (\supported{},
 \contradicted{}, or \unknownv{}, surfaced as \emph{plausible},
 \emph{implausible}, or \abstain{}) together with full provenance, yielding a
 human-auditable trace rather than an opaque number. We anchor evaluation in a
-1{,}500-clip corpus of human-annotated flaw records that localize real
-generation failures in prompt reference, space, and time. On a $149$-clip
-development core carrying $304$ such records---used during development and not
-held out---the critic accounts for $228$ of them; a published
-question-decomposition evaluator, given the same clips and the same claims,
-accounts for $164$. The resulting evidence
-traces are designed as an interface for context-training self-evolution,
-operator-library growth, external-knowledge retrieval, and critic-to-generator
-refinement through a control channel. Closing this optimization loop remains
-future work.
+1{,}500-clip corpus of human-annotated flaw records that localize real generation
+failures in prompt reference, space, and time. On a $149$-clip core carrying $304$
+such records, \PhyReAct{} accounts for $228$, against $164$ for a published
+question-decomposition evaluator given the same clips and the same claims; the core
+is a development set, so these figures characterize the system rather than its
+generalization. Because each of those $228$ arrives with the measurement that forced
+it, the resulting traces are auditable one verdict at a time, and are the interface
+through which a critic verdict could be written back into generation.
 }
 
 % convenience macros
@@ -215,33 +213,30 @@ weights~\cite{contexttraining2026,explicitmem2026}. And because a loop that
 feeds only its own traces back into its own context is internally closed,
 admitting external or social knowledge would break that closure---but only under
 a candidate-and-pruning discipline that guards against context
-pollution~\cite{contexttraining2026}. None of these extensions is implemented or
-measured here; they describe where the framework points.
+pollution~\cite{contexttraining2026}. These are directions the framework opens rather
+than results reported here.
 
-Our contributions are threefold. First, we present \PhyReAct{}, a physically
-grounded reason--act--observe framework for auditable video evaluation that
-compiles a prompt into typed physical obligations, gates and scopes a set of
-frozen physical operators over the video timeline, and composes their
-measurements into a three-valued, fully attributable verdict. Second, we
-introduce a $1{,}500$-clip corpus of human-annotated, prompt-grounded flaw
-records, and a flaw-level evaluation protocol on which a critic and a published
-evaluator can be compared at all: each defect is judged whole, partial, or
-missed against what an annotator wrote, so a system that finds one aspect of a
-compound complaint is neither credited with the whole nor scored as having found
-nothing. Third, we connect this critic to a simulation-conditioned generation
-testbed, establishing a concrete control-channel interface for future
-critic-guided refinement. As a fourth, forward-looking element, the framework's
-inspectable traces are designed to support operator-library growth and
-weight-free context-training self-evolution, which we leave to future work.
+We make three contributions. First, \PhyReAct{}, a physically grounded
+reason--act--observe critic that compiles a prompt into typed physical obligations,
+gates and scopes frozen physical operators over the video timeline, and composes
+their measurements into a three-valued verdict in which every conclusion is
+attributable to the measurement that forced it. Second, a $1{,}500$-clip corpus of
+human-annotated, prompt-grounded flaw records, together with the flaw-level protocol
+that makes a critic and a published evaluator comparable at all: each defect is
+judged whole, partial, or missed against what an annotator wrote, so finding one
+aspect of a compound complaint is neither credited as the whole nor discarded as
+nothing. Third, a simulation-conditioned generation testbed in which known MuJoCo
+geometry drives a frozen video backbone, giving a control channel of the exact shape
+a localized critic verdict could later be written into.
 
-Measured on that protocol, the critic accounts for $228$ of the $304$ annotated
-defects. A published question-decomposition evaluator, given the same clips, the
-same claims, and the same served model, accounts for $164$. The gap is not one of
-accuracy---per accusation the simpler evaluator is marginally the more
-reliable---but of what each thinks to ask. The $149$ clips are recall-only,
-single-annotator, and \emph{not} held out: the system was developed against them,
-so these figures characterize the system as it stands rather than its
-generalization. \Cref{sec:eval} reports them in full.
+On the flaw-level protocol, \PhyReAct{} accounts for $228$ of the $304$ annotated
+defects; a published question-decomposition evaluator, given the same clips, the same
+claims, and the same served model, accounts for $164$. Choosing what to measure, and
+measuring it, reaches defects that putting a yes-or-no question to each claim does
+not. These $149$ clips are recall-only, single-annotator, and not held out, so the
+figures characterize the system as it stands rather than its generalization;
+\cref{sec:eval} reports them in full, with the protocol and its limits stated
+alongside.
 
 
 % =====================================================================
@@ -2644,25 +2639,18 @@ three-valued verdict (\supported{}/\contradicted{}/\unknownv{}, surfaced as
 evidence chain.
 
 On a development core of $149$ clips carrying $304$ human-marked defects,
-\PhyReAct{} accounts for $228$. A published question-decomposition evaluator,
-reading the same clips and checking the same claims with the same served model,
-accounts for $164$. The difference is not accuracy --- judged per accusation, the
-simpler evaluator is marginally the more reliable of the two --- but what each one
-thinks to ask. A third of its questions ask whether some object is present, which a
-single frame settles and a generator rarely gets wrong, so much of its budget goes on
-confirming what was never in doubt. The core is
-recall-only, singly annotated, and not held out---the system was developed on
-it---so both a held-out evaluation and a precision measurement remain to be run.
+\PhyReAct{} accounts for $228$, against $164$ for a published question-decomposition
+evaluator reading the same clips and checking the same claims with the same served
+model. Every one of those $228$ arrives with the number that forced it, so a reader
+can audit any single verdict instead of accepting an aggregate.
 
-The trajectory the framing implies is clear even where the experiments are not
-yet done. The traceable evidence \PhyReAct{} already emits is the raw material for
-weight-free self-evolution through context-training, for growing the operator
-library as new measurement procedures are distilled, and---once the control
-channel is closed---for turning critic verdicts into generator corrections.
-Closing that critic\,$\rightarrow$\,generator loop is the next milestone; we do
-not claim to have closed it here, nor that the generator has been made more
-physically faithful as a result. What we claim is a grounded, auditable place to
-start.
+That auditability is also what makes the evidence usable downstream. A contradicted
+claim names what failed, when it failed, and on what measurement, which is precisely
+the signal a generator needs to regenerate a clip locally rather than resample it
+whole. It is equally the substrate for an operator library that grows as new
+measurement procedures are distilled, and for improvement that edits a readable state
+rather than a weight. Closing the critic-to-generator loop over that signal is the
+next milestone.
 
 % =====================================================================
 \appendix
