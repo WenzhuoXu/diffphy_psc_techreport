@@ -43,27 +43,27 @@
 }
 
 \abstract{
-Videos that look fluent are not necessarily physically reliable, yet most video
-evaluators collapse this judgment into a single scalar score that cannot be
-traced, audited, or corrected. We present \PhyReAct{}, a physically grounded
-instance of the mainstream ReAct agentic paradigm: a strong reasoning model runs
-an explicit thought--action--observation loop in which reasoning compiles the
-prompt into typed physical obligations, and observations gate and scope which
-operators fire next. The actions invoke a suite of frozen low-level physical
-experts---detection, counting, tracking, segmentation, depth, OCR, and
-audio---that return only measurements, never verdicts. A deterministic layer
-composes these measurements into a three-valued state (\supported{},
+Visual fluency in generated video does not imply physical reliability, and a scalar quality
+score names neither the obligation a clip violates nor the moment it fails. We present
+\PhyReAct{}, a physically grounded instance of the ReAct agentic paradigm: a reasoning model
+runs a thought--action--observation loop in which reasoning compiles the prompt into typed
+physical obligations, and observations gate and scope which operators fire next. The actions
+invoke frozen low-level experts---segmentation and tracking, counting, eleven typed physical
+measurements over the resulting tracks, depth, OCR, and audio event detection---that return
+measurements. A deterministic layer
+composes those measurements into a three-valued state (\supported{},
 \contradicted{}, or \unknownv{}, surfaced as \emph{plausible},
-\emph{implausible}, or \abstain{}) together with full provenance, yielding a
-human-auditable trace rather than an opaque number. We anchor evaluation in a
+\emph{implausible}, or \abstain{}) with full provenance, so that every verdict is
+traceable to the measurement that produced it. We anchor evaluation in a
 1{,}500-clip corpus of human-annotated flaw records that localize real generation
 failures in prompt reference, space, and time. On a $149$-clip core carrying $304$
 such records, \PhyReAct{} accounts for $228$, against $164$ for a published
-question-decomposition evaluator given the same clips and the same claims; the core
-is a development set, so these figures characterize the system rather than its
-generalization. Because each of those $228$ arrives with the measurement that forced
-it, the resulting traces are auditable one verdict at a time, and are the interface
-through which a critic verdict could be written back into generation.
+question-decomposition evaluator given the same clips and the same claims. Recall alone does
+not separate it from prompting the same backbone monolithically, which reaches $222$; what
+separates them is that each of \PhyReAct{}'s $228$ arrives with the measurement that forced it,
+making the traces auditable one verdict at a time and usable as the interface through which a
+critic verdict could be written back into generation. The core is a development set, so these
+figures characterize the system rather than its generalization.
 }
 
 % convenience macros
@@ -142,21 +142,16 @@ results~\cite{react2023}. \PhyReAct{} is a grounded instance of that pattern
 specialized to physical verification: a reasoner compiles the prompt into
 \emph{typed physical obligations} and an executable measurement plan, and
 observations returned by physical operators then gate and scope which later
-operator calls are valid and where in the video they run. Concretely, the
-current system operates as a plan-then-execute member of this family---reasoning
-declares the obligations and their measurement plan up front, and observations
-activate, skip, or localize the already-declared measurements rather than
-inventing new tool sequences at run time. What is special about \PhyReAct{} is
-not the control flow, which is inherited from mainstream reason--act--observe
-agents, but the \emph{physical grounding} of that flow: frozen low-level
-physical operators (grounding and tracking with SAM~3, counting over its instance
-identities, eleven typed physical measurements over those tracks, monocular depth,
-optical character recognition, and audio event detection) return measurements rather
-than verdicts, a strong reasoning model supplies the semantics, and
-deterministic rules compose the measurements into a three-valued decision with
-full provenance. This lineage is a design choice rather than a claim of
-autonomous replanning: the run-time freedom is confined to the gate-and-scope
-semantics just described.
+operator calls are valid and where in the video they run. The system belongs to the
+plan-then-execute branch of that family: reasoning declares the obligations and their
+measurement plan up front, and observations activate, skip, or localize measurements the
+plan already contains. Run-time freedom is confined to that gating and scoping.
+
+Physical grounding is what specializes the loop. Frozen operators --- grounding and tracking
+with SAM~3, counting over its instance identities, eleven typed physical measurements over
+those tracks, monocular depth, optical character recognition, and audio event detection ---
+return measurements; a reasoning model supplies the semantics; and deterministic rules
+compose the measurements into a three-valued decision carrying full provenance.
 
 Four roles divide the labor. A \emph{text-only planner} reads the whole prompt
 and writes the typed obligations and their measurement plan before any frame is
@@ -177,13 +172,11 @@ audit, and hand off to human-in-the-loop review (\cref{fig:teaser}).
 
 Evaluating such a critic requires ground truth at the same level of detail. We
 therefore assemble a corpus of $1{,}500$ generated clips with $2{,}582$
-human-written flaw records, each of which quotes the exact prompt fragment that
-was violated and adds a rationale, a severity, a confidence, and, where the
-annotator could supply them, a temporal span and an object track. These
-human labels anchor evaluation in real failures and are the only ground truth
-in this work; the critic's own verdicts are never treated as such. Unlike a
-single clip-level score, the annotations let each allegation the critic makes be
-matched to the particular failure a person marked.
+human-written flaw records, each quoting the exact prompt fragment that was
+violated and adding a rationale, a severity, a confidence, and, where the
+annotator could supply them, a temporal span and an object track. These records are the
+only ground truth in this work, and because each names a particular failure, an
+allegation the critic makes can be matched to the one a person marked.
 
 The same structured trace also defines an interface to refinement: a
 contradicted claim names what should change, and its localized evidence
@@ -195,12 +188,6 @@ prompt~\cite{todorov2012mujoco,wan2025,vace2025}. This gives a control channel
 through which critic feedback could later update \emph{how a clip is generated}.
 In this report the critic and the generator are studied separately; closing the
 critic-to-generator loop remains future work.
-
-Across the $149$ development-core clips and the $304$ flaws their annotators marked,
-\PhyReAct{} accounts for $228$. A published question-decomposition evaluator,
-reading the same clips and checking the same claims with the same served model,
-accounts for $164$. Because the core was used during system development, these
-figures characterize the current system rather than held-out generalization.
 
 Reading physical evaluation as a reason--act--observe framework also makes
 several extensions natural, which we state as design directions rather than
@@ -232,11 +219,11 @@ a localized critic verdict could later be written into.
 On the flaw-level protocol, \PhyReAct{} accounts for $228$ of the $304$ annotated
 defects; a published question-decomposition evaluator, given the same clips, the same
 claims, and the same served model, accounts for $164$. Choosing what to measure, and
-measuring it, reaches defects that putting a yes-or-no question to each claim does
-not. These $149$ clips are recall-only, single-annotator, and not held out, so the
-figures characterize the system as it stands rather than its generalization;
-\cref{sec:eval} reports them in full, with the protocol and its limits stated
-alongside.
+measuring it, reaches defects that putting a yes-or-no question to each claim does not.
+Recall does not separate \PhyReAct{} from prompting the same backbone monolithically, which
+reaches $222$; the evidence behind each verdict does, and \cref{sec:eval} reports both figures
+with the protocol and its limits. These $149$ clips are recall-only, single-annotator, and not
+held out, so they characterize the system as it stands rather than its generalization.
 
 
 % =====================================================================
@@ -301,14 +288,10 @@ render, grayscale and flat shading among the things to avoid. No appearance
 reference image is supplied. Sampling is deterministic given the seed, and the
 seed is recorded per clip.
 
-Two properties of this arrangement are worth stating plainly. First, the backbone
-consumes a control video that was \emph{computed}, not estimated: no monocular
-depth predictor sits in the loop, so the geometry the generator follows is exactly
-the simulator's geometry, with no estimation error of its own. Second, this is a
-control-branch mechanism rather than image-to-image editing: it is neither an
-SDEdit-style noised re-synthesis~\cite{meng2022sdedit} of a rendered source nor a
-copy of source pixels, which is what separates it from conditioning schemes that
-carry a synthetic source's look into the output.
+The control video is the simulator's own depth buffer, so the geometry the generator follows
+carries the solver's numerical error and no perceptual estimation error. It reaches the
+backbone through the control branch, and the source frames are never denoised or copied: the
+all-white mask leaves the preserved region empty, so every output pixel is synthesised.
 
 \subsection{Rendering the control signal}
 \paragraph{One simulation, several registered views.} A scene is described as
@@ -326,15 +309,14 @@ resulting videos are registered pixel for pixel, so a depth control and a
 silhouette control for the same scene describe the same geometry and can be
 substituted for one another without re-simulating.
 
-\paragraph{From depth buffer to control video.} The depth buffer holds distance
-from the camera. It is turned into a control video by an inverted, clipped affine
-map: distances are mapped so that near surfaces are bright and far surfaces dark,
-which is the polarity monocular depth estimators produce and therefore the
-polarity the control branch was trained to read. The mapping's endpoints are
-robust percentiles---the first and the ninety-seventh---of the depth values in the
-scene, computed after discarding the far-clip constant that the background sky
-writes into the buffer, so that a single distant constant cannot compress the whole
-range into a few grey levels. Formally, for depth frame $D_t$ over pixel domain
+\paragraph{From depth buffer to control video.} The depth buffer holds distance from the
+camera. An inverted, clipped affine map turns it into a control video in which near surfaces
+are bright and far surfaces dark, matching the polarity of the monocular depth maps the
+control branch was trained on. The endpoints are robust percentiles of the scene's depth
+values, the first and the ninety-seventh, taken after discarding the far-clip constant the
+background sky writes into the buffer; without that exclusion a single distant constant
+compresses the whole range into a few grey levels. Formally, for depth frame $D_t$ over pixel
+domain
 $\Omega$ and $t\in\{0,\ldots,T-1\}$, let
 \begin{equation}
 \begin{split}
@@ -352,44 +334,32 @@ Here $d_{\mathrm{far}}$ is the renderer's background constant and $C_t$ is the
 grayscale control frame before boundary smoothing. If $d_+=d_-$, the depth map
 is degenerate and the silhouette control described below is used instead.
 
-\paragraph{Why the mapping is fixed for the whole clip.} The endpoints are computed
-once over all frames of the clip, not per frame. This is a substantive choice, not
-a detail: it makes the assigned grey level a function of distance alone, so the same
-distance reads as the same grey in every frame, and a change in brightness therefore
-means a change in distance. If the endpoints were recomputed per frame---which is
-the convention monocular depth estimators follow, since they emit one relative map
-per image---the grey assigned to a distance would depend on the depth distribution
-of that particular frame. A body holding its distance while other content enters or
-leaves the view would then change brightness, and the control branch has no way to
-distinguish that from the body actually moving toward or away from the camera. Fixing
-the mapping across the clip removes that ambiguity by construction. A per-frame
-variant is still rendered alongside the fixed-mapping one so the two can be compared
-directly on the same simulation.
+\paragraph{The mapping is global over the clip.} The percentiles $d_-$ and $d_+$ in
+\cref{eq:global-depth-control} are computed over all $T$ frames at once, making the assigned
+grey level a function of distance alone: one distance reads as one grey in every frame, and a
+change in brightness signals a change in distance. Per-frame normalization, the convention
+monocular estimators follow because they emit one relative map per image, breaks that
+correspondence --- a body holding its distance while other content enters the view shifts
+brightness, which the control branch cannot distinguish from motion toward the camera. A
+per-frame variant is rendered alongside the global one for comparison on the same simulation.
 
-\paragraph{Boundary treatment.} A simulator's depth buffer has ideal, hard edges: a
-silhouette boundary is a one-pixel step. Estimated depth maps, which is what the
-control branch has seen, do not look like that---their boundaries are soft. Each
-grayscale frame therefore receives a small symmetric Gaussian blur before encoding.
-Because the kernel is symmetric, the half-intensity contour of an edge stays where it
-was, so the smoothing changes how the boundary is presented without displacing the
-geometry it represents.
+\paragraph{Boundary treatment.} A silhouette boundary in a simulator's depth buffer is a
+one-pixel step, where the estimated depth maps the control branch was trained on have soft
+boundaries. Each grayscale frame therefore receives a small symmetric Gaussian blur before
+encoding. Symmetry leaves the half-intensity contour of an edge in place, so the smoothing
+alters the boundary's appearance without displacing the geometry it encodes.
 
-\paragraph{Silhouettes, and when they replace depth.} The segmentation buffer labels
-each pixel with the geometry that produced it. Collecting the labels that belong to
-the simulation's moving bodies and painting them white on black yields a silhouette
-control: the moving bodies' outlines over time, with no distance information at all.
-Depth is the default because it carries both outline and distance ordering. It stops
-being informative when a scene is flat---when every object rests on one
-near-horizontal surface at nearly the same distance from the camera, the depth field
-is almost constant across the objects and their surroundings, and the control has
-little geometric contrast to offer. Measured on the rendered controls, the depth
-separation between a moving body and the surface immediately around it is about
-twenty grey levels for a ball bouncing on a floor and about a hundred for a ball
-arcing through open air, but only about fourteen for a rack of balls on a tabletop.
-For those flat layouts we substitute the silhouette, which restores a
-maximum-contrast figure-and-ground signal; the price is that distance ordering
-between the objects is discarded, and the generator has to recover it from the prompt
-and from ordinary scene priors.
+\paragraph{Silhouette controls for flat scenes.} The segmentation buffer labels each pixel
+with the geometry that produced it. Painting the labels of the simulation's moving bodies
+white on black yields a silhouette control: their outlines over time, carrying no distance
+information. Depth is the default, since it supplies both outline and distance ordering, but it
+loses geometric contrast on flat layouts, where every object rests on one near-horizontal
+surface at nearly the same camera distance. Measured on the rendered controls, the depth
+separation between a moving body and the surface around it is roughly twenty grey levels for a
+ball bouncing on a floor and a hundred for a ball arcing through open air, against fourteen
+for a rack of balls on a tabletop. Those layouts use the silhouette instead, which restores
+maximum figure-ground contrast at the cost of distance ordering between objects; the generator
+recovers that from the prompt and from scene priors.
 
 \paragraph{A timing property of the renders.} The frame budget and playback rate are
 fixed---eighty-one frames written at sixteen frames per second---while the simulated
@@ -399,13 +369,11 @@ scenes used here. The trajectory shapes and the contact events are the simulatio
 their absolute rate in the finished clip is not, and a downstream measurement of
 speed or duration must be read against the render clock rather than the simulator's.
 
-\paragraph{Relation to structure conditioning generally.} Driving synthesis from an
-explicit geometric control rather than from text alone follows the lineage of
-ControlNet for images~\cite{zhang2023controlnet} and motion and structure control for
-video~\cite{wang2023videocomposer,vace2025}. What differs here is the provenance of
-the control: it is not estimated from a photograph or drawn by hand but computed from
-a physics solver, so the structure the generator is asked to follow is physically
-consistent by construction.
+\paragraph{Relation to structure conditioning.} Driving synthesis from an explicit geometric
+control follows the lineage of ControlNet for images~\cite{zhang2023controlnet} and motion and
+structure control for video~\cite{wang2023videocomposer,vace2025}. Here the control originates
+in a physics solver, so the structure the generator follows satisfies the equations of motion
+by construction.
 
 \subsection{Pipeline and configuration}
 \Cref{tab:genconfig} lists the operating configuration. Generation runs as a
@@ -531,34 +499,39 @@ follows the control's path. No learned or quantitative video-quality score---FVD
 human-preference model, or a critic score---is applied to this line.
 
 \subsection{When the control can be released}\label{sec:gen-release}
-The control does not have to be applied for the whole of denoising. A diffusion
-model builds a video over a sequence of denoising steps that starts from almost
-pure noise and ends at a clean frame, and the control signal is added in at every
-one of those steps. That raises a question with both a practical and a scientific
-side: if the control is switched off partway through, does the motion it has
-already induced survive to the finished clip? Practically, the steps after the
-release are free of the control, so the model is free to invent appearance there.
-Scientifically, the earliest release point that still preserves the motion is the
-point at which the model has \emph{committed} to that motion.
+Sampling proceeds over a decreasing sequence of noise levels
+$\sigma_1 > \sigma_2 > \cdots > \sigma_N$, with $\sigma_N \!\to\! 0$, where $\sigma_i$ is
+the standard deviation of the Gaussian noise still present in the latent at step $i$ under
+the flow-matching parameterization of the backbone's scheduler. At each step the control
+latent $z^{\mathrm{ctrl}}$ enters the denoising stream additively at every control layer,
+scaled by the conditioning strength $s$ of \cref{tab:genconfig},
+\begin{equation}
+h_i^{(\ell)} \;\leftarrow\; h_i^{(\ell)} \;+\; s\,\lambda_i\, W^{(\ell)} z^{\mathrm{ctrl}},
+\qquad
+\lambda_i =
+\begin{cases}
+1, & \sigma_i > \sigma_{\mathrm{rel}},\\
+0, & \sigma_i \leq \sigma_{\mathrm{rel}},
+\end{cases}
+\label{eq:control-release}
+\end{equation}
+where $h_i^{(\ell)}$ is the hidden state at layer $\ell$ and step $i$, $W^{(\ell)}$ the
+control branch's projection, and $\sigma_{\mathrm{rel}}$ the \emph{release level}. Setting
+$\sigma_{\mathrm{rel}} = 0$ recovers the deployed recipe, in which the control acts
+throughout; any $\sigma_{\mathrm{rel}} > 0$ withdraws it once the latent is cleaner than
+that level, leaving the remaining steps unconditioned.
 
-\paragraph{Method.} We pick a step, keep the control at full strength for every
-step before it, and set the control's contribution to exactly zero from that step
-onward. Nothing else changes: same simulation, same control video, same prompt,
-same sampler, same seed. The comparison is always against the same clip generated
-with the control never released, so the release point is the only difference
-between the two.
+A clip generated at $\sigma_{\mathrm{rel}} > 0$ that retains the simulated trajectory
+localizes where that trajectory was determined: above $\sigma_{\mathrm{rel}}$, with the
+remaining steps free to render appearance. The smallest $\sigma_{\mathrm{rel}}$ preserving
+retention is therefore the noise level at which the motion commits.
 
-\paragraph{The release point is reported as a noise level, not a step number.}
-A step index is not a property of the model; it is a property of the sampling
-schedule we happened to choose. The schedule maps each step to a noise level, and
-that mapping changes when the number of steps or the schedule's shape changes.
-Concretely, on the schedule used here, step $8$ of $40$ sits at a noise level of
-$\sigma = 0.952$; on a differently-shaped $40$-step schedule the same step $8$ sits
-at $\sigma = 0.923$, and the noise level $0.952$ has moved to step $5$. Reporting
-``released at step $8$'' would therefore describe our schedule rather than the
-model, so every release point below is given as the noise level $\sigma$ at which
-the control was switched off, with the step index alongside it only as the label
-of the run.
+\paragraph{Method.} Each run fixes one $\sigma_{\mathrm{rel}}$ in
+\cref{eq:control-release} and is paired against a run at $\sigma_{\mathrm{rel}} = 0$ sharing
+its simulation, control video, prompt, sampler and seed. Release points are indexed by
+$\sigma_{\mathrm{rel}}$, which is a property of the model's noise schedule; the step index of
+each run is given as a label, since the same index falls at a different noise level under a
+schedule of different shape.
 
 \paragraph{What is measured.} Both the control video and the generated clip are
 tracked frame by frame, giving the object's path in each. \emph{Retention} is how
@@ -923,49 +896,31 @@ dense-frame semantic verifier over the sampled frames. The \emph{observe} step
 consumes the returned measurement and uses it to gate whether a claimed event
 occurred, to scope which frames and entities subsequent operators attend to,
 and---via fixed, deterministic rules---to compute the physical relations that the
-typed plan declared. As in classic ReAct, tool outputs steer the trajectory
-rather than a fixed pipeline; unlike a free-form ReAct rollout, the trajectory is
-anchored to obligations that were declared before any pixels were read.
+typed plan declared. Tool outputs therefore steer execution, within obligations declared
+before any pixel was read.
 
-The one deliberate departure from unconstrained ReAct is a \emph{grounding}
-choice made for auditability and physical correctness, not a rejection of the
-paradigm. Because a free-running agent that invents new tool sequences
-mid-rollout is difficult to audit and easy to lead into unfalsifiable narratives,
-\PhyReAct{} pushes the open-ended reasoning to the front: the planner compiles
-and \emph{statically validates} the typed measurement plan before it observes the
-video, in the spirit of plan-before-act agents~\cite{rewoo2023,llmcompiler2024}
-and code-as-plan systems that emit an executable program of visual
-primitives~\cite{vipergpt2023,visprog2023}. At execution time, observations
-activate, skip, or localize nodes that were already declared, rather than
-authorizing the model to synthesize arbitrary new tool chains. Crucially, the
-operators only return \emph{measurements}; the verdict is left to a deterministic
-composition over those measurements. This separation---operators measure, fixed
-rules adjudicate---is what distinguishes \PhyReAct{} from prompting a model to
-read the frames and pronounce a conclusion directly, and it is what lets us
-surface a human-traceable chain of evidence behind each
-\supported{}/\contradicted{}/\unknownv{} decision. \PhyReAct{} thus sits in the
-plan--execute branch of the ReAct family: a physically grounded instance in which
-reasoning compiles the prompt into typed physical obligations and observations
-gate and scope the operators that discharge them.
+Open-ended reasoning is placed entirely at the front. The planner compiles and
+\emph{statically validates} the typed measurement plan before observing the video, following
+plan-before-act agents~\cite{rewoo2023,llmcompiler2024} and code-as-plan systems that emit an
+executable program of visual primitives~\cite{vipergpt2023,visprog2023}. At execution time
+observations activate, skip, or localize nodes the plan already declares. Because the
+trajectory is fixed before execution, every measurement traces to the obligation that
+requested it.
 
-\paragraph{CoT-as-program and a reusable operator library.}
-Viewed this way, the compiled closure of each typed check---its input scoping,
-the operator invocations it triggers, and the deterministic rule that turns their
-measurements into a relation---behaves like a self-contained, reusable
-\emph{operator}. Nothing about a given closure is specific to a single video: it
-can in principle be named, encapsulated, and versioned, and it already carries
-the cost accounting we record in the provenance trace (operator calls and
-accelerator time per node). This is the natural substrate for a training-free
-procedural operator library that grows and is retrieved across tasks, as
-envisioned by procedural-memory and self-evolving-reasoning
-proposals~\cite{plugmem2026,reasoningbank2026}. We stress, however, that this is a
-framing of the design, not a claim about the current system: as implemented,
-\PhyReAct{} treats every clip independently and performs \emph{no} cross-clip
-reuse, and no operator ever persists or is retrieved from a prior evaluation.
-Curating the compiled closures into a versioned, cost-annotated operator
-library---and demonstrating that reuse improves recall or reduces spend---is
-future work (\cref{sec:selfevolve}); we neither run nor report any such
-experiment here.
+Operators return \emph{measurements}, and a deterministic composition over those measurements
+produces the verdict. This division --- operators measure, fixed rules adjudicate --- is what
+yields a traceable chain of evidence behind every
+\supported{}/\contradicted{}/\unknownv{} decision.
+
+\paragraph{Compiled closures as reusable operators.}
+The compiled closure of a typed check --- its input scoping, the operator invocations it
+triggers, and the deterministic rule turning their measurements into a relation --- is
+self-contained. No part of a closure is specific to one video, and each already carries the
+per-node cost accounting recorded in its provenance trace, so closures can in principle be
+named, versioned, and retrieved across tasks in the manner of procedural-memory
+proposals~\cite{plugmem2026,reasoningbank2026}. \PhyReAct{} as implemented evaluates every
+clip independently and retains nothing between clips; curating the closures into such a
+library is future work (\cref{sec:selfevolve}).
 
 \subsection{Problem formulation and system overview}
 A generated clip is paired with the prompt $p$ that requested it. We represent
@@ -1242,13 +1197,11 @@ scope $\Omega_j$ is part of the signature, whole-clip and localized requests
 never merge merely because their natural-language queries are similar.
 
 \paragraph{Execution backends.}
-\Cref{tab:arms} lists the backend that actually runs, rather than a stronger
-backend that an adapter may only declare. There is no holistic scorer in the
-verdict path. Three sub-checks remain explicitly learned because they resist
-full symbolization: subtype identity, dense action-event recall, and
-depth-ordered spatial interpretation on localized evidence. Their outputs are
-tagged as learned base-predicate states; they are not presented as deterministic
-consequences of a raw measurement.
+\Cref{tab:arms} lists the backend running behind each capability in the evaluated
+configuration. Three sub-checks remain learned, resisting full symbolization: subtype
+identity, dense action-event recall, and depth-ordered spatial interpretation on localized
+evidence. Their outputs carry a learned base-predicate tag, distinguishing them from
+deterministic consequences of a measurement. No holistic scorer appears in the verdict path.
 
 \begin{table}[t]
 \centering
@@ -1283,11 +1236,10 @@ reported. No holistic video-quality model produces the final clip decision.}
 
 \subsection{The physical measurement operations}
 \label{sec:physics}
-The specialists that decide physical claims are not one model per capability but one arm built
-around a single grounding step. SAM~3 segments the named subject and carries a persistent identity
-for it across frames; every physical operation then measures over those tracks. Eleven operations
-are exposed to the planner, and each exists because a class of human complaint could not be settled
-without it.
+Physical claims are settled by eleven operations sharing a single grounding step. SAM~3
+segments the named subject and carries a persistent identity for it across frames, and every
+operation measures over those tracks. Each operation corresponds to a class of human complaint
+in the corpus.
 
 The largest class is displacement, because the dominant physical complaint is one sentence in many
 costumes: the sun remains stationary instead of rising, the tornado stays in place, the plate never
@@ -1298,16 +1250,15 @@ radius, so no scene calibration is required and a sun crossing a tenth of its ow
 distinguishable from one crossing three. Direction is taken from the furthest excursion off the
 starting position rather than the net, because a rise followed by a fall cancels to nothing.
 And camera motion is cancelled by dense optical flow over the whole frame before any subject
-motion is reported. An earlier version used a second mask as a rigid landmark, which breaks down
-when the camera and the subject move together; a flow field measured over the whole frame does
-not depend on finding a stationary object.
+motion is reported, which requires no stationary landmark and so remains valid when the camera
+and the subject move together.
 
-Three more operations exist because a subject can fail without going anywhere. Contact measures the
-closest approach between two tracked masks rather than whether their boxes overlap, which is what
-decides whether two things touch. Shape change measures how much the subject's own surface moves
-relative to the background flow, catching a scroll that rolls when it should lie still --- a case
-displacement reports as zero. Path shape reads the trajectory's form, distinguishing a circle from
-a figure of eight.
+Three operations address failures that involve no net travel. Contact measures the closest
+approach between two tracked masks, which decides whether two things touch at a finer
+resolution than box overlap. Shape change measures the subject's own surface motion relative
+to the background flow, catching a scroll that rolls when it should lie still --- a case
+displacement reports as zero. Path shape reads the trajectory's form, distinguishing a circle
+from a figure of eight.
 
 The rest address time and existence. Permanence asks whether a subject that should vanish instead
 persists, and hop counting whether one that should leave the ground ever does. Damping detects a
@@ -1316,11 +1267,11 @@ which of two events comes first, and covers the more common case in which one of
 at all. Clip timing handles duration and playback rate, and viewpoint motion separates a moving
 camera from a moving subject when the claim concerns the camera.
 
-Two properties hold across all eleven. Each returns a number together with the evidence behind it
---- the frames read, the tracker used, the threshold applied --- and never a verdict; the decision
-is made by the fixed rules of \cref{sec:semantics}. And each may refuse: a subject smaller than one
-percent of the frame, or a track too short to measure, produces an explicit abstention rather than a
-number, so an unmeasurable claim never arrives as a passed one.
+All eleven return a number with the evidence behind it --- the frames read, the tracker used,
+the threshold applied --- and leave the decision to the fixed rules of \cref{sec:semantics}.
+All eleven may also abstain: a subject smaller than one percent of the frame, or a track too
+short to measure, yields an explicit abstention, so an unmeasurable claim does not resolve as a
+supported one.
 
 \subsection{Evidence records and provenance}
 \label{sec:contract}
@@ -1349,30 +1300,25 @@ that does not exhibit the requested motion---remains \code{measured} and may
 contradict a claim. Failure to track because of blur, occlusion, low quality, or
 an instrument refusal is \code{abstained}, not a negative observation.
 
-The boundary between the two is harder to hold than the schema suggests, and the
-counting path shows why. Its contract reduces a per-frame series to a single
-number by taking the mode, so a phrase the segmenter grounds intermittently
-yields a series such as $[4,6,0,6,6,0,0,0,\ldots]$ whose mode is $0$: a
-grounding that failed on most frames is reported as a measured count of zero.
-On a clip containing five steel balls the operation returns exactly that ---
-$0$, from $241$ frames read, alongside its own \code{stable: false} and a range
-of $0$ to $8$. The auxiliary fields are therefore load-bearing rather than
-advisory, and a consumer reading only the scalar receives a confident wrong
-number. We report this as a measured property of the current implementation, not
-as a resolved case: a zero that means \emph{absent} and a zero that means
-\emph{never found} are not distinguishable in the present payload, and
-\cref{sec:limitations} states the consequence for count-derived figures.
+The counting path violates that boundary. Its contract reduces a per-frame series to a single
+number by taking the mode, so a phrase the segmenter grounds intermittently yields a series
+such as $[4,6,0,6,6,0,0,0,\ldots]$ whose mode is $0$, and a grounding that failed on most
+frames is reported as a measured count of zero. On a clip containing five steel balls the
+operation returns exactly that: $0$ over $241$ frames read, accompanied by \code{stable: false}
+and a range of $0$ to $8$. A consumer reading the scalar alone therefore receives a confident
+wrong number, and the auxiliary fields are load-bearing. In the present payload a zero meaning
+\emph{absent} is indistinguishable from a zero meaning \emph{never found};
+\cref{sec:limitations} gives the consequence for count-derived figures.
 A terminal \code{errored} record is retried and, if still terminal, produces
 no semantic verdict; the clip is marked $\bot_{\mathrm{infra}}$ and excluded
 from the completed evaluation set rather than relabeled \unknownv{}.
 
-Specialist schemas reject judgment-shaped fields, nonfinite numbers, duplicate
-keys, and noncanonical payloads. Every record carries the full prompt and the
-verbatim source span $s_i$, and heavy artifacts are content-addressed by path
-and byte hash. The guarantee is intentionally narrow: a specialist cannot emit
-the final prompt-satisfaction label, and accepted evidence is attributable and
-replayable. The schema cannot make a learned measurement unbiased or detect a
-confidently wrong but well-formed payload.
+Specialist schemas reject judgment-shaped fields, nonfinite numbers, duplicate keys, and
+noncanonical payloads. Every record carries the full prompt and the verbatim source span
+$s_i$, and heavy artifacts are content-addressed by path and byte hash. The schema thus
+guarantees two things: a specialist cannot emit the final prompt-satisfaction label, and
+accepted evidence is attributable and replayable. It cannot make a learned measurement
+unbiased, nor detect a well-formed payload that is wrong.
 
 \subsection{Three-valued verification and aggregation}
 \label{sec:semantics}
@@ -1432,11 +1378,9 @@ Y=
 \end{cases}
 \label{eq:claim-clip-rollup}
 \end{equation}
-The order of the cases matters. One contradiction is sufficient for an
-implausible clip; plausible is emitted only when every planned claim is
-supported; and a trace with no contradiction but at least one unknown
-abstains. Plausible therefore summarizes the validated claims that were
-executed, rather than certifying every possible physical property of the clip.
+The cases are ordered: one contradiction gives an implausible clip, plausible requires every
+planned claim supported, and a trace with no contradiction but at least one unknown abstains.
+\textsc{Plausible} is therefore a statement about the claims the plan executed.
 
 \paragraph{Conflict resolution between two verifiers.}
 \label{sec:review}
@@ -1452,21 +1396,16 @@ verifier passed, and never a specialist measurement, because a measurement carri
 evidence that a second opinion has no way to inspect.
 
 \paragraph{Reading on-screen text.}
-Text claims are settled by a recognition engine reading frames directly, rather
-than by asking a generative model what a sign says. The distinction is not
-incidental: a generative reader repairs what it sees, turning a rendered
-\code{Stly your} into the well-formed \code{Style your} that the prompt
-requested, and so conceals exactly the defect the check exists to find. A
-recognition head returns the malformed string, which a deterministic comparison
-then rejects. Coverage matters for the same reason --- a caption present for part
-of a clip can fall between sampled frames --- so the engine reads every frame
-rather than a sampled fraction, and each record carries the frames actually read
-so partial coverage is visible in the row rather than assumed away.
+A recognition engine reads frames directly to settle text claims. Asked what a sign says, a
+generative model repairs what it sees, rendering a malformed \code{Stly your} as the
+well-formed \code{Style your} the prompt requested and concealing the defect under test; a
+recognition head returns the malformed string, which a deterministic comparison rejects. The
+engine reads every frame rather than a sampled fraction, since a caption present for part of a
+clip can fall between samples, and each record states the frames read.
 
 \subsection{Diagnostic interface: the contradiction packet}
 \label{sec:loop}
-The useful refinement output of a \PhyReAct{} run is not only the scalar clip
-state $Y$, but the localized contradiction packet
+Beyond the clip state $Y$, a run emits a localized contradiction packet
 \begin{equation}
 \mathcal{F}(p,\mathcal V)
 =
@@ -1476,16 +1415,12 @@ state $Y$, but the localized contradiction packet
 \right\},
 \label{eq:refinement-packet}
 \end{equation}
-where $\Omega_i$ is the union of available temporal support and $B_i$ contains
-available box tracks or masks. Because the packet is assembled from the same
-auditable trace that produced the verdict, it retains full provenance: each
-contradicted claim carries the evidence records that support the conclusion and
-the region of the clip where the failure occurs. The packet therefore states
-\emph{what} failed, \emph{on what evidence}, and \emph{where}. This packet is
-what the framework of \Cref{sec:framework} turns into an outward control signal:
-its space--time localization is exactly what lets a contradiction be mapped onto a
-local edit of the computed generator control (\Cref{sec:framework:control},
-\eqref{eq:control}), closing an independent-critic$\rightarrow$generator loop.
+where $\Omega_i$ is the union of available temporal support and $B_i$ contains available box
+tracks or masks. The packet is assembled from the trace that produced the verdict, so each
+contradicted claim carries both the evidence records behind the conclusion and the region of
+the clip in which the failure occurs: \emph{what} failed, \emph{on what evidence}, and
+\emph{where}. That space--time localization is what \Cref{sec:framework} maps onto a local edit
+of the generator control (\Cref{sec:framework:control}, \eqref{eq:control}).
 
 \textbf{Closed-loop refinement is not run in this report.} The critic and the
 simulation-conditioned generator are evaluated on disjoint data, and no
@@ -1540,52 +1475,45 @@ negated quantitative measurements; such terms become recorded, charged
 generalist fallbacks.
 
 \subsection{How a finding is matched to a human flaw}\label{sec:matching}
-Deciding whether a critic output corresponds to a human-flagged flaw is a separate protocol,
-run after the critic has finished and never able to influence it. The unit of comparison is a
-pair of sentences: what the annotator wrote about the clip, and what the critic says the video
-showed instead. It is never the prompt fragment against the critic's restatement of it --- those
-are two assertions of the same requirement, and comparing them measures agreement about the
-prompt rather than about the video.
+Matching runs as a separate protocol after the critic has finished, with no path back into it.
+The unit of comparison is a pair of sentences: what the annotator wrote about the clip, and
+what the critic reports the video showed. Comparing the prompt fragment against the critic's
+restatement of it would instead measure agreement about the prompt, since both are assertions
+of the same requirement.
 
-Each pair is judged twice, on meaning and never on shared words. The first question is strict:
-do these two statements point at the same defect? Different wording, a different name for the
-same object, and a measured quantity in place of a description all still count as the same
-defect, while two different problems with the same object do not. The second question is asked
-only where the first says no: does the critic's finding identify \emph{part} of what the
-annotator describes? An annotator writes one sentence that can span several aspects, whereas the
-critic reports one specific thing at a time, so a finding can account for half a compound
-complaint. Without the second question that case scores as nothing found.
+Each pair is judged on meaning, in two stages. The first question is strict: do the two
+statements point at the same defect? Different wording, a different name for one object, and a
+measured quantity in place of a description all count as the same defect; two different
+problems with the same object do not. Where that answer is no, a second question asks whether
+the critic's finding identifies \emph{part} of what the annotator describes. An annotator's one
+sentence can span several aspects while the critic reports one thing at a time, so a finding
+may account for half a compound complaint, and the second stage is what distinguishes that from
+having found nothing.
 
-Surviving pairs are then assigned optimally, one finding per flaw, rather than by taking the
-first acceptable match. Taking the first loses flaws: if one flaw can be matched by either of
-two findings and a second flaw only by one of them, spending that finding on the first leaves
-the second unmatched. Each flaw ends as \emph{whole}, \emph{partial}, or \emph{missed}, and the
-three are reported separately --- partial is never folded into whole. Judging is done by the
-same served model used elsewhere in the system, at temperature zero, one pair per call; a call
-that fails to return a parsable answer is retried and then recorded as a matching error, never
-as a non-match, since silently reading an error as ``no match'' would understate recall.
+Surviving pairs are assigned by maximum bipartite matching, one finding per flaw. Greedy
+assignment loses flaws: if one flaw can be matched by either of two findings and a second flaw
+only by one of them, spending that finding on the first leaves the second unmatched. Each flaw
+resolves as \emph{whole}, \emph{partial}, or \emph{missed}, reported as three separate counts.
+Judging uses the same served model as the rest of the system, at temperature zero, one pair per
+call; an unparsable reply is retried and then recorded as a matching error, which keeps a failed
+call from being scored as a non-match and understating recall.
 
-The judge performs \emph{flaw matching only}. It is not a component of the critic, does not
-produce its verdict, and is not treated as ground truth; the human labels are.
+The judge performs \emph{flaw matching only}. It is not a component of the critic and does not
+produce its verdict. The human labels are the ground truth.
 
 \subsection{Flaw recall on the evaluation core}
 \label{sec:headline}
 Across the $149$ clips of the evaluation core, which carry $304$ human-annotated flaws,
-\PhyReAct{} finds \textbf{228 of them ($75.0\%$)}. A flaw counts as found when one of our
-findings and the annotator's sentence are judged to describe the same defect, a comparison
-made on meaning rather than on shared words (\cref{sec:matching}). Of the $228$, $191$ are
-covered by a single finding that accounts for the whole complaint; the remaining $37$ are
-addressed only in part, where our findings speak to an aspect of the defect but no one of
-them is the defect itself. On $91$ of the $149$ clips, every annotated flaw is found.
+\PhyReAct{} finds \textbf{228 of them ($75.0\%$)} under the protocol of \cref{sec:matching}. Of
+the $228$, $191$ are covered by a single finding accounting for the whole complaint, and $37$
+in part, where the findings speak to an aspect of the defect without any one being the defect.
+Every annotated flaw is found on $91$ of the $149$ clips.
 
-Two mechanisms carry a large share of this. The first is the fallback verifier, gpt-5.6-sol,
-which re-examines claims the dense semantic pass has passed. Where it disagrees, its verdict
-resolves the claim as a contradiction instead of being discarded for want of evidence, and
-$83$ of the $228$ found flaws are credited to a finding whose record carries such an
-override. The second is how on-screen text is read. A generative model asked what a sign says
-tends to repair what it sees, reporting the phrase the prompt requested rather than the
-garbled string the video rendered; a recognition engine reading every frame returns the
-malformed glyphs instead, and the comparison then fails as it should.
+Two mechanisms carry a large share. The fallback verifier, gpt-5.6-sol, re-examines claims the
+dense semantic pass has passed, and where it disagrees the claim resolves as a contradiction:
+$83$ of the $228$ carry such an override in their record. The second is the recognition engine
+for on-screen text, which returns the malformed glyphs a generative reader would repair into the
+requested phrase, so the string comparison fails on a genuinely garbled render.
 
 \input{tab_headline}
 
@@ -1596,17 +1524,14 @@ a direct measurement against an explicit target. Counting is weakest at $49\%$, 
 subject the segmenter finds intermittently is reported as absent. Physical motion falls low for an
 unrelated reason: the annotators file only seven flaws under it, of which four are found, and most
 of those seven are deformations --- cloth that folds wrongly, a body that bends where it should
-not --- which the trajectory measurements were never built to reach. Seven flaws is too few to
-read a rate from, and the category is listed for completeness rather than as a measurement.
-
-These figures describe the system as it stands on the core it was developed against, not its
-behaviour on unseen data.
+not --- which the trajectory measurements do not reach. Seven flaws is too few to support a
+rate, and the category is listed for completeness.
 
 \subsection{Recall against clip properties}
 \label{sec:bycat}
-Category tells us what kind of defect the critic reaches. A separate question is whether it
-does worse on harder clips --- longer ones, clips carrying many flaws, clips the annotators
-marked severe. \Cref{tab:robust} groups the same $304$ flaws four ways to answer it.
+Category describes which kinds of defect the critic reaches. Difficulty is a separate axis:
+longer clips, clips carrying many flaws, and clips the annotators marked severe.
+\Cref{tab:robust} groups the same $304$ flaws four ways.
 
 \input{tab_robust}
 
@@ -1630,28 +1555,25 @@ carries the number the flaw was reported on.
   \caption{Six flaws caught by measurement. Each panel gives the clip identifier and the
   specialist that answered, the first and last decoded frame of the clip, the human
   annotator's sentence verbatim, the specialist's own required-versus-measured pair with
-  its evidence, and the resulting claim state. The frame choice is fixed for every panel
-  --- always the first and the last decoded frame, never a selected one --- so the pair
-  brackets the whole clip. Displacements are
-  reported in multiples of the subject's own radius, which needs no scene calibration.
-  In the text case, the boxed banner region of that same last frame is magnified in
-  place, showing the render's own glyphs. Measurement text is copied from the run's records.}
+  its evidence, and the resulting claim state. Every panel shows the first and last decoded
+  frame, a fixed choice that brackets the whole clip. Displacements are reported in multiples
+  of the subject's own radius, which needs no scene calibration. In the text case, the boxed
+  banner region of that last frame is magnified in place, showing the render's own glyphs.
+  Measurement text is copied from the run's records.}
   \label{fig:criticcases}
 \end{figure}
 
 \paragraph{Case selection.} These six come from an earlier physics-routing pass over clips
 of the core rather than from the run of \cref{tab:headline}; they carry no recall figure of
-their own and are here for their measurement traces. The selection rule was fixed in advance.
-Beginning from the clips whose every human flaw the matching protocol had linked, a case was kept
-only if
-the raw per-check record showed a specialist, with its numbers, as the source of the
+their own and are here for their measurement traces. The selection rule was fixed in advance:
+beginning from the clips whose every human flaw the matching protocol had linked, a case was kept
+only where the raw per-check record showed a specialist, with its numbers, as the source of the
 accusation for \emph{that} flaw. Ten candidates failed and were dropped: in two the
 protocol had linked a flaw other than the one the tool addressed; in seven the accusation
 came from the video-aware verifier while the specialist abstained; and in one the
 clip-timing operation read the aspect ratio ``vertical 9:16'' as a duration of $9.0$
-against $16.0$ seconds, producing a correct complaint for an incorrect reason. That last
-case is the failure mode this section is meant to expose: a per-clip caught-or-missed
-tally would have scored it as a success.
+against $16.0$ seconds, producing a correct complaint for an incorrect reason --- which a per-clip
+caught-or-missed tally would have scored as a success.
 
 \paragraph{What each measurement discriminates.} The dolphin does move --- its
 vertical spread is $0.65$ of its own radius against $0.20$ horizontal --- so a test for
@@ -1674,37 +1596,32 @@ a second annotator sentence --- that the animal never disappears into the depths
 two further specialists answered it independently. Vertical travel required \emph{down}
 and measured $2.07$ radii \emph{up} at the furthest point, a net $-317$\,px over $37$
 tracked frames. Persistence required the dolphin to vanish and found it on $121$ of $121$
-frames, with no gap of three frames or more. Neither is a stronger claim than the other;
-they fail the same assertion through different evidence.
+frames, with no gap of three frames or more. The two fail the same assertion on
+independent evidence.
 
 \paragraph{Most specialist calls end in abstention.} Physical specialists were called on $227$
-checks in the evaluated run. They abstained on $166$ and contradicted the prompt on $61$, so
-abstention is the ordinary outcome rather than the exception, and each one carries the reason it
-occurred.
+checks in the evaluated run, abstaining on $166$ and contradicting the prompt on $61$. Each
+abstention carries the reason it occurred.
 
 The usual reason is that the subject was never grounded: nothing the segmenter returned for the
 noun phrase survived, leaving no track to measure over. Groundings are screened by a semantic
 guard, shown one frame with the candidate boxes drawn on it and asked only whether those regions
 are the thing the phrase named. On a clip requesting seagulls scattering in the wake of fighter
 jets, the boxes offered for ``the seagulls'' contained the jets, and the guard discarded them.
-The check then yields \unknownv{}, which is why a failure to find the subject cannot arrive as a
-violation by the subject.
+The check then yields \unknownv{}, separating a failure to find the subject from a violation
+by it.
 
-Partial coverage is disclosed the same way. In the banner case the recognition head read $25$
-of that clip's $241$ frames, at a stride of ten, and the record states both figures. A wrong
-transcript that is stable across those $25$ frames is strong evidence about a banner present
-throughout the clip, but it is not a full read, and a caption appearing only briefly could fall
-between the frames sampled.
+Coverage is recorded to the same standard. In the banner case the recognition head read $25$
+of that clip's $241$ frames at a stride of ten, and the record states both figures. A transcript
+stable across those $25$ frames is strong evidence about a banner present throughout the clip;
+a caption appearing only briefly could fall between the frames sampled.
 
 \subsection{Agreement with human ratings}
 \label{sec:vs2}
-Many published evaluators emit a clip-level scalar and nothing else, which cannot be set
-against a localized human flaw. There is common ground elsewhere: any of these systems can
-be asked to rate a clip on the scale a human used. VideoScore2~\cite{videoscore2_2025} is
-the natural opponent there---a judge trained for exactly this task, with a published
-evaluation script.
-
-The comparison follows that script rather than a protocol of our own. On a sample of
+A clip-level scalar cannot be set against a localized human flaw, but both kinds of
+evaluator can rate a clip on the scale a human used. VideoScore2~\cite{videoscore2_2025} is the
+natural comparison on that axis: a judge trained for the task, with a published evaluation
+script, which this comparison follows. On a sample of
 VideoPhy-2~\cite{videophy2_2025} test clips, each judge emits an integer $1$--$5$ per
 dimension; agreement with the human rating is scored as exact accuracy, accuracy within
 one point, and the linear and rank correlations (PLCC and SRCC), with unparsed
@@ -1777,6 +1694,17 @@ Question decomposition and modular video question answering both answer question
 a failed question points back to the claim that raised it. Alignment scoring and learned quality
 scoring return a single number for the clip, which names nothing.
 
+One further comparison holds the model fixed and removes the framework: the same served
+Qwen3-VL-30B, given the prompt and every frame of the clip in one call, with no plan, no tools
+and no per-claim verification. It accounts for $222$ of the $304$ flaws at one model call per
+clip.
+That figure is not a peer measurement of the same quantity, and \cref{tab:external} separates it
+for that reason: rephrasing the request changes what the model reports, so the number describes a
+prompt as much as a capability, and the free-text paragraph it returns names no evidence a reader
+can inspect. What the row does establish is that recall alone does not distinguish a plan of
+typed measurements from a single broad question --- the case for the plan rests on the evidence
+each verdict carries, not on the count.
+
 Question decomposition accounts for \textbf{164 of the $304$ flaws ($53.9\%$)}, $125$ whole and
 $39$ in part, against \PhyReAct{}'s $228$ (\cref{tab:external}). Both read the same $149$ clips
 densely, both send their questions to the same served model, and on $148$ of those clips both work
@@ -1794,10 +1722,13 @@ static object being the easiest part of a prompt to render. Twelve clips draw no
 all. Clip by clip, question decomposition finds fewer flaws than \PhyReAct{} on $70$, the same
 number on $63$, and more on $16$.
 
-Turning a clip-level scalar into a localized accusation would take a threshold of our choosing,
-and the recall would then measure that threshold rather than the evaluator. A score of $0.42$
-names no defect and points at no moment, so nothing exists to set beside an annotator's sentence.
-The sound axis against a learned scalar judge is therefore the clip-level rating of
+Alignment scoring and learned quality scoring are absent from \cref{tab:external} because a
+clip-level scalar admits no entry in its columns. A score of $0.42$ names no defect and points at
+no moment, and $86$ of the $149$ clips carry more than one annotated flaw --- $241$ of the $304$
+--- so one number cannot identify which of them it found, whatever threshold converts it. Nor
+does the scalar order these clips: CLIPScore over all $149$ correlates with the annotators' own
+clip severity at $r=+0.035$ ($p=0.67$) and with the number of flaws they marked at $r=-0.024$
+($p=0.77$). The sound axis against a learned scalar judge is the clip-level rating of
 \cref{tab:vs2}.
 
 \input{tab_external}
@@ -1829,11 +1760,9 @@ is then an edit to an object a person can read, version, and veto, and the arc o
 the framework culminates in a system that evolves itself without ever touching a
 weight.
 
-We are deliberate about the honesty boundary. Only three components rest on
-experiments (\Cref{sec:generation,sec:dataset,sec:eval}); everything else in this
-section is framework and roadmap. Because all learning is state optimization on a
-readable $S$, this boundary can be drawn cleanly \emph{inside} the same formalism
-rather than hidden, and \Cref{tab:builtvsroadmap} states it plainly.
+Three components rest on experiments (\Cref{sec:generation,sec:dataset,sec:eval}); the rest of
+this section is framework and roadmap. Because all learning is state optimization on a readable
+$S$, that boundary falls inside the formalism itself, and \Cref{tab:builtvsroadmap} marks it.
 
 \subsection{From ReAct and agent memory to a physical agent with typed state}
 \label{sec:framework:genealogy}
@@ -1848,12 +1777,10 @@ literature asks where an agent's accumulated experience should live---episodic
 transcripts, distilled semantic priors, or reusable
 procedures~\cite{contexttraining2026,reasoningbank2026,explicitmem2026,%
 plugmem2026,vilomem2026,amem2025,agentmemsurvey2024,m3agent2025,hindsight2026,%
-aimeetsbrain2026}. \PhyReAct{} sits at the intersection and makes one decisive
-change: it \emph{physicalizes} the ReAct harness and upgrades the \emph{carrier}
-of memory. Where prior agents store free-text notes or latent vectors,
-\PhyReAct{} stores structured physical-verification traces with full provenance.
-This single choice is what makes the agent auditable by construction, and it is
-the throughline of the framework below.
+aimeetsbrain2026}. \PhyReAct{} sits at that intersection and changes the \emph{carrier} of memory: where these
+agents store free-text notes or latent vectors, it stores structured physical-verification traces
+with full provenance. Auditability follows from that choice, and it is the throughline of the
+framework below.
 
 \subsection{The unifying abstraction}
 \label{sec:framework:abstraction}
@@ -1941,10 +1868,9 @@ from evidence $R$ to a three-valued verdict
   \label{eq:verdict}
 \end{equation}
 plus a \emph{contradiction packet} $F$ that localizes, for each unmet obligation,
-which measurement contradicts it and where. The three-valued codomain is
-load-bearing: \unknownv{} (and \abstain{} for out-of-scope obligations) are
-first-class outcomes, so the critic can decline to certify rather than guess, and
-a \contradicted{} verdict is never conflated with mere implausibility. The
+which measurement contradicts it and where. \unknownv{}, and \abstain{} for out-of-scope
+obligations, are first-class outcomes of the codomain, so declining to certify is available to
+the critic as a verdict in its own right. The
 emitted trace $T=(C,G,R,Y,F)$ carries full provenance---every element of $Y$ is
 back-traceable to the operator calls in $G$ and the measurements in $R$.
 
@@ -1975,38 +1901,29 @@ control signal} and regenerates:
 where $\mathrm{Gen}$ is the physics-guided pipeline of \Cref{sec:generation}
 (MuJoCo simulation~\cite{todorov2012mujoco} driving a Wan~2.2 video
 model~\cite{wan2025} through VACE control conditioning~\cite{vace2025}), and
-$\delta(F)$ is a \emph{targeted} edit to the simulation/control inputs addressing
-the specific violated obligation rather than resampling blindly. Because the
-control signal is \emph{computed}, not estimated, a contradiction localized in
-space and time maps naturally onto a local edit of the conditioning stream. What
-makes this channel trustworthy is that the critic is \emph{independent and
-frozen}---not the generator grading its own output, in contrast to
+$\delta(F)$ is an edit to the simulation and control inputs addressing the violated obligation.
+Since the control signal is a rendered field over space and time, a contradiction localized in
+both maps onto a local edit of the conditioning stream. The critic here is independent and
+frozen, so the grading signal does not originate in the generator being graded, unlike
 self-evaluating refinement loops~\cite{mavis2025} and verification-guided
 repair~\cite{neuse2025}. Both endpoints of \eqref{eq:control} are built
-(\Cref{sec:generation,sec:eval}); the map $\delta$ and the closed loop are
-roadmap, and we claim no generator improvement from this channel yet.
+(\Cref{sec:generation,sec:eval}); the map $\delta$ and the closed loop are roadmap.
 
 \subsection{Auditability by construction}
 \label{sec:framework:audit}
 
-Auditability here is not a logging layer added afterwards but a consequence of the
-formalism: because the learned object is the readable state $S$ and every
-conclusion is a deterministic roll-up $\Phi$ over provenance-carrying
-measurements, any verdict $Y$ can be replayed back to the operator calls in $G$
-and the measurements in $R$, and any state change $S\!\rightarrow\!S'$ is a
-human-readable diff of $\Pi$, $M$, or $K$. This is what later makes both
-weight-free self-evolution and its human supervision tractable: the reviewer
-inspects readable objects, not gradients.
+Auditability follows from the formalism. The learned object is the readable state $S$ and every
+conclusion is a deterministic roll-up $\Phi$ over provenance-carrying measurements, so any verdict
+$Y$ replays back to the operator calls in $G$ and the measurements in $R$, and any state change
+$S\!\rightarrow\!S'$ is a human-readable diff of $\Pi$, $M$, or $K$. Weight-free self-evolution and
+its human supervision both rest on that property: the reviewer inspects readable objects rather
+than gradients.
 
-We are explicit about what auditability does \emph{not} claim. A \supported{}
-verdict is a critic judgment, not ground truth---ground truth in this paper is
-human annotation. A deterministic roll-up removes randomness in the roll-up step
-but does not by itself resolve evaluator drift in the underlying operators or the
-compiler. A prompt that survives our checks is \emph{plausible} with respect to
-the tested obligations, not a certificate of physical correctness. And a static
-critic improving does not entail that the generator has improved. These
-distinctions are enforced by the three-valued codomain \eqref{eq:verdict} and by
-keeping evidence separate from belief in $M$.
+Auditability bounds what a verdict means. A \supported{} verdict is a critic judgment, where the
+ground truth in this paper is human annotation. Determinism in the roll-up leaves evaluator drift
+in the underlying operators and the compiler untouched. A prompt surviving the checks is
+\emph{plausible} with respect to the obligations tested, and a static critic improving says
+nothing about the generator.
 
 \subsection{The culmination: weight-free context-training self-evolution}
 \label{sec:selfevolve}
@@ -2031,8 +1948,7 @@ This is self-evolution that never touches weights, in the spirit of
 context-distillation and experience-memory
 agents~\cite{contexttraining2026,reasoningbank2026,reflexion2023,explicitmem2026,%
 amem2025,agentmemsurvey2024,vilomem2026}, and it treats deployment-time adaptation
-as \emph{learning as state optimization} rather than fine-tuning. The acceptance
-rule is where optimization becomes safe:
+as \emph{learning as state optimization} rather than fine-tuning. Acceptance is governed by
 \begin{equation}
   S' =
   \begin{cases}
@@ -2043,9 +1959,8 @@ rule is where optimization becomes safe:
 \end{equation}
 where $U_{\mathrm{val}}$ is a \emph{held-out proxy} score and $\Delta$ ranges over
 distilled candidates. Candidates that do not strictly improve the proxy are
-pruned; when none does, the state is left unchanged. This do-nothing default gives
-a monotonicity guarantee on the proxy and is our first-order defense against
-context pollution.
+pruned, and when none improves it the state is left unchanged. That default makes the proxy
+monotone across updates, bounding how far a distilled candidate can degrade $S$.
 
 \paragraph{Breaking the closed loop with external knowledge \textnormal{(P6)}.}
 A system whose only inputs are its own traces---CoT $\rightarrow$ feedback
@@ -2054,21 +1969,15 @@ its own biases: distilled priors condition future reasoning, whose traces distil
 into more priors. The external knowledge channel $K$ is the deliberate opening.
 \PhyReAct{} may issue retrieval or ask for external or social knowledge (physical
 facts, human corrections, domain conventions) and admit it into $K$ under the same
-candidate-and-pruning discipline as \eqref{eq:elitism}, with an explicit
-\emph{do-nothing} fallback: if no retrieved candidate improves the held-out proxy,
-nothing is admitted, and $K$-sourced facts are provenance-tagged distinctly from
-distilled beliefs so bad admissions remain revertible. Grounding the loop in
-outside information is thus not a license for uncontrolled ingestion; it is gated
-by the same elitism that protects $S$, so external knowledge can break the echo
-chamber without polluting it.
+candidate-and-pruning discipline as \eqref{eq:elitism}: if no retrieved candidate improves the
+held-out proxy, nothing is admitted, and $K$-sourced facts carry a provenance tag distinct from
+distilled beliefs, so an admission can be reverted. External knowledge therefore enters under the
+same elitism that governs $S$.
 
-Because the learned object is a readable state, self-evolution stays honest about
-its own status: every prior distilled into $M$ is a \emph{critic-derived} prior, a
-summary of what \PhyReAct{}'s own verification loop concluded, not verified truth.
-Retrieval quality, staleness of cached plans, and the propagation of a bad prior
-remain open problems. This entire inward channel---and the external opening---is
-roadmap: it is the destination the framework is designed to reach, and we neither
-run nor report it here.
+Every prior distilled into $M$ is \emph{critic-derived} --- a summary of what \PhyReAct{}'s own
+verification loop concluded, not verified truth --- and retrieval quality, staleness of cached
+plans, and the propagation of a bad prior remain open. The inward channel and the external
+opening are both roadmap.
 
 \subsection{Human oversight}
 \label{sec:framework:human}
@@ -2077,11 +1986,9 @@ A human is kept in the loop at a few specific gates rather than throughout: a
 reviewer may audit a trace $T$, veto or edit a proposed state update in
 \eqref{eq:accept}, and approve whether a refined generation \eqref{eq:control} or
 a new state $S'$ is deployed. Human feedback also enters $\mathrm{Distill}$ as a
-first-class signal $\phi$. Weight-free learning is what makes this lightweight:
-because updates are readable diffs of $S$, oversight is a matter of reading and
-approving, not retraining. The reviewing tooling and deployment protocol are
-roadmap; the artifacts they act on---traces, three-valued state, provenance---exist
-today.
+first-class signal $\phi$. Because updates are readable diffs of $S$, oversight consists of
+reading and approving them. The reviewing tooling and deployment protocol are roadmap; the
+artifacts they act on --- traces, three-valued state, provenance --- exist today.
 
 \subsection{What is built vs.\ what is roadmap}
 \label{sec:framework:builtvsroadmap}
@@ -2552,15 +2459,11 @@ pruning candidate contexts against a held-out signal is what turns external
 information into consistent gains~\cite{contexttraining2026}.
 
 \paragraph{Positioning.}
-Two properties distinguish \PhyReAct{} within this literature. First, the
-\emph{carrier} of memory is a structured physical-verification trace with full
-provenance and a three-valued verdict, rather than free-text notes or latent
-vectors, which is what makes the accumulated state auditable by construction.
-Second, we are explicit that none of this cross-clip machinery is run here: every
-memory citation above is a directional precedent for the roadmap of
-\cref{sec:roadmap}, not evidence that \PhyReAct{} already carries state across
-clips, and any distilled prior would be a critic-derived summary rather than
-ground truth.
+What distinguishes \PhyReAct{} within this literature is the carrier of memory: a structured
+physical-verification trace with full provenance and a three-valued verdict, where these systems
+accumulate free-text notes or latent vectors. A trace of that form is auditable as accumulated,
+which is the property the roadmap of \cref{sec:roadmap} depends on. None of the cross-clip
+machinery cited above runs in this report.
 
 \subsection{Diagnostic supervision for generated-video failures}
 Human supervision for generated video ranges from holistic ratings and preferences to
@@ -2570,14 +2473,12 @@ Physion-Eval is closer to flaw diagnosis: its 12{,}718 generated videos and 10{,
 expert reasoning traces cover 22 physical categories, temporally localize failures, and
 use corresponding real-world videos as references~\cite{physioneval2026}.
 
-Our 1{,}500-clip corpus is complementary rather than a replacement. Its 2{,}582
-human-written records bind each flaw to the violated prompt fragment and a rationale,
-severity, and confidence, with an optional time span and box track. This schema supports
-open-vocabulary allegation-to-flaw matching for a prompt-conditioned critic without a
-matched real-world reference. The resulting benchmark is more directly aligned with
-\PhyReAct{}'s output contract, but its all-flawed, single-annotator construction supports
-recall measurement only and does not provide the precision or agreement statistics of a
-balanced, redundantly annotated benchmark.
+Our $1{,}500$-clip corpus is complementary. Its $2{,}582$ human-written records bind each flaw
+to the violated prompt fragment and a rationale, severity, and confidence, with an optional time
+span and box track, which supports open-vocabulary allegation-to-flaw matching without a matched
+real-world reference. Its all-flawed, single-annotator construction supports recall measurement
+alone, and yields neither the precision nor the agreement statistics of a balanced, redundantly
+annotated benchmark.
 
 % =====================================================================
 \section{Limitations}\label{sec:limitations}
@@ -2641,8 +2542,9 @@ evidence chain.
 On a development core of $149$ clips carrying $304$ human-marked defects,
 \PhyReAct{} accounts for $228$, against $164$ for a published question-decomposition
 evaluator reading the same clips and checking the same claims with the same served
-model. Every one of those $228$ arrives with the number that forced it, so a reader
-can audit any single verdict instead of accepting an aggregate.
+model. Prompting the same backbone monolithically reaches $222$, so the count alone does not
+separate the two. Every one of \PhyReAct{}'s $228$ arrives with the number that forced it, and
+a reader can audit any single verdict instead of accepting an aggregate.
 
 That auditability is also what makes the evidence usable downstream. A contradicted
 claim names what failed, when it failed, and on what measurement, which is precisely

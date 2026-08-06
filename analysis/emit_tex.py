@@ -321,6 +321,14 @@ def tab_external(cost: dict | None) -> str:
     if _qd.exists():
         qd_row = _qd.read_text().strip()
 
+    # The single-pass row holds the model fixed and removes the framework, which is the
+    # comparison a reader most wants: is the gain the plan, or is it the model?
+    mono_row = (r"\quad Single-pass VLM, same model~\cite{qwen3vl2025} & free-text flaw list "
+                r"& --- & --- & --- \\")
+    _mo = Path("~/diffphy_psc/artifacts/runs/exp034/row_monolith.tex").expanduser()
+    if _mo.exists():
+        mono_row = _mo.read_text().strip()
+
     return rf"""
 \begin{{table}}[t]
 \centering\small
@@ -336,22 +344,17 @@ This work & localized allegation & \textbf{{228}} & \textbf{{75.0\%}} & {ours} \
 {qd_row}
 \quad Modular video QA~\cite{{proviq2023,morevqa2024}} & per-question answers & --- & --- & --- \\
 \addlinespace
-\multicolumn{{5}}{{@{{}}l}}{{\textit{{Not localizable: no allegation to match}}}} \\
-\quad Alignment scoring~\cite{{vqascore2024,clipscore2021}} & clip-level scalar & n/a & n/a & n/a \\
-\quad Learned quality scoring~\cite{{videoscore2024,videoscore2_2025}} & clip-level scalar & n/a & n/a & n/a \\
+\multicolumn{{5}}{{@{{}}l}}{{\textit{{Recall reported, but not a stable quantity}}}} \\
+{mono_row}
 \bottomrule
 \end{{tabular}}
-\caption{{External comparison on localized flaw recall, over the same {c.get('clips', 149)} clips
-and the same $304$ flaws, judged by the same two-tier protocol of \cref{{sec:matching}}. Cost is the
-mean of each run's own per-clip records and excludes the matching protocol, which is the scorer
-rather than the evaluator. The systems in the first group emit per-question answers, so a failed
-question maps to the claim that produced it and a localized comparison is possible; each is given
-the same claim decomposition our own run used, so a recall difference cannot come from one side
-being handed a different set of things to check. Dashes mark an evaluator nobody has run under this
-protocol. The second group returns one scalar per clip, which names no defect to place beside an
-annotator's sentence; rather than convert a score into an allegation with a threshold of our choosing, we do
-not score them here and compare against a learned scalar judge on the clip-level rating axis
-instead (\cref{{tab:vs2}}).}}
+\caption{{Localized flaw recall over the same {c.get('clips', 149)} clips and the same $304$
+flaws, judged by the protocol of \cref{{sec:matching}}. Cost counts model and tool calls per clip and
+excludes the matching protocol, which is the scorer rather than the evaluator. Question
+decomposition is given the same claim decomposition \PhyReAct{{}} used, so its recall cannot differ
+because it checked different things. The single-pass row is the same served model as \PhyReAct{{}}'s
+own, prompted once with every frame; its recall is set apart because rephrasing the prompt changes
+the answer. A dash marks an evaluator nobody has run under this protocol.}}
 \label{{tab:external}}
 \end{{table}}
 """
