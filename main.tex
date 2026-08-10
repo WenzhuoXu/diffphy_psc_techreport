@@ -230,7 +230,21 @@ held out, so they characterize the system as it stands rather than its generaliz
 \section{Physics-Guided Video Generation}\label{sec:generation}
 % =====================================================================
 
-\subsection{Backbone and control mechanism}
+This section builds the generation testbed. A rigid-body simulation supplies geometry and
+motion, a text prompt supplies appearance, and a video-diffusion backbone with a native
+control branch combines the two. Because the motion originates in a solver rather than in the
+model, the trajectory a finished clip should show is fixed before the clip is generated; and
+because it arrives through a control branch rather than through the prompt, it enters at a
+point a later system could write to. That is the interface through which a critic's verdict
+could eventually update how a clip is generated (\cref{sec:framework}).
+
+Three questions organize what follows. How is a simulation turned into a signal a generator
+will follow, and what consumes it (\cref{sec:gen-mechanism,sec:gen-control})? What was built
+with it, and what does it render cleanly (\cref{sec:gen-breadth,sec:gen-quality})? And how
+tightly is the generated motion actually bound to the simulated motion --- at what point in
+sampling does the trajectory commit (\cref{sec:gen-release})?
+
+\subsection{Backbone and control mechanism}\label{sec:gen-mechanism}
 The backbone is Wan~2.2-VACE-Fun-14B, a two-expert mixture-of-experts
 video-diffusion model with a native control branch, run through the
 \code{WanVACEPipeline} interface; because the two expert stacks exceed the memory
@@ -293,7 +307,12 @@ carries the solver's numerical error and no perceptual estimation error. It reac
 backbone through the control branch, and the source frames are never denoised or copied: the
 all-white mask leaves the preserved region empty, so every output pixel is synthesised.
 
-\subsection{Rendering the control signal}
+\subsection{Rendering the control signal}\label{sec:gen-control}
+The control video is what the previous subsection assumed: a grayscale clip in which every
+frame states where the surfaces are. Producing it from a simulation is not a screenshot of the
+solver --- the polarity, the normalization and the boundaries all have to match what the
+control branch was trained to read, and each choice below is made on that basis.
+
 \paragraph{One simulation, several registered views.} A scene is described as
 data---a list of moving bodies with initial positions and velocities, a list of
 static surfaces, and a camera placed by a look-at rule---and the same engine turns
@@ -375,6 +394,14 @@ structure control for video~\cite{wang2023videocomposer,vace2025}. Here the cont
 in a physics solver, so the structure the generator follows satisfies the equations of motion
 by construction.
 
+\subsection{Design choices}\label{sec:gen-design}
+Two points in the recipe admitted an easier alternative, and the deployed recipe takes
+neither. \textbf{Native control rather than source re-synthesis:} a control branch consuming
+a pre-computed depth video keeps the generator from importing the rendered source's synthetic
+look, which re-synthesizing the simulation frames directly does not avoid. \textbf{No
+reference image:} the pipeline accepts an optional appearance reference, but the deployed
+recipe omits it, because including it degraded single-object trajectories under inspection.
+
 \subsection{Pipeline and configuration}
 \Cref{tab:genconfig} lists the operating configuration. Generation runs as a
 staged GPU job: control videos are rendered, a small checkpoint provides a fast
@@ -422,17 +449,9 @@ checkpoint provides a pre-flight sanity gate and is not used for final clips.}
   \label{fig:gencases}
 \end{figure}
 
-\subsection{Design choices}\label{sec:gen-design}
-Two choices define the deployed recipe. \textbf{Native control rather than source
-re-synthesis:} a control branch consuming a pre-computed depth video keeps the
-generator from importing the rendered source's synthetic look, which re-synthesizing
-the simulation frames directly does not avoid. \textbf{No reference image:} the
-pipeline accepts an optional appearance reference, but the deployed recipe omits it,
-because including it degraded single-object trajectories under inspection.
-
 \subsection{Scene library and coverage}\label{sec:gen-breadth}
-The two cases above are single rigid bodies because those are the scenes whose
-trajectory can be checked against a closed-form path. The scene set itself is
+The worked examples so far have been single rigid bodies, because those are the scenes whose
+trajectory can be checked against a closed-form path. The library built with the recipe is
 much wider: $1{,}314$ scenes across $66$ kinds. Before any of them was rendered
 photorealistically, $652$ of the underlying simulations were watched and $591$ judged
 to show the intended physical behaviour clearly enough to be worth generating from;
@@ -444,14 +463,13 @@ toppling dominoes and a chaotic two-arm linkage. \cref{fig:scenepairs} shows
 three of them the same way \cref{fig:gencases} shows a ball: the simulated depth
 control above, the generated clip below, at matched timestamps.
 
-One limit should be read off these figures explicitly. Everything here comes out
-of the same rigid-body engine, so the deformables are that engine's
-particle-and-link primitives: cloth is a sheet of particles joined by springs, a
+Everything in the library comes out of the same rigid-body engine, so the deformables are
+that engine's particle-and-link primitives: cloth is a sheet of particles joined by springs, a
 rope or chain is a short row of linked segments, sand and marbles are many small
 solid bodies in contact, and floating is a buoyancy force on a solid body in a
 still fluid volume. None of it is a fluid solve, none of it is smoke, and none of
-it is a finite-element soft body. The scene captions name the primitive rather
-than the phenomenon for exactly this reason.
+it is a finite-element soft body. The scene captions therefore name the primitive rather
+than the phenomenon.
 
 \begin{figure}[tb]
   \centering
@@ -487,18 +505,34 @@ than the phenomenon for exactly this reason.
 
 
 \subsection{What the generator achieves}\label{sec:gen-quality}
-Single-object scenes---a bouncing ball, a projectile arc, a swinging pendulum---render
+Breadth of scene is not the same as quality of render, and the two come apart along a clear
+line. Single-object scenes---a bouncing ball, a projectile arc, a swinging pendulum---render
 cleanly, with the generated object following the simulated trajectory
 (\cref{fig:gencases}). Multi-object interaction, such as a billiards break, remains
 open: neither the deployed backbone nor the alternates tried against it produce a
 clean multi-object collision.
 
-These judgments are qualitative. They rest on visual inspection of the output clips
-and on a color-blob trajectory tracker that checks whether the generated object
-follows the control's path. No learned or quantitative video-quality score---FVD, a
-human-preference model, or a critic score---is applied to this line.
+The instrument behind both judgments is visual inspection of the output clips together with a
+color-blob tracker that checks whether the generated object follows the control's path. The
+release study of \cref{sec:gen-release} puts numbers on that agreement for the single-object
+scenes.
 
 \subsection{When the control can be released}\label{sec:gen-release}
+Everything so far holds the control on for the whole of sampling. Withdrawing it partway
+answers a sharper question: not whether the generated motion follows the simulation, but
+\emph{when} it stops being free to do otherwise. If a clip generated with the control switched
+off after a certain point still moves the way the simulation does, the motion was settled
+before that point.
+
+Two scoping notes belong here rather than at the end, because they bound everything in this
+subsection. The runs condition the backbone by carrying a rendered source video through the
+denoising process and releasing it partway, rather than through the dedicated control branch
+used everywhere else in this section; the question and the noise schedule are the same, but
+whether the release point transfers to the control branch is untested. And the scenes are
+single moving rigid bodies at one resolution and frame count --- the deformable and granular
+scenes of \cref{sec:gen-breadth} are outside the study, because the tracker cannot follow
+their objects as a single path.
+
 Sampling proceeds over a decreasing sequence of noise levels
 $\sigma_1 > \sigma_2 > \cdots > \sigma_N$, with $\sigma_N \!\to\! 0$, where $\sigma_i$ is
 the standard deviation of the Gaussian noise still present in the latent at step $i$ under
@@ -573,10 +607,11 @@ not.} Two scenes were repeated over $16$ seeds each at one release point,
 $\sigma = 0.952$, in two variants (with and without a reset of the sampler's
 internal history at the release), against the never-released baseline: $96$ clips
 in total, $16$ per cell (\cref{fig:injstep}). Releasing the control
-at $\sigma = 0.952$ leaves the airborne flight of the thrown ball essentially
-untouched --- per-seed horizontal agreement drops by $0.003$ relative to never
+at $\sigma = 0.952$ leaves the airborne flight of the thrown ball
+intact --- per-seed horizontal agreement drops by $0.003$ relative to never
 releasing ($95\%$ confidence interval $0.001$ to $0.004$, $n=16$ paired seeds),
-which is a real but negligible difference. Over the whole clip the same release
+a difference that is resolved but far below the
+effect the whole clip shows. Over the whole clip the same release
 costs $0.13$ horizontally ($95\%$ CI $-0.02$ to $0.28$, $n=16$) and $0.18$
 vertically ($95\%$ CI $0.07$ to $0.29$, $n=16$). The gap between those two windows
 is the finding: what an early release breaks is not the arc but what happens after
@@ -621,12 +656,11 @@ and the vertical agreement, which is the informative direction for a
 straight-down drop, is lowest at the earliest release ($0.78$ at $\sigma = 0.952$)
 and rises to $0.99$ or above once the release is at $\sigma = 0.903$ or later. A
 ball rolling off a ramp holds $0.99$ or better at every release point in both
-directions, but only a third of its frames are measurable at all, so it
-constrains little. Across all three scenes, vertical motion --- the direction
+directions, on the third of its frames that are measurable at all. Across all three scenes, vertical motion --- the direction
 gravity supplies --- is markedly more robust to an early release than horizontal
 motion, which the simulation alone specifies.
 
-\paragraph{A denser sweep, and what it does not settle.} A third run
+\paragraph{A denser sweep under a different tracker.} A third run
 sweeps three release points on the thrown ball at three seeds and two guidance
 strengths, $18$ clips, and scores them against the control with a
 segmentation-based tracker rather than a colour tracker. It reproduces the
@@ -635,33 +669,26 @@ $6$ clips at $\sigma = 0.952$, $95\%$ CI $0.998$ to $1.000$), while
 after-contact horizontal agreement at that same release point averages $0.69$ with
 a confidence interval spanning zero ($-0.04$ to $1.43$, $n=6$) and is negative on
 one clip; at $\sigma = 0.903$ and $\sigma = 0.833$ the after-contact window
-recovers to $0.99$ and $1.00$. But it also shows the ceiling on this measurement:
-at the latest release point the tracker loses the object entirely on $3$ of $6$
-clips, so those cells rest on $3$ clips, not $6$. On inspection those are clips in
-which the generated ball is genuinely tiny and low-contrast against the grass, not
-clips in which the tracker mis-fired, but either way the confidence intervals at
+recovers to $0.99$ and $1.00$. It also reaches the ceiling of this measurement: at
+the latest release point the tracker loses the object entirely on $3$ of $6$
+clips, so those cells rest on $3$ clips, not $6$. Those are clips in
+which the generated ball is genuinely tiny and low-contrast against the grass rather than
+clips in which the tracker mis-fired, and the confidence intervals at
 the late release points are too wide to place the transition sharply.
 
-\paragraph{Scope.} These numbers characterize one conditioning route. The runs
-condition the backbone by carrying a rendered source video through the denoising
-process and releasing it partway, rather than through the dedicated control branch of
-\cref{sec:generation}. The question and the noise schedule are the same in both cases,
-but the release point measured here is a property of the source-carrying route, and its
-transfer to the control branch is untested.
-
-The scenes are single moving rigid bodies---a ball thrown across a field, a ball dropped
-onto a floor, a ball rolling off a ramp---at one resolution and frame count. Deformable
-and granular scenes (\cref{sec:gen-breadth}) are outside the study, because the tracker
-cannot follow their objects as a single path. Statistical depth is uneven: one release
-point carries $16$ seeds, while the shape of the curve across release points rests on one
-seed per point for three scenes and three seeds per point for a fourth.
-
-One factor is not isolated. In one of the two variants the release is accompanied by a
-sampler-history reset, and the study does not separate the two. The variants are
-statistically indistinguishable on every window and direction measured---the largest
-per-seed difference is $0.04$ horizontally over the whole clip, $95\%$ CI $-0.04$ to
-$0.13$, $n=16$---which is what one expects if the reset does nothing once the motion has
-committed, but it does not establish that it never matters.
+\paragraph{Taken together.} The three runs place the
+commitment point for horizontal motion between $\sigma = 0.952$ and $\sigma = 0.903$ on the
+thrown ball, and they show the asymmetry between the two directions on every scene tested.
+Two things they do not settle. Statistical depth is uneven: one release point carries $16$
+seeds, while the shape of the curve across release points rests on one seed per point for
+three scenes and three seeds per point for a fourth, and at the latest release points the
+tracker's losses leave the transition too wide to place sharply. And one factor is not
+isolated --- in one of the two variants the release is accompanied by a sampler-history
+reset, and the study does not separate the two. The variants are statistically
+indistinguishable on every window and direction measured, the largest per-seed difference
+being $0.04$ horizontally over the whole clip ($95\%$ CI $-0.04$ to $0.13$, $n=16$), which is
+what one expects if the reset does nothing once the motion has committed, without
+establishing that it never matters.
 
 % =====================================================================
 \section{A Human-Annotated Video-Flaw Benchmark}\label{sec:dataset}
