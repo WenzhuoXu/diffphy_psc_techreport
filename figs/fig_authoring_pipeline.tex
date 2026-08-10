@@ -1,0 +1,257 @@
+% =====================================================================
+% fig_authoring_pipeline.tex -- how a physics description in text becomes the
+% control video the diffusion backbone follows: a language model writes the
+% scene specification, the specification is simulated and validated on the
+% trajectory it actually produces, a failing specification is returned to the
+% model with the violated condition attached and re-authored, and only an
+% accepted specification is rendered.
+%
+% \input-able into main.tex, which loads adobe-techreport.sty (hence the
+% adobered / adobeink / adobegray colours and the Source font family).
+%
+% REQUIRED IN THE MAIN PREAMBLE:
+%     \usepackage{tikz}
+%     \usetikzlibrary{arrows.meta,positioning,calc}
+% Both lines are required, and the libraries MUST be loaded in the preamble --
+% see the guard below for why a figure file cannot load them for itself.
+% Every style is declared inside the tikzpicture's own option list, so all
+% definitions are local to this picture: \input-ing this file twice, or
+% alongside its companion figures, cannot clash.
+%
+% CONVENTIONS shared with fig_critic_pipeline.tex and fig_graph_construction.tex:
+%   adobegray!12 fill      = a learned component
+%   white + adobeink line  = a deterministic component
+%   adobered line          = the one check the pipeline turns on (used here for
+%                            validation of the simulated trajectory, and for
+%                            nothing else)
+%   dashed gray            = something handed to the system, not produced by it
+% Every stage in this picture is implemented, so every line is solid; the
+% solid/dashed built-versus-roadmap distinction used elsewhere in the report
+% does not apply here.
+%
+% WRAPPING: like every other figs/*.tex in this report, this file contains no
+% figure environment and no \caption -- the caller supplies both:
+%     \begin{figure}[tp]
+%       \centering
+%       \input{figs/fig_authoring_pipeline}
+%       \caption{...}
+%     \end{figure}
+% The \label is carried HERE (see the block just below \makeatother), so main.tex
+% must NOT add a second \label{fig:authoring}.
+%
+% CONTENT follows the subsection "From a physics description to a control video"
+% (\ref{sec:gen-authoring}) and is drawn from the implementation in
+% ~/diffphy_exp014/scripts/exp014/agentic_mask.py -- stage order from build_one()
+% at lines 589-663, with:
+%   text-in, no reference video   docstring l.4-8; author() l.294-306; main() l.683
+%   scene specification written   author() l.294-327; scene contract l.124-149
+%   required fields re-asked once _validate() l.249-265; author() l.322-326
+%   waypoints only where needed   docstring l.26-29; motion model l.98-117
+%   simulated by the renderer's   _sim_traj() l.348-352 (expand + simulate);
+%     own engine                  silhouette_render.render_frames l.209 calls the
+%                                 same simulate(); physics_world.py is pymunk
+%   validation on the trajectory  lint_scene() l.355-450 (ballistic must be
+%                                 dynamic l.406; off-frame l.410-417; rest /
+%                                 support l.419-424; rising must rise l.426-428;
+%                                 reach / miss targets l.430-445)
+%   repair loop, three rounds     build_one() l.604-612; repair() l.472-488;
+%                                 realized-motion readout _traj_summary l.453-469
+%   appearance written apart      author_texture() l.272-291; called l.616
+%   camera + graphic-body strip   apply_camera() l.491-504; _strip_graphic_bodies
+%                                 l.210-215; called l.618-619
+%   render + contact sheet        build_one l.623-627; render_gif; strip l.507-521
+%   what the generator receives   build_one l.632-662 (fill-ratio cap l.632-638,
+%                                 low-control-strength cap l.652-654), consumed by
+%                                 generate_worker.py l.176-183 -> video_stylizer
+%                                 WanVACEStylizer.stylize l.58-135
+% The figure is descriptive of the method only: no accuracy, no comparison
+% between configurations, and no quantity of any kind appears in it.
+%
+% Full-width boxes are 13.1cm, matching fig_graph_construction.tex, so the whole
+% picture stays inside the report's text width unscaled -- do not add scale= or
+% \resizebox.
+% =====================================================================
+% The TikZ libraries must be loaded in the PREAMBLE, not here: a figure
+% environment forms a group, and TikZ defines a library's macros locally, so a
+% \usetikzlibrary issued inside a figure does not survive to the next one. This
+% guard turns a missing preamble line into a clear message instead of TikZ's
+% confusing "You need to say \usetikzlibrary{calc}" further down.
+\makeatletter
+\@ifundefined{tikz@library@calc@loaded}{%
+  \PackageError{fig_authoring_pipeline}{%
+    The preamble must contain\MessageBreak
+    \string\usetikzlibrary{arrows.meta,positioning,calc}%
+  }{Add that line after \string\usepackage{tikz}.}}{}
+\makeatother
+
+% The caller's \input runs BEFORE its \caption, so a bare \label here would bind
+% to the enclosing section instead of to the figure. Step the figure counter,
+% label that value, then hand the counter back: the \caption that follows steps
+% it again to the same number, so \cref{fig:authoring} resolves to this figure.
+% Outside a float the block does nothing.
+\makeatletter
+\@ifundefined{@captype}{}{%
+  \refstepcounter{figure}%
+  \label{fig:authoring}%
+  \addtocounter{figure}{-1}%
+}
+\makeatother
+
+\begingroup
+\providecommand{\apsub}[1]{{\scriptsize\color{adobegray}#1}}
+
+\begin{tikzpicture}[
+    x=1cm, y=1cm,
+    % --- shared box shape -------------------------------------------------
+    apbox/.style   = {rounded corners=2pt, line width=0.7pt, align=center,
+                      inner sep=3.6pt, font=\sffamily\footnotesize,
+                      text=adobeink},
+    % --- LEARNED component: light gray fill --------------------------------
+    aplearn/.style = {apbox, draw=adobeink, fill=adobegray!12},
+    % --- DETERMINISTIC component: white with an ink outline ----------------
+    apdet/.style   = {apbox, draw=adobeink, fill=white},
+    % --- accent: the check a specification must pass before it is rendered --
+    apgate/.style  = {apbox, draw=adobered, fill=white},
+    % --- what is handed to the system --------------------------------------
+    apdata/.style  = {apbox, draw=adobegray, fill=white, inner sep=3pt,
+                      dash pattern=on 2pt off 1.6pt},
+    apline/.style  = {draw=adobeink, line width=0.7pt},
+    aparr/.style   = {apline, -{Straight Barb[length=3.6pt,width=3.8pt]}},
+    apnote/.style  = {font=\sffamily\scriptsize, text=adobegray,
+                      inner sep=0pt, align=left},
+    aptag/.style   = {font=\sffamily\scriptsize, text=adobegray, fill=white,
+                      inner xsep=3pt, inner ysep=1pt, align=center},
+    apsw/.style    = {rounded corners=1.2pt, line width=0.7pt, inner sep=0pt,
+                      minimum width=11pt, minimum height=7.5pt},
+  ]
+
+  % Full-width rows are centred on x=0 and 13.1cm wide, so their left edge sits
+  % at x=-6.55; the return lane sits just outside that, and the tag to its left
+  % is what sets the picture's left extent.
+
+  % ---------------- the scene specification (learned) ----------------------
+  \node[aplearn, text width=13.1cm, anchor=north] (author) at (0,0)
+    {\textbf{A language model writes the scene specification}\\[1.5pt]
+     \apsub{from the description alone: the bodies, their initial positions and
+     velocities, the static surfaces\\ they interact with, and a camera. A body on
+     a ballistic segment is given its initial velocity and\\ its colliders and
+     nothing else; prescribed waypoints are reserved for motion the simulator
+     would\\ otherwise override --- a rising balloon, a feather required to fall
+     like a stone. A reply missing a\\ required field, or naming a control
+     strength outside the allowed range, is re-asked once}};
+
+  \node[apdata, text width=6.8cm, anchor=south]
+    (spec) at ($(author.north)+(0,0.40)$)
+    {\textbf{Physics description, in text}\\[1.5pt]
+     \apsub{the event the clip is required to show ---\\ there is no reference
+     video}};
+
+  % ---------------- simulation (deterministic) -----------------------------
+  \node[apdet, text width=13.1cm, anchor=north]
+    (sim) at ($(author.south)+(0,-0.34)$)
+    {\textbf{The specification is simulated by the same engine the renderer runs}\\[1.5pt]
+     \apsub{the rigid-body simulator integrates the scene, so the arc, the contact
+     and the settling are\\ computed rather than drawn, and the trajectory checked
+     below is the one the control video will show}};
+
+  % ---------------- validation on the realized trajectory (accented) -------
+  \node[apgate, text width=13.1cm, anchor=north]
+    (gate) at ($(sim.south)+(0,-0.34)$)
+    {{\color{adobered}\textbf{Validation reads the trajectory that was produced,
+     not the specification}}\\[1.5pt]
+     \apsub{a ballistic segment must trace an arc that reaches its target ---
+     or, where the corrected outcome\\ contradicts the ordinary expectation,
+     cleanly misses it --- and come to rest on a surface or on\\ another body;
+     a rising segment must gain height; no body may leave the frame; and an arc
+     drawn\\ by hand where a simulated one was declared fails}};
+
+  % ---------------- the two ways out of validation -------------------------
+  \coordinate (fan) at ($(gate.south)+(0,-0.32)$);
+
+  \node[aplearn, text width=6.2cm, anchor=north west]
+    (repair) at ($(gate.south west)+(0,-0.82)$)
+    {\textbf{Returned to the model and re-authored}\\[1.5pt]
+     \apsub{the violated condition is attached, together\\ with what the engine
+     actually produced ---\\ where each body started, where it ended,\\ how high
+     it went --- and the model returns a\\ corrected specification; three rounds
+     at most}};
+
+  \node[aplearn, text width=6.2cm, anchor=north east]
+    (texture) at ($(gate.south east)+(0,-0.82)$)
+    {\textbf{Appearance is written separately}\\[1.5pt]
+     \apsub{a second request, shown nothing about the\\ control, describes the
+     real filmed scene; a\\ reply that mentions the control's own look\\ is
+     rewritten until it does not}};
+
+  % ---------------- camera, render, and what the generator receives --------
+  \node[apdet, text width=13.1cm, anchor=north]
+    (camera) at ($(0,0 |- repair.south)+(0,-0.46)$)
+    {\textbf{The camera is applied to the accepted specification}\\[1.5pt]
+     \apsub{a panning camera becomes a slow uniform drift of the whole scene,
+     while an orbit or a push-in is\\ left to the generator; bodies named for
+     graphics rather than for physics are dropped here}};
+
+  \node[apdet, text width=13.1cm, anchor=north]
+    (render) at ($(camera.south)+(0,-0.34)$)
+    {\textbf{The accepted specification is rendered into the control video}\\[1.5pt]
+     \apsub{the scene is expanded into its full geometry and every frame is drawn
+     from the simulated state\\ over the clip's fixed frame budget; a contact
+     sheet of the frames is saved beside it for review}};
+
+  \node[apdet, text width=13.1cm, anchor=north]
+    (planrow) at ($(render.south)+(0,-0.34)$)
+    {\textbf{What is handed to the generator}\\[1.5pt]
+     \apsub{the control video, the appearance description, what must not appear
+     in the render, a fixed seed,\\ and the strength at which the control is
+     applied --- lowered when the control covers little of the\\ frame, and held
+     low when the generator already renders the motion well without it}};
+
+  \node[aplearn, text width=13.1cm, anchor=north]
+    (gen) at ($(planrow.south)+(0,-0.34)$)
+    {\textbf{The diffusion backbone follows the control video}\\[1.5pt]
+     \apsub{motion comes from the control video; identity, materials, lighting
+     and environment come from\\ the appearance description alone}};
+
+  % ---------------- edges ------------------------------------------------
+  \draw[aparr] (spec.south)    -- (author.north);
+  \draw[aparr] (author.south)  -- (sim.north);
+  \draw[aparr] (sim.south)     -- (gate.north);
+
+  % validation splits: re-author on the left, carry on down on the right
+  \draw[apline] (gate.south) -- (fan);
+  \draw[apline] (repair.north |- fan) -- (texture.north |- fan);
+  \draw[aparr]  (repair.north  |- fan) -- (repair.north);
+  \draw[aparr]  (texture.north |- fan) -- (texture.north);
+
+  % the re-authored specification goes back through the simulator, up the
+  % left-hand lane -- it is never accepted on the model's word
+  \draw[aparr] (repair.west) -- ($(repair.west)+(-0.47,0)$) |- (sim.west);
+
+  \draw[aparr] (texture.south) -- (texture.south |- camera.north);
+  \draw[aparr] (camera.south)  -- (render.north);
+  \draw[aparr] (render.south)  -- (planrow.north);
+  \draw[aparr] (planrow.south) -- (gen.north);
+
+  % labels drawn last, so the lines they sit on do not strike through them
+  \node[aptag, anchor=south] at ($(repair.north)+(0,0.06)$)
+    {a condition was violated};
+  \node[aptag, anchor=south] at ($(texture.north)+(0,0.06)$) {accepted};
+  \node[aptag, anchor=east]  at ($(sim.west)+(-0.47,0.42)$) {re-simulated};
+
+  % ---------------- inline legend ----------------------------------------
+  \node[apsw, draw=adobeink, fill=adobegray!12, anchor=north west]
+    (swA) at ($(gen.south west)+(0,-0.44)$) {};
+  \node[apnote, right=3pt of swA] (lbA) {learned};
+
+  \node[apsw, draw=adobeink, fill=white, right=9pt of lbA] (swB) {};
+  \node[apnote, right=3pt of swB] (lbB) {deterministic};
+
+  \node[apsw, draw=adobered, fill=white, right=9pt of lbB] (swC) {};
+  \node[apnote, right=3pt of swC] (lbC) {checked on the simulated trajectory};
+
+  \node[apsw, draw=adobegray, fill=white, dash pattern=on 2pt off 1.6pt,
+        right=9pt of lbC] (swD) {};
+  \node[apnote, right=3pt of swD] (lbD) {input};
+
+\end{tikzpicture}
+\endgroup
