@@ -424,11 +424,43 @@ rather than the simulator's.
 \subsection{Withdrawing the conditioning during sampling}\label{sec:gen-release}
 
 Geometric conditioning can be applied for part of sampling and then removed, which locates the
-point at which the simulated trajectory becomes fixed. In the runs reported here the geometry is not supplied through the control branch. The rendered
-source video is encoded and used to condition the denoising process directly, and the same gate
-$\lambda_i$ of \cref{eq:control-release} removes it once $\sigma_i \leq \sigma_{\mathrm{rel}}$;
-the noise schedule and the meaning of $\sigma_{\mathrm{rel}}$ are unchanged. The scenes are
-single moving rigid bodies at one resolution and frame count.
+point at which the simulated trajectory becomes fixed. In the runs reported here the geometry is not supplied through the control branch, and the
+withdrawal is not the gate of \cref{eq:control-release}. The source render is encoded into video
+tokens that are concatenated with the image and text tokens the sampler attends over, each
+stream carrying a scale $\omega$. Withdrawal removes the video tokens from the sequence
+outright, rather than scaling an additive residual to zero: writing $m_i\in\{0,1\}$ for their
+presence at step $i$ of $S$,
+\begin{equation}
+m_i = \mathbb{1}\!\left[\,i < i^{*}\,\right],
+\qquad
+i^{*} = \operatorname{clip}\big(\operatorname{round}(f S),\, 0,\, S-1\big),
+\label{eq:token-drop}
+\end{equation}
+with $f$ the withdrawal fraction. Steps before $i^{*}$ attend over the source tokens at the
+scale $\omega$ the deployed recipe uses; from $i^{*}$ onward the sequence is the same one an
+unconditioned generation would carry.
+
+Because $i^{*}$ is an index, the noise level it corresponds to depends on the schedule. The
+backbone samples on the flow-matching schedule of its UniPC solver, so for $S$ steps at shift
+$\kappa$ over $N$ training timesteps,
+\begin{equation}
+\tilde{s}_i = \frac{(S-i)\,(1 - 1/N)}{S},
+\qquad
+\sigma_i = \frac{\kappa\,\tilde{s}_i}{1 + (\kappa-1)\,\tilde{s}_i},
+\qquad
+\sigma_{\mathrm{rel}} = \sigma_{i^{*}} .
+\label{eq:flow-sigma}
+\end{equation}
+Two runs that drop at the same step index therefore sit at different noise levels whenever $S$
+or $\kappa$ differs, which is why results are indexed by $\sigma_{\mathrm{rel}}$ and the step
+index is reported only as a label.
+
+The solver is multistep and forms each update from derivatives cached at previous steps, so
+after a withdrawal those cached values still carry the influence of the removed tokens. One of
+the two variants below clears that history at $i^{*}$ and the other leaves it in place;
+since the two differ in nothing else, comparing them isolates the reset from the removal.
+
+The scenes are single moving rigid bodies at one resolution and frame count.
 
 Withdrawing the conditioning partway leaves the remaining steps unconditioned. Noise decreases as
 sampling proceeds, so a \emph{high} $\sigma_{\mathrm{rel}}$ is an \emph{early} withdrawal and a low one
@@ -454,17 +486,38 @@ Both the control video and the
 generated clip are tracked frame by frame, giving the object's path in each. The default tracker
 locates the moving body by its colour against the background and reports the centroid of the
 largest matching region; the third run below substitutes a segmentation-based tracker, which
-takes the centroid of the object's predicted mask instead. Frames in which either video yields
-no location are dropped from that clip's correlation. \emph{Retention}
-is the agreement between the two paths, measured separately across the frame (horizontal) and
-up and down (vertical), as a correlation over the frames in which the object is located in both
-videos; a value near $1$ means the generated object moved the way the simulation did.
+takes the centroid of the object's predicted mask instead.
 
-Two windows are reported, since a single whole-clip number does not indicate which part of the clip disagrees: the
-\emph{airborne} window, up to the frame at which the simulated object first reaches the ground,
-and the \emph{after-contact} window from that frame to the end. The contact frame is read off
-the control's own vertical path as the first return to the floor after the object's highest
-point.
+Write $p^{\mathrm{gen}}_t=(x^{\mathrm{gen}}_t,y^{\mathrm{gen}}_t)$ and
+$p^{\mathrm{ctrl}}_t$ for the tracked positions at frame $t\in\{0,\ldots,T-1\}$, undefined on
+frames where the tracker locates nothing, and let
+$V=\{t: p^{\mathrm{gen}}_t \text{ and } p^{\mathrm{ctrl}}_t \text{ both defined}\}$. Retention
+over a window $W$ is the Pearson correlation of the two coordinate series, taken separately per
+axis over the frames of $W$ at which both are located,
+\begin{equation}
+R_x(W) \;=\; \rho\!\left(\{x^{\mathrm{gen}}_t\}_{t\in W\cap V},\,
+                          \{x^{\mathrm{ctrl}}_t\}_{t\in W\cap V}\right),
+\qquad
+R_y(W) \;=\; \rho\!\left(\{y^{\mathrm{gen}}_t\}_{t\in W\cap V},\,
+                          \{y^{\mathrm{ctrl}}_t\}_{t\in W\cap V}\right),
+\label{eq:retention}
+\end{equation}
+reported only where $|W\cap V|$ reaches a minimum count. The intersection with $V$ is what makes
+a frame the tracker misses in either video drop out of both series rather than either one alone.
+
+The two windows are separated at the first frame of ground contact, read off the control's own
+vertical path rather than set per scene. With $y^{\mathrm{ctrl}}$ measured downward and
+$t_{\mathrm{peak}}=\arg\max_{t\in V} y^{\mathrm{ctrl}}_t$ the object's highest point,
+\begin{equation}
+t_c \;=\; \min\Big\{\, t \geq t_{\mathrm{peak}} \;:\; y^{\mathrm{ctrl}}_t \leq
+   y_{\min} + \tfrac{1}{10}\big(y_{\max}-y_{\min}\big) \Big\},
+\label{eq:contact}
+\end{equation}
+where $y_{\min}$ and $y_{\max}$ are taken over the located frames of the control. The
+\emph{airborne} window is $W_{\mathrm{air}}=\{t<t_c\}$ and the \emph{after-contact} window
+$W_{\mathrm{post}}=\{t\geq t_c\}$. A value of $R$ near $1$ means the generated object moved as the
+simulation did. Two windows are reported, since a single whole-clip number does not indicate
+which part of the clip disagrees.
 
 The sampler retains derivatives from previous steps to form each update, so after a withdrawal
 those cached values still carry the influence of the removed conditioning. One of the two
