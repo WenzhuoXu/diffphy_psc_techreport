@@ -190,8 +190,7 @@ In this report the critic and the generator are studied separately; closing the
 critic-to-generator loop remains future work.
 
 Reading physical evaluation as a reason--act--observe framework also makes
-several extensions natural, which we state as design directions rather than
-completed results. Because the plan is written as a program over operators, the
+several extensions natural, which we state as design directions. Because the plan is written as a program over operators, the
 operator library can grow with experience into a reusable, cost-annotated
 toolset~\cite{plugmem2026,reasoningbank2026}. Because every trace is inspectable
 and version-controllable, traces and their feedback could accumulate as
@@ -200,8 +199,7 @@ weights~\cite{contexttraining2026,explicitmem2026}. And because a loop that
 feeds only its own traces back into its own context is internally closed,
 admitting external or social knowledge would break that closure---but only under
 a candidate-and-pruning discipline that guards against context
-pollution~\cite{contexttraining2026}. These are directions the framework opens rather
-than results reported here.
+pollution~\cite{contexttraining2026}. These are directions the framework opens.
 
 We make three contributions. First, \PhyReAct{}, a physically grounded
 reason--act--observe critic that compiles a prompt into typed physical obligations,
