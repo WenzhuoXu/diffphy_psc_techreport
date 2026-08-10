@@ -228,19 +228,21 @@ held out, so they characterize the system as it stands rather than its generaliz
 \section{Physics-Guided Video Generation}\label{sec:generation}
 % =====================================================================
 
-This section builds the generation testbed. A rigid-body simulation supplies geometry and
-motion, a text prompt supplies appearance, and a video-diffusion backbone with a native
-control branch combines the two. Because the motion originates in a solver rather than in the
-model, the trajectory a finished clip should show is fixed before the clip is generated; and
-because it arrives through a control branch rather than through the prompt, it enters at a
-point a later system could write to. That is the interface through which a critic's verdict
-could eventually update how a clip is generated (\cref{sec:framework}).
+The generation testbed produces photorealistic clips whose motion is specified in advance. A
+rigid-body simulation determines geometry and motion, a text prompt determines appearance, and
+a video-diffusion backbone with a native control branch combines them. Because the motion
+originates in a solver rather than in the model, the trajectory a finished clip should exhibit
+is known before generation; and because it is supplied through the control branch rather than
+through the prompt, it occupies a channel distinct from the appearance request. That channel
+is the interface through which a critic's verdict could later update how a clip is generated
+(\cref{sec:framework}).
 
-Three questions organize what follows. How is a simulation turned into a signal a generator
-will follow, and what consumes it (\cref{sec:gen-mechanism,sec:gen-control})? What was built
-with it, and what does it render cleanly (\cref{sec:gen-breadth,sec:gen-quality})? And how
-tightly is the generated motion actually bound to the simulated motion --- at what point in
-sampling does the trajectory commit (\cref{sec:gen-release})?
+The remainder of this section describes the backbone and the control signal it consumes
+(\cref{sec:gen-mechanism,sec:gen-control}), the two choices that define the deployed recipe
+(\cref{sec:gen-design}), the scene library generated with it
+(\cref{sec:gen-breadth}), the fidelity of the resulting clips (\cref{sec:gen-quality}), and a
+study locating the point in sampling at which the simulated trajectory becomes fixed
+(\cref{sec:gen-release}).
 
 \subsection{Backbone and control mechanism}\label{sec:gen-mechanism}
 The backbone is Wan~2.2-VACE-Fun-14B, a two-expert mixture-of-experts
@@ -306,10 +308,10 @@ backbone through the control branch, and the source frames are never denoised or
 all-white mask leaves the preserved region empty, so every output pixel is synthesised.
 
 \subsection{Rendering the control signal}\label{sec:gen-control}
-The control video is what the previous subsection assumed: a grayscale clip in which every
-frame states where the surfaces are. Producing it from a simulation is not a screenshot of the
-solver --- the polarity, the normalization and the boundaries all have to match what the
-control branch was trained to read, and each choice below is made on that basis.
+The control signal is a grayscale video in which each frame encodes the position of every
+visible surface. Deriving it from a simulation requires more than reading the solver's output:
+the polarity, the normalization and the treatment of boundaries must each match the statistics
+the control branch was trained on. The paragraphs below specify those choices.
 
 \paragraph{One simulation, several registered views.} A scene is described as
 data---a list of moving bodies with initial positions and velocities, a list of
@@ -393,8 +395,8 @@ in a physics solver, so the structure the generator follows satisfies the equati
 by construction.
 
 \subsection{Design choices}\label{sec:gen-design}
-Two points in the recipe admitted an easier alternative, and the deployed recipe takes
-neither. \textbf{Native control rather than source re-synthesis:} a control branch consuming
+Two points in the pipeline admit a simpler alternative that the deployed configuration does
+not take. \textbf{Native control rather than source re-synthesis:} a control branch consuming
 a pre-computed depth video keeps the generator from importing the rendered source's synthetic
 look, which re-synthesizing the simulation frames directly does not avoid. \textbf{No
 reference image:} the pipeline accepts an optional appearance reference, but the deployed
@@ -503,33 +505,31 @@ than the phenomenon.
 
 
 \subsection{What the generator achieves}\label{sec:gen-quality}
-Breadth of scene is not the same as quality of render, and the two come apart along a clear
-line. Single-object scenes---a bouncing ball, a projectile arc, a swinging pendulum---render
+Coverage of scene kinds and fidelity of the resulting render are distinct properties, and
+they diverge along a consistent boundary. Single-object scenes---a bouncing ball, a projectile arc, a swinging pendulum---render
 cleanly, with the generated object following the simulated trajectory
 (\cref{fig:gencases}). Multi-object interaction, such as a billiards break, remains
 open: neither the deployed backbone nor the alternates tried against it produce a
 clean multi-object collision.
 
-The instrument behind both judgments is visual inspection of the output clips together with a
-color-blob tracker that checks whether the generated object follows the control's path. The
-release study of \cref{sec:gen-release} puts numbers on that agreement for the single-object
-scenes.
+Both judgments rest on visual inspection of the output clips together with a color-blob
+tracker that measures whether the generated object follows the control's path.
+\Cref{sec:gen-release} quantifies that agreement for the single-object scenes.
 
 \subsection{When the control can be released}\label{sec:gen-release}
-Everything so far holds the control on for the whole of sampling. Withdrawing it partway
-answers a sharper question: not whether the generated motion follows the simulation, but
-\emph{when} it stops being free to do otherwise. If a clip generated with the control switched
-off after a certain point still moves the way the simulation does, the motion was settled
-before that point.
+The configuration described so far applies the control throughout sampling. Withdrawing it
+after a chosen step addresses a different question: not whether the generated motion follows
+the simulation, but at which point during denoising that motion becomes determined. A clip
+generated with the control withdrawn beyond a given noise level, and which nonetheless retains
+the simulated trajectory, establishes that the trajectory was fixed before that level.
 
-Two scoping notes belong here rather than at the end, because they bound everything in this
-subsection. The runs condition the backbone by carrying a rendered source video through the
-denoising process and releasing it partway, rather than through the dedicated control branch
-used everywhere else in this section; the question and the noise schedule are the same, but
-whether the release point transfers to the control branch is untested. And the scenes are
-single moving rigid bodies at one resolution and frame count --- the deformable and granular
-scenes of \cref{sec:gen-breadth} are outside the study, because the tracker cannot follow
-their objects as a single path.
+Two constraints bound the study. The runs condition the backbone by carrying a rendered source
+video through the denoising process and withdrawing it partway, rather than through the
+dedicated control branch used elsewhere in this section; the question and the noise schedule
+are identical in both cases, but transfer of the measured release point to the control branch
+is untested. The scenes are single moving rigid bodies at one resolution and frame count, and
+the deformable and granular scenes of \cref{sec:gen-breadth} are excluded, because the tracker
+cannot follow their objects as a single path.
 
 Sampling proceeds over a decreasing sequence of noise levels
 $\sigma_1 > \sigma_2 > \cdots > \sigma_N$, with $\sigma_N \!\to\! 0$, where $\sigma_i$ is
