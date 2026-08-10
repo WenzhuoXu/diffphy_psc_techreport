@@ -1494,9 +1494,13 @@ Surviving pairs are assigned by maximum bipartite matching, one finding per flaw
 assignment loses flaws: if one flaw can be matched by either of two findings and a second flaw
 only by one of them, spending that finding on the first leaves the second unmatched. Each flaw
 resolves as \emph{whole}, \emph{partial}, or \emph{missed}, reported as three separate counts.
-Judging uses the same served model as the rest of the system, at temperature zero, one pair per
-call; an unparsable reply is retried and then recorded as a matching error, which keeps a failed
-call from being scored as a non-match and understating recall.
+The judge is a model that appears nowhere in any system under test, since a model asked to score
+its own findings is grading itself. It runs at temperature zero, three votes per pair, and a
+split pair falls to its lowest tier; pairs that remain split escalate to nine votes within the
+same batch and resolve by majority. An unparsable reply is retried and then recorded as a
+matching error, which keeps a failed call from being scored as a non-match and understating
+recall, and a run in which more than $2\%$ of flaws lack a usable vote aborts rather than
+reporting a number.
 
 The judge performs \emph{flaw matching only}. It is not a component of the critic and does not
 produce its verdict. The human labels are the ground truth.
@@ -1974,10 +1978,61 @@ held-out proxy, nothing is admitted, and $K$-sourced facts carry a provenance ta
 distilled beliefs, so an admission can be reverted. External knowledge therefore enters under the
 same elitism that governs $S$.
 
-Every prior distilled into $M$ is \emph{critic-derived} --- a summary of what \PhyReAct{}'s own
-verification loop concluded, not verified truth --- and retrieval quality, staleness of cached
-plans, and the propagation of a bad prior remain open. The inward channel and the external
-opening are both roadmap.
+Every prior distilled into $M$ is \emph{critic-derived}: a summary of what \PhyReAct{}'s own
+verification loop concluded rather than verified truth. The external channel $K$ is roadmap. The
+inward channel is instantiated, and \cref{sec:selfevolve:measured} measures it.
+
+\subsection{Teaching the planner from its own misses}
+\label{sec:selfevolve:measured}
+
+We run \eqref{eq:distill} over episodes in which a plan missed a flaw a human annotator recorded.
+$\mathrm{Distill}$ reads the trace and the miss and writes a lesson naming a property of the claim
+and the action it licenses --- \emph{when a prompt specifies a singular entity or exact quantity,
+create a separate cardinality check and verify that count across the beginning, middle and end} ---
+and a curation pass merges the candidates into $33$ distinct families. Lessons are appended to the
+planner's rubric. Only $M$ changes: the operator library $\Pi$ and the external channel $K$ are
+untouched, so $S' = (\Pi, M', K)$.
+
+The instantiation differs from the formalism in two ways. All $33$ lessons are supplied on every
+clip: we built the selective form --- one relevance call per (lesson, claim) --- and measured it at
+$132$ to $495$ model calls per clip to choose among $33$ lessons totalling $9$\,kB, taking a clip
+from $142$\,s to $611$\,s, so deciding what to supply costs more than supplying everything. And the
+acceptance gate \eqref{eq:elitism} is not applied: $U_{\mathrm{val}}$ is defined on rules that have
+appeared in a run, a rule written from a fresh miss has not, and the gate admits none of $80$
+candidates ($39$ undecidable, $41$ never fired). What follows measures the distilled candidate set.
+
+\paragraph{Protocol.} The $33$ lessons are induced from $117$ experience clips and tested on $262$
+others carrying $429$ annotated flaws. Evaluation clips sharing a clip identifier with the
+experience pool are excluded by construction; we further drop the $50$ clips whose prompt restates
+an experience clip's, since rescoring a prompt a lesson was written from tests nothing. The
+untaught arm loads an empty lesson file through the same retrieval path, so the arms differ in
+their lessons. Both are scored by the matching protocol of \cref{sec:matching}.
+
+\paragraph{Result.} Teaching the planner moves flaw recall from $292$ to $\mathbf{325}$ of $429$
+($68.1\%$ to $\mathbf{75.8\%}$). The taught arm reaches $52$ flaws the untaught arm misses and
+gives up $19$, a net $+33$ at $p = 0.00011$ under a sign test.
+
+\input{tab_selfevolve}
+
+The gain is concentrated (\cref{tab:selfevolve}). Two categories carry $26$ of the $33$: compound
+action descriptions ($+15$) and on-screen text ($+11$, gaining $12$ flaws against a single loss).
+Object identity, already at $80\%$ untaught, gains one; spatial relations lose two; the four flaws the
+annotators filed under \emph{other} lose three. The effect does not concentrate in mild defects:
+severity-3 flaws move $69\%$ to $75\%$ ($+16$, $p = 0.014$) and severity-4 $68\%$ to $77\%$
+($+12$, $p = 0.036$).
+
+\paragraph{What the lessons change about the plan.} Each lesson instructs the planner to create a
+separate check, which suggests they split one claim into several. They do not: checks per claim
+move from $1.12$ to $1.16$. What moves is how many separately verifiable requirements the planner
+reads out of the prompt at all, $2{,}414$ to $4{,}209$. The lessons condition on the prompt ---
+\emph{when a prompt specifies X} --- and they act there, on the reading, rather than on the
+handling of a requirement already extracted.
+
+That mechanism accounts for the shape of \cref{tab:selfevolve}. A compound action sentence and an
+on-screen text requirement are what a coarse reading merges or drops, while object identity is
+extracted either way. On-screen text gains by depth rather than reach: the taught arm asks about
+text on $35$ of the $88$ clips carrying a text flaw against the untaught arm's $34$, but asks $222$
+questions where the untaught arm asks $107$.
 
 \subsection{Human oversight}
 \label{sec:framework:human}
@@ -2001,12 +2056,15 @@ today (Phase~0):} the frozen generator pipeline $\mathrm{Gen}$
 read path (\Cref{sec:dataset}); the episode read operator
 \eqref{eq:retrieve}--\eqref{eq:trace} with a fixed operator set $\Pi_0$, typed
 obligations $C$, three-valued deterministic adjudication $\Phi$, and provenance
-traces $T$; and the flaw-level measurement in \Cref{sec:eval} against human labels
+traces $T$; the flaw-level measurement in \Cref{sec:eval} against human labels
 ($228$ of $304$ for \PhyReAct{}, $164$ for question decomposition, recall-only, on
-the development core, \emph{not} a held-out split). \textbf{Roadmap (Phase~1+):} the
+the development core, \emph{not} a held-out split); and the inward distillation of
+$M$ via \eqref{eq:distill}, measured on a held-out split in
+\cref{sec:selfevolve:measured} ($325$ of $429$ against $292$ untaught).
+\textbf{Roadmap (Phase~1+):} the
 outward control map $\delta$ and the closed critic$\rightarrow$generator loop
-\eqref{eq:control}; the scaling-up of $\Pi$; the culminating context-training
-self-evolution of $M$ via \eqref{eq:distill}--\eqref{eq:elitism}; the external
+\eqref{eq:control}; the scaling-up of $\Pi$; the acceptance gate \eqref{eq:elitism}
+that admits distilled candidates on a measured proxy improvement; the external
 knowledge channel $K$; and human-in-the-loop deployment at scale. Every roadmap
 item is a \emph{write} path in the same formalism whose \emph{read} counterpart is
 already exercised, which is why we can state the vision precisely without implying
@@ -2025,7 +2083,8 @@ P4 Auditable trace + three-valued $Y$ & trace $T=(C,G,R,Y,F)$, provenance & Phas
 P5 Verification-guided refinement & outward control channel $\delta,\,\mathrm{Gen}$ & roadmap \\
 P2$^{+}$ Operator-library scale-up & procedural-memory growth in $\Pi$ & roadmap \\
 P6 Breaking the loop & external channel $K$, candidate$+$prune & roadmap \\
-P3 Context-training self-evolution & inward channel $\mathrm{Distill}$, elitism~\eqref{eq:elitism} & roadmap (culmination) \\
+P3 Context-training self-evolution & inward channel $\mathrm{Distill}$~\eqref{eq:distill} & Phase 0 (measured, pre-gate) \\
+P3$^{+}$ Acceptance gate & elitism~\eqref{eq:elitism} over distilled candidates & roadmap \\
 P4$^{+}$ Human oversight & supervision $+$ deployment gate & roadmap \\
 \bottomrule
 \end{tabular}
@@ -2390,11 +2449,11 @@ the control flow follows the plan--execute branch of ReAct, where observations
 gate and scope already-declared measurements rather than trigger free-form
 re-planning or the on-the-fly invention of new tool sequences.
 
-Where \PhyReAct{} currently departs from the ReAct lineage is memory: classic
-ReAct agents accumulate experience within a single episode, whereas \PhyReAct{}
-today treats each clip independently. We view cross-clip, self-evolving memory as
-the extension the framework is built toward (\cref{sec:selfevolve}) and survey the
-relevant literature separately in \cref{sec:related-memory}.
+Where \PhyReAct{} departs from the ReAct lineage is memory: classic ReAct agents
+accumulate experience within a single episode, whereas \PhyReAct{} carries lessons
+distilled from one set of clips into the planning of a disjoint set
+(\cref{sec:selfevolve:measured}). We survey the relevant literature separately in
+\cref{sec:related-memory}.
 
 These positions clarify our relationship to the closest neuro-symbolic
 evaluators. NeuS-V offers no formal guarantee when its learned perception is
@@ -2501,22 +2560,27 @@ enforces symbolic identifier consistency but cannot guarantee that heterogeneous
 tools localized the same physical instance; and the reasoner-mediated sub-checks
 reduce but do not remove semantic opacity.
 
-\paragraph{No cross-clip memory or self-evolution.} \PhyReAct{} is stateless
-across clips: each clip is planned and executed independently, so the system
-cannot reuse a verified claim-to-plan mapping for a similar prompt, nor
-accumulate the recurring physics-failure modes it observes (for example, that a
-requested multi-object collision is routinely mis-generated). \Cref{sec:selfevolve}
-sketches the intended remedy---a context-trained experience library that distills
-each fully-provenanced trace into human-readable, versionable priors without
-updating weights~\cite{contexttraining2026,reasoningbank2026,explicitmem2026},
-grows the operator set through multimodal distillation~\cite{plugmem2026,vilomem2026,m3agent2025},
-and breaks its internal loop by admitting external knowledge only under a
-candidate-and-prune discipline~\cite{contexttraining2026}. That design is entirely
-future work: retrieval quality, staleness of cached plans, and the propagation of
-a wrong prior remain open, and any distilled prior would be
-\emph{critic-derived}, not ground truth. Because every trace is already serialized
-with full provenance (\cref{sec:contract}), the evidence records are a ready
-substrate for such a store, but we neither build nor evaluate one here.
+\paragraph{Self-evolution.} Four limits bound what
+\cref{sec:selfevolve:measured} establishes. The acceptance gate
+\eqref{eq:elitism} is not exercised, so the measurement covers distillation
+without the admission discipline that is meant to keep a bad lesson out; a rule
+written from a fresh miss has no proxy history, and closing that gap needs a
+$U_{\mathrm{val}}$ defined on unrun rules. The taught planner reads $1.74$ times
+as many requirements out of a prompt as the untaught one, and flaw recall rewards
+asking more, so the effect combines a better-targeted plan with a larger one; a
+run holding the taught arm to the untaught arm's question budget would separate
+them. The lessons are induced once from a fixed pool rather than accumulated
+online, so the result is a single treatment effect and not a learning curve:
+whether recall keeps rising with more experience is unmeasured. Finally, the
+$429$-flaw held-out set is a different population from the $304$-flaw evaluation
+core used everywhere else in this paper, and the two rates should not be compared
+directly. Every distilled prior is \emph{critic-derived} rather than ground truth,
+and retrieval quality, staleness, and the propagation of a wrong prior remain
+open. The operator set $\Pi$ and the external channel $K$ are untouched: growing
+the operator library through multimodal
+distillation~\cite{plugmem2026,vilomem2026,m3agent2025} and admitting external
+knowledge under a candidate-and-prune
+discipline~\cite{contexttraining2026} are future work.
 
 % =====================================================================
 \section{Conclusion}\label{sec:conclusion}

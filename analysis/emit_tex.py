@@ -329,6 +329,12 @@ def tab_external(cost: dict | None) -> str:
     if _mo.exists():
         mono_row = _mo.read_text().strip()
 
+    dsg_row = (r"\quad Davidsonian scene graph~\cite{dsg2024} & per-question answers, "
+               r"dependency-gated & --- & --- & --- \\")
+    _dg = Path("~/diffphy_psc/artifacts/runs/exp034/row_dsg.tex").expanduser()
+    if _dg.exists():
+        dsg_row = _dg.read_text().strip()
+
     return rf"""
 \begin{{table}}[t]
 \centering\small
@@ -342,6 +348,7 @@ This work & localized allegation & \textbf{{228}} & \textbf{{75.0\%}} & {ours} \
 \addlinespace
 \multicolumn{{5}}{{@{{}}l}}{{\textit{{Comparable on localized recall}}}} \\
 {qd_row}
+{dsg_row}
 \quad Modular video QA~\cite{{proviq2023,morevqa2024}} & per-question answers & --- & --- & --- \\
 \addlinespace
 \multicolumn{{5}}{{@{{}}l}}{{\textit{{Recall reported, but not a stable quantity}}}} \\

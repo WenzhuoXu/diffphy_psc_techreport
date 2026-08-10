@@ -12,14 +12,15 @@
 This work & localized allegation & \textbf{228} & \textbf{75.0\%} & 14.1 \\
 \addlinespace
 \multicolumn{5}{@{}l}{\textit{Comparable on localized recall}} \\
-\quad Question decomposition~\cite{tifa2023,dsg2024} & per-question answers & 164 & 53.9\% & 21.9 \\
+\quad Question decomposition~\cite{tifa2023} & per-question answers & 164 & 53.9\% & 21.9 \\
+\quad Davidsonian scene graph~\cite{dsg2024} & per-question answers, dependency-gated & 161 & 53.0\% & 52.1 \\
 \quad Modular video QA~\cite{proviq2023,morevqa2024} & per-question answers & --- & --- & --- \\
 \addlinespace
 \multicolumn{5}{@{}l}{\textit{Recall reported, but not a stable quantity}} \\
 \quad Single-pass VLM, same model~\cite{qwen3vl2025} & free-text flaw list & 222 & 73.0\% & 1.0 \\
 \bottomrule
 \end{tabular}
-\caption{Localized flaw recall over the same 149 clips and the same $304$
+\caption{Localized flaw recall over the same 150 clips and the same $304$
 flaws, judged by the protocol of \cref{sec:matching}. Cost counts model and tool calls per clip and
 excludes the matching protocol, which is the scorer rather than the evaluator. Question
 decomposition is given the same claim decomposition \PhyReAct{} used, so its recall cannot differ
