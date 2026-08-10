@@ -228,25 +228,72 @@ held out, so they characterize the system as it stands rather than its generaliz
 \section{Physics-Guided Video Generation}\label{sec:generation}
 % =====================================================================
 
-A text-to-video model determines appearance and motion jointly from one text input. This
-section separates them. Geometry and motion are set by a rigid-body simulation, material, colour,
-lighting and setting are set by a text prompt, and the two reach the generator through
-different inputs, so either can be varied while the other is held fixed. \Cref{fig:genpipe}
-shows a clip produced this way beside the simulation that governs its motion.
+A text-to-video model decides how a scene looks and how it moves from a single text input, and
+the motion it decides is often not physical. Benchmarks built to test exactly this report
+systematic failures of physical commonsense in current
+models~\cite{videophy2024,videophy2_2025,physicsiq2025}, Methods that revise the prompt and regenerate act through
+that same input~\cite{phyt2v2025}: one text description specifies appearance and dynamics
+together, so the resulting dynamics are those the model infers from that description.
+
+A property of the reverse diffusion process makes the two separable. Adding Gaussian noise is,
+in expectation, low-pass filtering, so denoising proceeds coarse to fine: large-scale structure is
+settled early at high noise and fine detail is added late at low
+noise~\cite{ddpm2020,p2train2022,ihd2023,blurdiff2023,dieleman2024}. Motion is the large-scale,
+slowly varying content of a video and appearance is the detail, which places them at opposite
+ends of that schedule. A second result predicts that the transition is sharp: the reverse
+process passes through a \emph{critical window}, a relatively high-noise interval
+at which the trajectory commits to a global structure and after which later steps only refine
+within it~\cite{phasetrans2024,dynregimes2024,symbreak2023,critwindows2024}. We call a trajectory \emph{committed} at a
+given noise level when removing the geometric conditioning at that level leaves the generated
+motion unchanged. If motion commits inside the critical window, a geometric signal need only be
+supplied over the early part of sampling, and the remaining steps can render appearance from
+text.
+
+This section builds a generator on that principle and measures the commitment point it predicts.
+A physics description is decomposed into a scene specification, simulated, and rendered into a
+control video that a diffusion backbone follows for the early, coarse portion of sampling, while
+the text prompt alone supplies appearance throughout (\cref{fig:genpipe}). We then locate the
+noise level at which the motion becomes fixed, find that it precedes the backbone's own
+high-noise-to-low-noise expert handoff, and show which component of the motion commits last.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{fig_generation_pipeline.pdf}
   \caption{Physics-guided generation on one bouncing-ball clip. \textbf{Top:} the
-  depth control video rendered from the rigid-body simulation, the only geometric
-  input the backbone receives. \textbf{Bottom:} the clip generated from it, with appearance from the text prompt. Both rows are sampled at the same
-  five timestamps of the same $5.06$\,s, $16$\,fps, $848{\times}480$ clip, placed at
-  the turning points of the ball's vertical path so the columns show the drop, the
-  floor contact and the rebound. Tracked independently in each row, the two paths
-  agree to a correlation of $1.0000$ horizontally and $0.9997$ vertically over all
-  $81$ frames.}
+  depth control video rendered from the rigid-body simulation, which is the
+  backbone's geometric input. \textbf{Bottom:} the clip generated from it, with
+  appearance from the text prompt. Both rows are sampled at the same five
+  timestamps of the same $5.06$\,s, $16$\,fps, $848{\times}480$ clip, placed at
+  the turning points of the ball's vertical path so the columns show the drop,
+  the floor contact and the rebound. Tracked independently in each row by the
+  colour tracker of \cref{sec:gen-release}, the two paths agree to a correlation
+  of $1.0000$ horizontally and $0.9997$ vertically over all $81$ frames.}
   \label{fig:genpipe}
 \end{figure}
+
+\subsection{From a physics description to a control video}\label{sec:gen-authoring}
+
+The scene specification is produced from the text description by a language model and accepted
+only once simulation confirms that it realizes the described behaviour.
+
+Given the physical event the clip is required to show, the model emits a structured scene
+specification: the bodies, their
+initial positions and velocities, the static surfaces they interact with, and a camera. The
+specification distinguishes bodies whose motion follows from forces from bodies whose motion
+must contradict the ordinary physical prior, such as a rising balloon or a feather required to descend with negligible drag; only the latter are carried as prescribed waypoints. A body on a ballistic segment is specified by its
+initial velocity and its colliders, and the simulator computes the arc, the contact and the
+subsequent rest.
+
+Validation is applied to the simulated trajectory. A ballistic segment must trace an arc that
+reaches its target, or for a counterfactual cleanly misses it, and comes to rest; a rising
+segment must gain height; no body may leave the frame. A specification failing any condition is
+returned to the model with the violated condition attached and re-authored, and the loop repeats
+until the simulated trajectory satisfies the description. Acceptance is therefore a property of the simulated
+trajectory: a specification is accepted when the trajectory it produces meets every condition,
+and proximity to the target without a ballistic path does not.
+
+An accepted specification yields a simulation whose dynamics are computed by the integrator, and
+it is rendered into the control video of \cref{sec:gen-control}.
 
 \subsection{Controlling motion and appearance separately}\label{sec:gen-mechanism}
 
@@ -260,9 +307,9 @@ video-diffusion model with a native control branch, run through the \code{WanVAC
 interface. Conditioning synthesis on an
 explicit geometric signal is the mechanism introduced for images by
 ControlNet~\cite{zhang2023controlnet} and extended to motion and structure in
-video~\cite{wang2023videocomposer,vace2025}. The control here originates in a physics solver
-rather than an estimator applied to existing footage, so the structure the generator follows
-satisfies the equations of motion by construction. The conditioning strength is distinct from the
+video~\cite{wang2023videocomposer,vace2025}. The control used here originates in a physics solver,
+so the structure the generator follows satisfies the equations of motion by construction and
+carries the solver's numerical error. The conditioning strength is distinct from the
 classifier-free guidance scale, which governs adherence to the text prompt and is held at the
 value in \cref{tab:genconfig} throughout. The control video is a grayscale clip in which brightness encodes
 distance from the camera, rendered from the simulation by the procedure of
@@ -276,9 +323,8 @@ regions mark content to be preserved as given; bright regions mark content to be
 under the guidance of the control. Inside the backbone the mask splits the control video into a
 preserved part and a generated part, which are encoded separately and concatenated into the
 control latent stream. We pass an \emph{all-white} mask, so the preserved part is empty and
-every pixel of every frame is synthesised. The depth field acts as guidance and no region of it
-is copied through, which is what allows a grey depth render to drive a photorealistic clip
-without tinting it grey.
+every pixel of every frame is synthesised. The depth field therefore contributes no pixel values to
+the output and acts only as guidance.
 
 Geometry enters the network as a latent stream added into the denoising stream at each of the
 backbone's control layers. Sampling proceeds over a decreasing sequence of noise levels
@@ -451,16 +497,15 @@ $\kappa$ over $N$ training timesteps,
 \sigma_{\mathrm{rel}} = \sigma_{i^{*}} .
 \label{eq:flow-sigma}
 \end{equation}
-Two runs that drop at the same step index therefore sit at different noise levels whenever $S$
-or $\kappa$ differs, which is why results are indexed by $\sigma_{\mathrm{rel}}$ and the step
-index is reported only as a label.
+Two runs that withdraw at the same step index therefore correspond to different noise levels
+whenever $S$ or $\kappa$ differs, .
 
 The solver is multistep and forms each update from derivatives cached at previous steps, so
-after a withdrawal those cached values still carry the influence of the removed tokens. One of
-the two variants below clears that history at $i^{*}$ and the other leaves it in place;
-since the two differ in nothing else, comparing them isolates the reset from the removal.
+after a withdrawal those cached values still carry the influence of the removed tokens. One of the two variants below clears that history at
+$i^{*}$ and the other leaves it in place, and the two are otherwise identical.
 
-The scenes are single moving rigid bodies at one resolution and frame count.
+The runs use a different backbone from the deployed recipe, a shaded-colour control, and scenes
+consisting of a single moving rigid body at one resolution and frame count.
 
 Withdrawing the conditioning partway leaves the remaining steps unconditioned. Noise decreases as
 sampling proceeds, so a \emph{high} $\sigma_{\mathrm{rel}}$ is an \emph{early} withdrawal and a low one
@@ -478,9 +523,7 @@ counts---are defined next.
 
 \paragraph{Method.} Each run fixes one $\sigma_{\mathrm{rel}}$ and is paired against a run at
 $\sigma_{\mathrm{rel}} = 0$ sharing its simulation, control video, prompt, sampler and seed.
-Release points are indexed by $\sigma_{\mathrm{rel}}$, a property of the model's noise
-schedule; the step index of each run is given as a label, since the same index falls at a
-different noise level under a schedule of different shape.
+Release points are indexed by $\sigma_{\mathrm{rel}}$.
 
 Both the control video and the
 generated clip are tracked frame by frame, giving the object's path in each. The default tracker
@@ -516,12 +559,8 @@ t_c \;=\; \min\Big\{\, t \geq t_{\mathrm{peak}} \;:\; y^{\mathrm{ctrl}}_t \leq
 where $y_{\min}$ and $y_{\max}$ are taken over the located frames of the control. The
 \emph{airborne} window is $W_{\mathrm{air}}=\{t<t_c\}$ and the \emph{after-contact} window
 $W_{\mathrm{post}}=\{t\geq t_c\}$. A value of $R$ near $1$ means the generated object moved as the
-simulation did. Two windows are reported, since a single whole-clip number does not indicate
-which part of the clip disagrees.
-
-The sampler retains derivatives from previous steps to form each update, so after a withdrawal
-those cached values still carry the influence of the removed conditioning. One of the two
-variants below clears that cache at the moment of withdrawal and the other leaves it in place.
+simulation did. Two windows are reported, since the windowed metrics localise a disagreement that a
+single whole-clip value does not.
 
 Two failure modes are counted alongside retention. A
 \emph{whole-clip disagreement} is a clip whose horizontal agreement over the full clip falls
@@ -545,13 +584,12 @@ remaining frames. Both thresholds were fixed before scoring.
 \end{figure}
 
 \paragraph{Airborne and after-contact agreement under an early release.} Two scenes were
-repeated over $16$ seeds each at one release point, $\sigma = 0.952$, in two variants---with and
+repeated over $16$ seeds each at one withdrawal point, $\sigma = 0.952$, in two variants---with and
 without clearing the multi-step sampler's cached previous-step derivatives at the moment of
 withdrawal---against the never-released baseline: $96$ clips in total, $16$ per cell (\cref{fig:injstep}). Releasing the control at
 $\sigma = 0.952$ leaves the airborne flight of the thrown ball intact, with per-seed horizontal
 agreement dropping by $0.003$ relative to never releasing ($95\%$ confidence interval $0.001$
-to $0.004$, $n=16$ paired seeds). Over the whole clip the same release costs $0.13$
-horizontally ($95\%$ CI $-0.02$ to $0.28$) and $0.18$ vertically ($95\%$ CI $0.07$ to $0.29$).
+to $0.004$, $n=16$ paired seeds). Over the whole clip the same withdrawal reduces horizontal agreement by $0.13$ ($95\%$ CI $-0.02$ to $0.28$) and $0.18$ vertically ($95\%$ CI $0.07$ to $0.29$).
 Agreement therefore differs sharply between the two windows: the airborne arc is unaffected
 and the disturbance is confined to the motion after the ball reaches the ground. Scoring only the frames after the simulated contact,
 the generated ball's horizontal motion runs \emph{opposite} to the simulation's on $9$ of $16$
@@ -571,9 +609,9 @@ against $0$ of $16$.
   \label{fig:injsweep}
 \end{figure}
 
-\paragraph{Release-point sweep across three scenes.} Sweeping
-the release point across six settings on a single seed for three scenes gives the shape of the
-curve (\cref{fig:injsweep}). For the thrown ball, releasing at $\sigma = 0.952$ gives an
+\paragraph{Release-point sweep across three scenes.} Sweeping the withdrawal point across six settings on a
+single seed for three scenes estimates retention as a function of withdrawal noise level
+(\cref{fig:injsweep}). For the thrown ball, releasing at $\sigma = 0.952$ gives an
 after-contact horizontal agreement of $-0.63$, indicating motion opposite to the simulation's, with the
 airborne window still at $1.00$; releasing at $\sigma = 0.903$ or later restores the
 after-contact window to $0.98$ or above, and it stays there through the latest release point
@@ -581,11 +619,11 @@ tested, $\sigma = 0.555$. The same sweep on a ball dropped onto a floor stays ab
 after-contact horizontal agreement is $1.00$ at every release point including the earliest, and
 the vertical agreement, the informative direction for a straight-down drop, is lowest at the
 earliest release, $0.78$ at $\sigma = 0.952$, rising to $0.99$ or above from $\sigma = 0.903$
-onward. A ball rolling off a ramp holds $0.99$ or better at every release point in both
-directions, though only about a third of its frames contain a locatable object, so each of its
-correlations rests on that third. Across all three scenes,
-vertical motion---the direction gravity supplies---is markedly more robust to an early release
-than horizontal motion, which the simulation alone specifies.
+onward. A ball rolling off a ramp remains at $0.99$ or above at every withdrawal point in both
+directions; a locatable object is present in about a third of its frames, and each of its
+correlations is computed over that subset. Across all three scenes,
+the vertical component retains agreement at earlier withdrawal points than the
+horizontal component.
 
 \paragraph{Replicated withdrawal points under a different tracker.} A third run covers fewer
 withdrawal points than the sweep above but replicates each of them. It takes three withdrawal
@@ -599,25 +637,70 @@ after-contact window recovers to $0.99$ and $1.00$. At the latest withdrawal poi
 clips shows a ball of low contrast relative to the grass background. Clips yielding no location
 are excluded, so that cell's mean and interval rest on $3$ clips and are correspondingly wide.
 
-\paragraph{Summary.} The three runs agree on the release level at which horizontal motion is already
-determined, between $\sigma = 0.952$ and $\sigma = 0.903$ on the thrown ball, and on the
-asymmetry between the two directions across every scene tested. The $\sigma = 0.952$ setting was run with $16$ seeds. In the six-setting sweep, three scenes
-were run at one seed per setting and a fourth at three seeds per setting.
-Clearing the sampler's cached
+\paragraph{Location of the commitment point.} The three runs agree that horizontal motion is already
+determined between $\sigma = 0.952$ and $\sigma = 0.903$ on the thrown ball. Under
+\cref{eq:flow-sigma} at $S=40$ and $\kappa=5.0$ those levels are steps $8$ and $14$, placing the
+commitment in the high-noise portion of sampling, where the critical-window account predicts
+it~\cite{phasetrans2024,dynregimes2024,critwindows2024}. It also places it before the backbone's
+own architectural boundary: this backbone runs two expert networks and switches from the
+high-noise to the low-noise one when the timestep falls below $0.875\,N$, which on this schedule
+is step $17$~\cite{wan22dual2026}. The motion is fixed before that handoff occurs.
+
+Under \cref{eq:flow-sigma} a change in $S$ or $\kappa$ moves the step index of the commitment
+point while leaving the noise level at which it occurs unchanged, which is the reason for the
+coordinate adopted here. Prior work on partial conditioning organises the process by noise level
+for the same reason~\cite{sdedit2022,p2train2022}.
+
+\paragraph{Which component commits last.} The asymmetry between the two directions is the
+practical consequence. Falling under gravity is ubiquitous in the training
+distribution, whereas a particular horizontal velocity is specified only by the control. The
+measured vertical component correspondingly retains agreement under earlier withdrawal than the
+horizontal one on every scene tested: on the thrown ball at $\sigma = 0.952$ vertical agreement
+holds near $0.99$ while horizontal agreement falls to $0.42$. A withdrawal schedule must therefore be set by
+the latest-committing component of the motion rather than by an average over it, After the withdrawal the text
+conditioning is the only remaining specification of the components the control had been
+supplying~\cite{ediffi2022}.
+
+\paragraph{Sampling coverage and the solver reset.} Clearing the sampler's cached
 derivatives changes the result by at most $0.04$ horizontally over the whole clip ($95\%$ CI
 $-0.04$ to $0.13$, $n=16$), the largest per-seed difference on any window or direction
 measured.
 
-\subsection{Fidelity and scale}\label{sec:gen-breadth}
+\subsection{Coverage of the scene library}\label{sec:gen-breadth}
 
-Fidelity was assessed on a small set of scenes by manual visual inspection of the output clips,
-together with the colour tracker of \cref{sec:gen-release}, which reports whether the
-generated object follows the control's path. On that set the outcome divides along the number of
-interacting bodies. Single-object scenes---a bouncing ball, a projectile arc, a swinging
-pendulum---reproduce the simulated trajectory, with the generated object following the control
-throughout (\cref{fig:gencases}). Multi-object interaction, such as a billiards break, does not:
-neither the deployed backbone nor the alternates tried against it produced a collision in which
-every body moved as the simulation specified.
+The commitment analysis was run on single moving rigid bodies, because those are the scenes
+whose trajectory can be checked against a closed-form path. The same pipeline applies to scenes of higher body count. It has produced $1{,}314$ scenes across $66$ kinds, where a \emph{kind} is a scene
+template and a \emph{scene} is one parameter setting of a kind, simulated once and generated
+once. Before any photorealistic render, $652$ of the simulations were inspected and $591$ of
+those $652$ judged to show the intended physical behaviour clearly enough to generate from. The
+inspection covered simulator output; generated clips were not scored in it.
+
+A single authoring, simulation and conditioning path covers body counts from one to several
+dozen and several classes of physics. \Cref{fig:scenebreadth} shows twelve of them as
+generated frames: cloth draping and crumpling, a flag in wind, a swinging rope and a hanging
+chain, grains pouring into a heap and draining through a funnel, a ball dropped into a pit of
+balls, a loaded boat, a cascade down a slope, toppling dominoes and a chaotic two-arm linkage.
+The body counts are the scenes' own parameters, reaching $34$ small bodies for the pouring heap,
+$30$ for the funnel, $20$ rigid slabs for the dominoes, $9$ in contact for the ball pit and $6$
+on the ramp for the cascade. \Cref{fig:scenepairs} shows three of them as depth control and
+generated clip at matched timestamps.
+
+Fidelity does not extend uniformly across that range. On a small set of scenes assessed by
+manual visual inspection together with the colour tracker of \cref{sec:gen-release},
+single-object scenes reproduce the simulated trajectory, with the generated object following the
+control throughout (\cref{fig:gencases}); a multi-object interaction such as a billiards break
+does not, and neither the deployed backbone nor the alternates tried against it produced a
+collision in which every body moved as the simulation specified. The commitment point for
+multi-body motion is likewise unmeasured, since the colour tracker cannot follow a scatter as a
+single path.
+
+Every scene in the library is produced by the same rigid-body engine, and the deformable and
+granular kinds are built from that engine's particle-and-link primitives: cloth is a sheet of
+particles joined by springs, a rope or chain is a short row of linked segments, sand and marbles
+are many small solid bodies in contact, and floating is a buoyancy force on a solid body in a
+still fluid volume. The library therefore covers these primitives and not fluid, smoke or
+finite-element soft-body solves, and the scene captions name the primitive rather than the
+phenomenon.
 
 \begin{figure}[tb]
   \centering
@@ -626,7 +709,7 @@ every body moved as the simulation specified.
   appearance---an indoor studio and an outdoor field---each shown as its depth
   control above and the resulting generated clip below. Each scene has its own
   timestamps, chosen from the turning points of that scene's tracked vertical
-  path, so no column falls in a static stretch. The appearance changes completely with
+  path, so each column contains motion. The appearance changes completely with
   the prompt while the motion stays the simulation's: for the thrown ball the
   generated and control paths agree to a correlation of $1.0000$ horizontally
   and $0.9998$ vertically, with a median disagreement of $0.7$ pixels across and
@@ -634,25 +717,6 @@ every body moved as the simulation specified.
   both before it leaves the frame.}
   \label{fig:gencases}
 \end{figure}
-
-The pipeline has generated $1{,}314$ scenes across $66$ kinds, where a \emph{kind} is a
-scene template---a swinging rope, a pouring funnel---and a \emph{scene} is one parameter
-setting of a kind, simulated once and generated once. Before any photorealistic render, $652$ of the simulations were inspected and $591$ of those $652$
-judged to show the intended physical behaviour clearly enough to generate from. The inspection
-covered simulator output; generated clips were not scored in it. \Cref{fig:scenebreadth} shows twelve of
-those kinds as generated frames---cloth draping and crumpling, a flag in wind, a swinging
-rope and a hanging chain, grains pouring into a heap and draining through a funnel, a ball
-dropped into a pit of balls, a loaded boat, a cascade down a slope, toppling dominoes and a
-chaotic two-arm linkage. \Cref{fig:scenepairs} shows three of them as depth control and
-generated clip at matched timestamps.
-
-Every scene in the library is produced by the same rigid-body engine, and the deformable and
-granular kinds are built from that engine's particle-and-link primitives:
-cloth is a sheet of particles joined by springs, a rope or chain is a short row of linked
-segments, sand and marbles are many small solid bodies in contact, and floating is a buoyancy
-force on a solid body in a still fluid volume. The library therefore covers these primitives and
-not fluid, smoke or finite-element soft-body solves, and the scene captions name the primitive
-rather than the phenomenon.
 
 \begin{figure}[tb]
   \centering
@@ -676,6 +740,7 @@ rather than the phenomenon.
   the control blank.}
   \label{fig:scenepairs}
 \end{figure}
+
 
 
 % =====================================================================
