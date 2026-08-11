@@ -1966,7 +1966,7 @@ literature asks where an agent's accumulated experience should live---episodic
 transcripts, distilled semantic priors, or reusable
 procedures~\cite{contexttraining2026,reasoningbank2026,explicitmem2026,%
 plugmem2026,vilomem2026,amem2025,agentmemsurvey2024,m3agent2025,hindsight2026,%
-aimeetsbrain2026}. \PhyReAct{} sits at that intersection and changes the \emph{carrier} of memory: where these
+aimeetsbrain2026}. \PhyReAct{} combines these two lines and changes the \emph{carrier} of memory: where these
 agents store free-text notes or latent vectors, it stores structured physical-verification traces
 with full provenance. Auditability follows from that choice, and it is the throughline of the
 framework below.
@@ -2116,7 +2116,7 @@ nothing about the generator.
 \subsection{Weight-free context-training self-evolution}
 \label{sec:selfevolve}
 
-The framework builds toward one capability: a critic that improves itself without
+The framework's inward channel provides: a critic that improves itself without
 updating a weight. Everything above---a readable state, a program over
 operators, provenance traces, an independent verdict---exists so that the
 system's own experience can be written into $S$ under a guard. This inward \emph{context-training} channel
@@ -2176,7 +2176,7 @@ and a curation pass merges the candidates into $33$ distinct families. Lessons a
 planner's rubric. Only $M$ changes: the operator library $\Pi$ and the external channel $K$ are
 untouched, so $S' = (\Pi, M', K)$.
 
-The instantiation and the formalism differ in two respects. All $33$ lessons are supplied on every
+Two aspects of the implementation depart from the formalism above. All $33$ lessons are supplied on every
 clip: we built the selective form --- one relevance call per (lesson, claim) --- and measured it at
 $132$ to $495$ model calls per clip to choose among $33$ lessons totalling $9$\,kB, taking a clip
 from $142$\,s to $611$\,s, the cost of selecting lessons exceeded the cost of supplying all of them. And the
@@ -2200,7 +2200,7 @@ conditions are run: no lessons, $8$ lessons distilled from $25$ clips, and $33$ 
 The curve rises sharply and then levels (\cref{fig:iclaggregate,tab:iclcurve}). Lessons from the first $25$ experience
 clips carry $+27$ of the $+32$; distilling from a further $92$ clips adds $1.2$ points.
 
-\paragraph{Which categories the lessons move.} The aggregate rise conceals categories moving in
+\paragraph{Effect by flaw category.} The aggregate rise conceals categories moving in
 opposite directions, and most of that movement does not survive its own sampling noise
 (\cref{tab:iclcategory}). Because the three conditions score the same flaws, the informative
 quantity is the paired change, and its interval comes from the flaws that switched. On that test
@@ -2214,7 +2214,7 @@ Only compound action descriptions rests on enough flaws to be read closely. Orde
 clears zero on four switched flaws, which locates a direction rather than a magnitude. Aggregate
 coverage rises because the largest category is the one that moves.
 
-\paragraph{Lessons aimed at a category do not move that category.} Of the $25$ families added
+\paragraph{Targeting of the added lessons.} Of the $25$ families added
 between $25$ and $117$ experience clips, one names on-screen text, one names spatial relations,
 three name object identity, and two name counting. On-screen text falls $6$ points over that
 interval, spatial relations fall $2$, and object identity falls $5$; counting rises $7$. The
@@ -2229,7 +2229,7 @@ The later, more specific families name their targets and do not reach them.
 
 \paragraph{Effect of the additional experience.}  The two lesson sets are nested by construction --- every one of the $8$ families induced from $25$ clips
 reappears among the $33$, none revised away, and the further $92$ clips contribute $25$ new
-families --- but at the level of individual flaws they are not nested at all. Against the untaught
+families --- but the flaws they reach differ. Against the untaught
 arm the small set reaches $46$ flaws and the large set $49$, and only $30$ are the same flaws:
 $19$ are reached only with the extra lessons, while $16$ that the small set reached are lost.
 The net gain is $3$ flaws, from an exchange over $35$.
@@ -2275,7 +2275,7 @@ $p = 0.003$) and severity-4 from $69\%$ to $76\%$ ($+10$, $p = 0.09$); the effec
 to mild defects, and only the action category separates from chance on its own.
 
 \paragraph{Effect of the lessons on the plan.} Each lesson instructs the planner to create a
-separate check, which suggests they split one claim into several. They do not. Checks per claim
+separate check, which suggests they split one claim into several. Checks per claim
 move from $1.12$ to $1.16$. What moves is the number of separately verifiable requirements the
 planner extracts from the prompt, $2{,}414$ to $4{,}209$. The lessons condition on the prompt --- \emph{when a prompt specifies X} --- and take effect at
 that stage, on how the prompt is read, not on the handling of a requirement already extracted.
@@ -2334,7 +2334,7 @@ P4 Auditable trace + three-valued $Y$ & trace $T=(C,G,R,Y,F)$, provenance & Phas
 P5 Verification-guided refinement & outward control channel $\delta,\,\mathrm{Gen}$ & roadmap \\
 P2$^{+}$ Operator-library scale-up & procedural-memory growth in $\Pi$ & roadmap \\
 P6 Breaking the loop & external channel $K$, candidate$+$prune & roadmap \\
-P3 Context-training self-evolution & inward channel $\mathrm{Distill}$~\eqref{eq:distill} & Phase 0 (measured, pre-gate) \\
+P3 Context-training self-evolution & inward channel $\mathrm{Distill}$~\eqref{eq:distill} & Phase 0 (measured, gate not applied) \\
 P3$^{+}$ Acceptance gate & elitism~\eqref{eq:elitism} over distilled candidates & roadmap \\
 P4$^{+}$ Human oversight & supervision $+$ deployment gate & roadmap \\
 \bottomrule
