@@ -2195,9 +2195,11 @@ Varying how much experience the lessons come from turns the comparison into a cu
 conditions are run: no lessons, $8$ lessons distilled from $25$ clips, and $33$ from $117$.
 
 \paragraph{Result.} Teaching the planner raises flaw recall from $278$ to $\mathbf{310}$ of $410$
-($67.8\%$ to $\mathbf{75.6\%}$), a net $+32$ at $p = 1\!\times\!10^{-4}$ under a sign test.
+($67.8\%$ to $\mathbf{75.6\%}$), a net $+32$ at $p = 1\!\times\!10^{-4}$ under a sign test. The
+intermediate condition, $8$ lessons from $25$ experience clips, reaches $305$, a net $+27$ at
+$p = 1\!\times\!10^{-3}$.
 
-The curve rises sharply and then levels (\cref{fig:iclaggregate,tab:iclcurve}). Lessons from the first $25$ experience
+The curve rises sharply and then levels (\cref{fig:iclaggregate}). Lessons from the first $25$ experience
 clips carry $+27$ of the $+32$; distilling from a further $92$ clips adds $1.2$ points.
 
 \paragraph{Effect by flaw category.} The aggregate rise conceals categories moving in
@@ -2261,7 +2263,6 @@ rarer failures, over which less coverage is available.
   \label{fig:iclaggregate}
 \end{figure}
 
-\input{tab_icl_curve}
 
 \input{tab_icl_category}
 
@@ -2820,7 +2821,7 @@ as many requirements out of a prompt as the untaught one, and flaw recall reward
 asking more, so the effect combines a better-targeted plan with a larger one; a
 run holding the taught arm to the untaught arm's question budget would separate
 them. The lessons are induced once from a fixed pool rather than accumulated online, so the curve of
-\cref{tab:iclcurve} measures the effect of the amount of experience distilled, not of
+\cref{fig:iclaggregate} measures the effect of the amount of experience distilled, not of
 accumulating it during deployment; and it covers two non-zero points, so the shape beyond $117$
 experience clips is unmeasured. Finally, the
 $410$-flaw held-out set is a different population from the $304$-flaw evaluation
