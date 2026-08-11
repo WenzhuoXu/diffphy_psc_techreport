@@ -483,7 +483,15 @@ shapes and the contact events are the simulation's; their absolute rate in the f
 not, and a downstream measurement of speed or duration must be read against the render clock
 rather than the simulator's.
 
-\subsection{What the control determines, and what the prompt determines}\label{sec:gen-prompt}
+\subsection{How much of the motion the control determines}\label{sec:gen-prompt}
+
+The control need not act over the whole of sampling. Applying it and then withdrawing it at a
+chosen step gives two measurements: what the control determines while it is present, which is
+read by varying the prompt against it, and how long it must act, which is read by moving the
+withdrawal point. The first is measured below on the deployed configuration; the second requires
+a finer sweep and is measured on a second backbone (\cref{sec:gen-release}).
+
+\paragraph{What the control determines while present.}
 
 What each input determines can be measured by holding one fixed and varying the other. The geometric control is the same projectile depth video throughout; the
 prompt varies over three wordings that share their subject, scene, camera, material and style and
@@ -509,21 +517,24 @@ fraction of frame width, recovered by tracking it in the finished clip. The metr
   \label{fig:promptcontrol}
 \end{figure}
 
-Three results follow (\cref{tab:promptcontrol,fig:promptcontrol}). Without a control the prompt determines the motion: the same scene and camera travel $0.05$ of
-the frame under the adversarial clause and $0.97$ under the horizontal one. The ordering of the
-three clauses holds within each seed, while the magnitude does not reproduce for the neutral
-clause, which spans $0.21$ and $0.86$ over its two seeds. With the control applied throughout, the three prompts
-produce travels of $0.872$, $0.871$ and $0.871$, a largest between-clause difference of $0.001$
-at one seed per clause. With the control applied over only the first fifth of sampling and then removed, the outcome varies with the seed rather than the clause: changing the clause moves the travel by $0.06$ on
-average while changing the seed moves it by $0.43$, seven times as much. The trajectory established while the control is
+The result is a crossover in what the outcome varies with
+(\cref{tab:promptcontrol,fig:promptcontrol}). Without a control the prompt determines the
+motion: the same scene and camera travel $0.05$ of the frame under the adversarial clause and
+$0.97$ under the horizontal one, a range of $0.875$ between clauses against $0.252$ between
+seeds. The ordering of the three clauses holds within each seed, while the magnitude does not
+reproduce for the neutral clause, which spans $0.21$ and $0.86$ over its two seeds. With the control applied throughout, the three prompts produce travels of
+$0.872$, $0.871$ and $0.871$: the clause-attributable range has fallen to $0.001$, at one seed
+per clause. In between, with the control applied over the first fifth of sampling and then withdrawn, the
+two sources exchange places: the clause-attributable range is $0.060$ and the
+seed-attributable range $0.427$, seven times larger. The trajectory established while the control is
 present persists through the remaining steps, during which the text is the only conditioning.
 
 
 
-\subsection{Withdrawing the conditioning during sampling}\label{sec:gen-release}
+\subsection{How long the control must act}\label{sec:gen-release}
 
-Geometric conditioning can be applied for part of sampling and then removed, which locates the
-point at which the simulated trajectory becomes fixed. The measurements below were made on a second Wan2.2-derived backbone, run at $40$ UniPC steps
+Moving the withdrawal point locates the noise level at which the simulated trajectory becomes
+fixed. These measurements were made on a second Wan2.2-derived backbone, run at $40$ UniPC steps
 with a flow shift of $5.0$. It has no trained control branch: its only conditioning path encodes
 a rendered source video into context tokens concatenated with the text and image tokens. That
 makes the withdrawal directly available --- the source tokens are removed from the attended

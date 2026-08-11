@@ -3,16 +3,16 @@
 
 \begin{table}[t]
 \centering\small
-\setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.2}
-\begin{tabular}{@{}p{6.0cm} c c c@{}}
+\setlength{\tabcolsep}{7pt}\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}p{5.2cm} c c@{}}
 \toprule
-\textbf{Motion clause in the prompt} & \textbf{No control} & \textbf{First $10$ of $50$} & \textbf{All $50$ steps} \\
+\textbf{Control applied for} & \textbf{Spread across clauses} & \textbf{Spread across seeds} \\
 \midrule
-``travels quickly left-to-right across the entire frame'' & 0.93, 0.97 & 0.36, 0.64, 0.88 & 0.87 \\
-``flies in an arc through the air and then bounces'' & 0.21, 0.86 & 0.49, 0.62, 0.88 & 0.87 \\
-``drops nearly straight down \dots\ almost no sideways motion'' & 0.05, 0.11 & 0.51, 0.64, 0.88 & 0.87 \\
+no steps & 0.875 & 0.252 \\
+the first $10$ of $50$ steps & 0.060 & 0.427 \\
+all $50$ steps & 0.001 & one seed \\
 \bottomrule
 \end{tabular}
-\caption{Horizontal travel of the generated object, as a fraction of frame width, under one fixed geometric control and three prompts differing only in their motion clause. Each cell lists the individual seeds. With no control the clause determines the motion; with the control applied throughout, all three clauses give the same travel, including the clause that demands the opposite motion; with the control applied over the first fifth of sampling the outcome is prompt-independent and the remaining spread follows the seed. Metric and decision rules were fixed before any clip was viewed.}
+\caption{Sideways travel varies with the prompt's motion clause when the geometric control is absent, and with the seed when it is present. Each entry is a range (largest minus smallest) of travel in frame widths: the first column holds the seed fixed and varies the clause, the second holds the clause fixed and varies the seed. The control video is identical throughout. As the control acts over more of sampling the clause-attributable range falls to $0.001$, while the seed-attributable range does not fall with it.}
 \label{tab:promptcontrol}
 \end{table}
