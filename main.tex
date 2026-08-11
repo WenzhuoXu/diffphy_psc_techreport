@@ -506,6 +506,22 @@ fraction of frame width, recovered by tracking it in the finished clip. The metr
 
 \begin{figure}[t]
   \centering
+  \includegraphics[width=\linewidth]{fig_prompt_trajectories.pdf}
+  \caption{The tracked path of the ball in nine clips at one seed, against the same depth control
+  in every one. Each box is a single $848\times480$ frame with $x$ running left to right and $y$
+  downward; the grey ribbon is the ball in the control video, in frame for $63$ of its $81$
+  frames. One dot is one frame, drawn at the area of the region the tracker located and shaded
+  from the first frame to the last. The number in each box is that clip's sideways travel. The
+  prompts share an opening sentence and differ in the closing sentence beside each row; the row
+  in red asks for the motion the control does not perform. Without the control the path follows
+  the clause, and the camera framing changes with it. With the control throughout, all three
+  clauses reproduce the control's arc. With the control over the first ten steps the path holds
+  the arc and departs at the landing.}
+  \label{fig:prompttraj}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
   \includegraphics[width=\linewidth]{fig_prompt_vs_control.pdf}
   \caption{Sideways travel of the generated object under one fixed geometric control, with the
   prompt's motion clause varied. One mark is one clip, and each panel names the seeds it carries:
@@ -518,15 +534,28 @@ fraction of frame width, recovered by tracking it in the finished clip. The metr
 \end{figure}
 
 The result is a crossover in what the outcome varies with
-(\cref{tab:promptcontrol,fig:promptcontrol}). Without a control the prompt determines the
-motion: the same scene and camera travel $0.05$ of the frame under the adversarial clause and
-$0.97$ under the horizontal one, a range of $0.875$ between clauses against $0.252$ between
-seeds. The ordering of the three clauses holds within each seed, while the magnitude does not
+(\cref{tab:promptcontrol,fig:promptcontrol,fig:prompttraj}). Without a control the prompt
+determines the motion, travelling $0.05$ of the frame under the adversarial clause and $0.97$
+under the horizontal one, a range of $0.875$ between clauses against $0.252$ between seeds. The
+unconditioned clips also differ from the conditioned ones in framing: the model places the camera
+close to the ground with no horizon and renders the ball at a median tracked area of $8{,}846$
+pixels, against $211$ under the control. Travel measured as a fraction of frame width is
+therefore not a like-for-like comparison across the first and third columns, and the
+within-column comparisons carry the argument. The ordering of the three clauses holds within each seed, while the magnitude does not
 reproduce for the neutral clause, which spans $0.21$ and $0.86$ over its two seeds. With the control applied throughout, the three prompts produce travels of
 $0.872$, $0.871$ and $0.871$: the clause-attributable range has fallen to $0.001$, at one seed
 per clause. In between, with the control applied over the first fifth of sampling and then withdrawn, the
-two sources exchange places: the clause-attributable range is $0.060$ and the
-seed-attributable range $0.427$, seven times larger. The trajectory established while the control is
+two sources exchange places: the clause-attributable range is $0.060$ and the seed-attributable
+range $0.427$, seven times larger.
+
+The trajectories locate where that shortfall arises (\cref{fig:prompttraj}). A clip conditioned
+over the first ten steps does not leave the control's path when the control is withdrawn: it
+tracks the arc through the flight and departs at the landing, stopping near $0.77$ of the frame
+while the control's ball rolls on to $0.99$ and out of frame. The lost travel is the roll after
+contact rather than a different flight, which is the same phase that
+\cref{sec:gen-release} finds most sensitive to an early withdrawal. Of the three clauses at this
+seed, two follow the control from the first frames and the neutral one does not, remaining a mean
+$0.243$ of the frame from the control's path over the first ten frames. The trajectory established while the control is
 present persists through the remaining steps, during which the text is the only conditioning.
 
 
