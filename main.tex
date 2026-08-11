@@ -2197,15 +2197,22 @@ conditions are run: no lessons, $8$ lessons distilled from $25$ clips, and $33$ 
 \paragraph{Result.} Teaching the planner raises flaw recall from $278$ to $\mathbf{310}$ of $410$
 ($67.8\%$ to $\mathbf{75.6\%}$), a net $+32$ at $p = 1\!\times\!10^{-4}$ under a sign test.
 
-The curve rises sharply and then levels (\cref{tab:iclcurve}). Lessons from the first $25$ experience
+The curve rises sharply and then levels (\cref{fig:iclaggregate,tab:iclcurve}). Lessons from the first $25$ experience
 clips carry $+27$ of the $+32$; distilling from a further $92$ clips adds $1.2$ points.
 
-\paragraph{Which categories the lessons move.} The aggregate curve conceals categories moving in
-opposite directions (\cref{fig:iclcurve}). Order and timing rises $27$ points and counting $13$;
-on-screen text rises $19$ points by $25$ clips and then gives back $6$; object identity rises $7$
-and gives back $5$; spatial relations fall throughout, ending $5$ points below the untaught rate.
-Aggregate coverage rises because the categories that gain are larger than the ones that lose, not
-because the lessons help everywhere.
+\paragraph{Which categories the lessons move.} The aggregate rise conceals categories moving in
+opposite directions, and most of that movement does not survive its own sampling noise
+(\cref{tab:iclcategory}). Because the three conditions score the same flaws, the informative
+quantity is the paired change, and its interval comes from the flaws that switched. On that test
+two categories change: compound action descriptions by $+11$ points, interval $[+5, +14]$, on
+$24$ flaws gained against $5$ lost from $177$; and order and timing by $+27$ points, interval
+$[+1, +27]$, on $4$ gained against none from $15$. Every other category has an interval
+containing zero, including on-screen text at $+13$ with $[-0, +20]$ and the $5$-point fall in
+spatial relations at $[-12, +6]$.
+
+Only compound action descriptions rests on enough flaws to be read closely. Order and timing
+clears zero on four switched flaws, which locates a direction rather than a magnitude. Aggregate
+coverage rises because the largest category is the one that moves.
 
 \paragraph{Lessons aimed at a category do not move that category.} Of the $25$ families added
 between $25$ and $117$ experience clips, one names on-screen text, one names spatial relations,
@@ -2243,18 +2250,20 @@ sits (\cref{tab:selfevolve}): compound action descriptions are the one category 
 chance on its own. The distillation finds the planner's weakest reading first, and the lessons that follow address
 rarer failures, over which less coverage is available.
 
-\input{tab_icl_curve}
-
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\linewidth]{fig_icl_curve.pdf}
-  \caption{Coverage against the number of experience clips the lessons were distilled from, for
-  each category with at least twelve flaws. The dotted line in each panel is that category's
-  untaught rate and the panel count is its number of flaws; red marks a category ending below its
-  untaught rate. Beside each panel is the number of the $25$ lesson families added between $25$
-  and $117$ experience clips whose name refers to that category.}
-  \label{fig:iclcurve}
+  \includegraphics[width=\linewidth]{fig_icl_aggregate.pdf}
+  \caption{Flaws reached against the number of experience clips the lessons were distilled from,
+  over the same $410$ flaws in every condition. The dotted line is the untaught rate. Whiskers are
+  $95\%$ intervals on the change from untaught, computed from the flaws that switch status, since
+  the conditions score the same flaws. Most of the effect is present at $25$ experience clips, and
+  the two taught intervals overlap.}
+  \label{fig:iclaggregate}
 \end{figure}
+
+\input{tab_icl_curve}
+
+\input{tab_icl_category}
 
 \input{tab_selfevolve}
 
