@@ -1937,14 +1937,14 @@ reader named --- not detection of everything wrong with a clip.
 \section{Framework: Learning as State Optimization}\label{sec:framework}
 % =====================================================================
 
-The preceding sections described three concrete artifacts that already run: a
+The preceding sections described three artifacts: a
 physics-guided generator (\Cref{sec:generation}), a $1{,}500$-clip human-authored
 defect benchmark (\Cref{sec:dataset}), and a physically grounded, tool-using
 critic whose plan-based adjudication we measure in \Cref{sec:eval}. This section states the
-abstraction that ties them together and defines what \PhyReAct{} is meant to become. Our thesis is that a physical-reasoning
-agent should keep everything it has learned not in its weights but in one
+abstraction that ties them together and the form the framework is built toward. Our thesis is that a physical-reasoning
+agent should keep everything it has learned in one
 \emph{human-readable, typed, provenance-carrying state}, and should improve by
-\emph{optimizing that state rather than by updating weights}. Every improvement
+\emph{optimizing that state}. Every improvement
 is then an edit to an object a person can read, version, and veto, and the arc of
 the framework culminates in a system that evolves itself without ever touching a
 weight.
@@ -1982,7 +1982,7 @@ framework below.
 and it improves by optimizing $S$. The reasoning model and the low-level physical
 experts are frozen, so what the system accumulates is held in $S$, which is inspectable,
 diffable, versionable, and revertible. ``Training'' and
-``inference'' are the same readable procedure run in different directions: one
+``inference'' are one readable procedure applied in two directions: one
 map reads $S$ to act, and channels write to $S$ (or to the generator) to improve.
 
 \begin{description}
@@ -2005,7 +2005,7 @@ map reads $S$ to act, and channels write to $S$ (or to the generator) to improve
     itself (\Cref{sec:selfevolve}).
 \end{description}
 
-The rest of the framework is exactly two kinds of maps over this state: a
+The rest of the framework consists of two kinds of maps over this state: a
 single-episode \emph{read} operator that consumes $S$ and emits an auditable
 trace (\Cref{sec:framework:episode}), and \emph{write} channels that update the
 generator and $S$ from that trace. The six design pillars of the paper are
@@ -2029,7 +2029,7 @@ Here $C$ is a set of \emph{typed physical obligations}---explicit,
 machine-checkable statements of what the video must satisfy to honor the prompt
 (object presence and count, contact and support, trajectory continuity, depth
 ordering, on-screen text, audio events). $G$ is a \emph{program over $\Pi$}:
-reasoning is not free-form chain-of-thought but a composition of operator calls
+reasoning takes the form of a composition of operator calls
 that the model writes and the runtime executes, in the tradition of
 program-of-thought and modular visual
 reasoning~\cite{visprog2023,vipergpt2023,rewoo2023,llmcompiler2024}. Executing $G$
@@ -2039,7 +2039,7 @@ physical expert operator---promptable segmentation and tracking~\cite{sam3_2025}
 counting over its instance identities, the typed physical measurements taken over those
 tracks, monocular depth, OCR, and audio event
 detection~\cite{flexsed2025}---registered in $\Pi$. This is the sense in which
-\PhyReAct{} \emph{physicalizes} ReAct: it inherits the control-flow harness from
+\PhyReAct{} specializes ReAct to physical measurement: it inherits the control-flow harness from
 mainstream tool-using agents~\cite{toolformer2023,hugginggpt2023} and specializes
 it with explicit physical obligations and physical-measurement operators
 \textbf{(P1)}. This general form is instantiated concretely by the critic of
@@ -2097,7 +2097,7 @@ self-evaluating refinement loops~\cite{mavis2025} and verification-guided
 repair~\cite{neuse2025}. Both endpoints of \eqref{eq:control} are built
 (\Cref{sec:generation,sec:eval}); the map $\delta$ and the closed loop are roadmap.
 
-\subsection{Auditability by construction}
+\subsection{Auditability of the state and the trace}
 \label{sec:framework:audit}
 
 Auditability follows from the formalism. The learned object is the readable state $S$ and every
@@ -2117,10 +2117,10 @@ nothing about the generator.
 \label{sec:selfevolve}
 
 The framework builds toward one capability: a critic that improves itself without
-ever updating a weight. Everything above---a readable state, a program over
+updating a weight. Everything above---a readable state, a program over
 operators, provenance traces, an independent verdict---exists so that the
-system's own experience can be folded back into $S$ safely. This inward
-\emph{context-training} channel \textbf{(P3)} is the terminal form of \PhyReAct{}.
+system's own experience can be written into $S$ under a guard. This inward \emph{context-training} channel
+\textbf{(P3)} is the last of the framework's components to be instantiated.
 
 Given a trace $T$ and feedback $\phi$ (human labels, downstream outcomes, or a
 later, more complete measurement), we distill \emph{candidate} state edits and
@@ -2157,8 +2157,7 @@ its own biases: distilled priors condition future reasoning, whose traces distil
 into more priors. The external knowledge channel $K$ is the deliberate opening.
 \PhyReAct{} may issue retrieval or ask for external or social knowledge (physical
 facts, human corrections, domain conventions) and admit it into $K$ under the same
-candidate-and-pruning discipline as \eqref{eq:elitism}: if no retrieved candidate improves the
-held-out proxy, nothing is admitted, and $K$-sourced facts carry a provenance tag distinct from
+candidate-and-pruning discipline as \eqref{eq:elitism}: a retrieved candidate is admitted only when it improves the held-out proxy, and $K$-sourced facts carry a provenance tag distinct from
 distilled beliefs, so an admission can be reverted. External knowledge therefore enters under the
 same elitism that governs $S$.
 
@@ -2177,10 +2176,10 @@ and a curation pass merges the candidates into $33$ distinct families. Lessons a
 planner's rubric. Only $M$ changes: the operator library $\Pi$ and the external channel $K$ are
 untouched, so $S' = (\Pi, M', K)$.
 
-The instantiation differs from the formalism in two ways. All $33$ lessons are supplied on every
+The instantiation and the formalism differ in two respects. All $33$ lessons are supplied on every
 clip: we built the selective form --- one relevance call per (lesson, claim) --- and measured it at
 $132$ to $495$ model calls per clip to choose among $33$ lessons totalling $9$\,kB, taking a clip
-from $142$\,s to $611$\,s, so deciding what to supply costs more than supplying everything. And the
+from $142$\,s to $611$\,s, the cost of selecting lessons exceeded the cost of supplying all of them. And the
 acceptance gate \eqref{eq:elitism} is not applied: $U_{\mathrm{val}}$ is defined on rules that have
 appeared in a run, a rule written from a fresh miss has not, and the gate admits none of $80$
 candidates ($39$ undecidable, $41$ never fired). The intervention evaluated below is therefore the distilled candidate set.
@@ -2198,15 +2197,15 @@ conditions are run: no lessons, $8$ lessons distilled from $25$ clips, and $33$ 
 \paragraph{Result.} Teaching the planner raises flaw recall from $278$ to $\mathbf{310}$ of $410$
 ($67.8\%$ to $\mathbf{75.6\%}$), a net $+32$ at $p = 1\!\times\!10^{-4}$ under a sign test.
 
-The curve is steep and then flat (\cref{tab:iclcurve}). Lessons from the first $25$ experience
+The curve rises sharply and then levels (\cref{tab:iclcurve}). Lessons from the first $25$ experience
 clips carry $+27$ of the $+32$; distilling from a further $92$ clips adds $1.2$ points.
 
 \paragraph{Effect of the additional experience.} The two lesson sets are nested by construction --- every one of the $8$ families induced from $25$ clips
 reappears among the $33$, none revised away, and the further $92$ clips contribute $25$ new
 families --- but at the level of individual flaws they are not nested at all. Against the untaught
 arm the small set reaches $46$ flaws and the large set $49$, and only $30$ are the same flaws:
-$19$ are reached only with the extra lessons, while $16$ that the small set reached are given up.
-The net gain of $3$ flaws is the residue of an exchange over $35$.
+$19$ are reached only with the extra lessons, while $16$ that the small set reached are lost.
+The net gain is $3$ flaws, from an exchange over $35$.
 
 The categories make the same point. Compound action descriptions gain $24$ flaws and on-screen
 text $10$ under \emph{both} lesson sets; the extra $25$ families, which include several addressed
@@ -2221,8 +2220,8 @@ asserted action occurred, checking the manner of a motion, separating the partic
 transfer, attributing a subject correctly, preserving a reference frame, reconciling checks that
 disagree, and providing a fallback when a measurement fails. That is also where the measured gain
 sits (\cref{tab:selfevolve}): compound action descriptions are the one category to separate from
-chance on its own. The distillation finds the planner's weakest reading first, and the lessons
-that follow address rarer failures with correspondingly less to recover.
+chance on its own. The distillation finds the planner's weakest reading first, and the lessons that follow address
+rarer failures, over which less coverage is available.
 
 \input{tab_icl_curve}
 
@@ -2235,12 +2234,11 @@ is broadly even, with the largest group, severity-3, going from $67\%$ to $75\%$
 $p = 0.003$) and severity-4 from $69\%$ to $76\%$ ($+10$, $p = 0.09$); the effect is not confined
 to mild defects, and only the action category separates from chance on its own.
 
-\paragraph{What the lessons change about the plan.} Each lesson instructs the planner to create a
+\paragraph{Effect of the lessons on the plan.} Each lesson instructs the planner to create a
 separate check, which suggests they split one claim into several. They do not: checks per claim
 move from $1.12$ to $1.16$. What moves is how many separately verifiable requirements the planner
-reads out of the prompt at all, $2{,}414$ to $4{,}209$. The lessons condition on the prompt ---
-\emph{when a prompt specifies X} --- and they act there, on the reading, rather than on the
-handling of a requirement already extracted.
+reads out of the prompt at all, $2{,}414$ to $4{,}209$. The lessons condition on the prompt --- \emph{when a prompt specifies X} --- and take effect at
+that stage, on how the prompt is read, not on the handling of a requirement already extracted.
 
 That mechanism accounts for the shape of \cref{tab:selfevolve}. A compound action sentence and an
 on-screen text requirement are what a coarse reading merges or drops, while object identity is
@@ -2251,7 +2249,7 @@ questions where the untaught arm asks $107$.
 \subsection{Human oversight}
 \label{sec:framework:human}
 
-A human is kept in the loop at a few specific gates rather than throughout: a
+A human is kept in the loop at a few specific gates: a
 reviewer may audit a trace $T$, veto or edit a proposed state update in
 \eqref{eq:accept}, and approve whether a refined generation \eqref{eq:control} or
 a new state $S'$ is deployed. Human feedback also enters $\mathrm{Distill}$ as a
@@ -2271,17 +2269,17 @@ read path (\Cref{sec:dataset}); the episode read operator
 \eqref{eq:retrieve}--\eqref{eq:trace} with a fixed operator set $\Pi_0$, typed
 obligations $C$, three-valued deterministic adjudication $\Phi$, and provenance
 traces $T$; the flaw-level measurement in \Cref{sec:eval} against human labels
-($228$ of $304$ for \PhyReAct{}, $164$ for question decomposition, recall-only, on
-the development core, \emph{not} a held-out split); and the inward distillation of
+($228$ of $304$ for \PhyReAct{}, $164$ for question decomposition, recall-only, on the development core, which is
+not held out); and the inward distillation of
 $M$ via \eqref{eq:distill}, measured on a held-out split in
 \cref{sec:selfevolve:measured} ($310$ of $410$ against $278$ untaught).
 \textbf{Roadmap (Phase~1+):} the
 outward control map $\delta$ and the closed critic$\rightarrow$generator loop
 \eqref{eq:control}; the scaling-up of $\Pi$; the acceptance gate \eqref{eq:elitism}
 that admits distilled candidates on a measured proxy improvement; the external
-knowledge channel $K$; and human-in-the-loop deployment at scale. Every roadmap
-item is a \emph{write} path in the same formalism whose \emph{read} counterpart is
-already exercised, Roadmap rows are unmeasured. The executable plan follows in \Cref{sec:roadmap}.
+knowledge channel $K$; and human-in-the-loop deployment at scale. Every roadmap item is a \emph{write}
+path in the same formalism whose \emph{read} counterpart is already exercised. The executable
+plan follows in \Cref{sec:roadmap}.
 
 \begin{table}[t]
 \centering
