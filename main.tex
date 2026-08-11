@@ -508,11 +508,12 @@ fraction of frame width, recovered by tracking it in the finished clip. The metr
   \centering
   \includegraphics[width=\linewidth]{fig_prompt_vs_control.pdf}
   \caption{Sideways travel of the generated object under one fixed geometric control, with the
-  prompt's motion clause varied. Individual seeds are shown, since each cell carries between one
-  and three. Without the control the clause determines the travel; with the control applied
-  throughout, the three clauses coincide; with the control applied over the first $10$ of $50$
-  steps the travel follows the seed rather than the clause. The hairline marks the mean of the
-  control-throughout clips.}
+  prompt's motion clause varied. One mark is one clip, and each panel names the seeds it carries:
+  two, three and one respectively. Without the control the clause determines the travel; with the
+  control applied throughout, the three clauses coincide; with the control applied over the first
+  $10$ of $50$ steps the travel follows the seed rather than the clause. The dashed line is the
+  control video's own sideways travel, $0.870$ of the frame width, measured from the control clip
+  with the same tracking metric.}
   \label{fig:promptcontrol}
 \end{figure}
 
