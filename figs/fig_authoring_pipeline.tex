@@ -132,38 +132,34 @@
   % ---------------- the scene specification (learned) ----------------------
   \node[aplearn, text width=13.1cm, anchor=north] (author) at (0,0)
     {\textbf{A language model writes the scene specification}\\[1.5pt]
-     \apsub{from the description alone: the bodies, their initial positions and
-     velocities, the static surfaces\\ they interact with, and a camera. A body on
-     a ballistic segment is given its initial velocity and\\ its colliders and
-     nothing else; prescribed waypoints are reserved for motion the simulator
-     would\\ otherwise override --- a rising balloon, a feather required to fall
-     like a stone. A reply missing a\\ required field, or naming a control
-     strength outside the allowed range, is re-asked once}};
+     \apsub{the bodies, their initial positions and velocities, the static
+     surfaces they interact with,\\ and a camera. A body on a ballistic segment
+     carries an initial velocity and its colliders;\\ prescribed waypoints are
+     reserved for motion the simulator would otherwise override, such as\\ a
+     rising balloon. A reply missing a required field, or naming a control strength
+     outside\\ the allowed range, is re-asked once}};
 
   \node[apdata, text width=6.8cm, anchor=south]
     (spec) at ($(author.north)+(0,0.40)$)
     {\textbf{Physics description, in text}\\[1.5pt]
-     \apsub{the event the clip is required to show ---\\ there is no reference
-     video}};
+     \apsub{the physical event the clip is\\ required to show}};
 
   % ---------------- simulation (deterministic) -----------------------------
   \node[apdet, text width=13.1cm, anchor=north]
     (sim) at ($(author.south)+(0,-0.34)$)
     {\textbf{The specification is simulated by the same engine the renderer runs}\\[1.5pt]
-     \apsub{the rigid-body simulator integrates the scene, so the arc, the contact
-     and the settling are\\ computed rather than drawn, and the trajectory checked
-     below is the one the control video will show}};
+     \apsub{the rigid-body simulator integrates the scene, producing the arc, the
+     contact and the settling.\\ The trajectory checked below is the one the control
+     video will show}};
 
   % ---------------- validation on the realized trajectory (accented) -------
   \node[apgate, text width=13.1cm, anchor=north]
     (gate) at ($(sim.south)+(0,-0.34)$)
-    {{\color{adobered}\textbf{Validation reads the trajectory that was produced,
-     not the specification}}\\[1.5pt]
-     \apsub{a ballistic segment must trace an arc that reaches its target ---
-     or, where the corrected outcome\\ contradicts the ordinary expectation,
-     cleanly misses it --- and come to rest on a surface or on\\ another body;
-     a rising segment must gain height; no body may leave the frame; and an arc
-     drawn\\ by hand where a simulated one was declared fails}};
+    {{\color{adobered}\textbf{Validation is applied to the simulated trajectory}}\\[1.5pt]
+     \apsub{a ballistic segment must trace an arc that reaches its target, or
+     cleanly misses it where the\\ corrected outcome requires, and come to rest on
+     a surface or on another body; a rising\\ segment must gain height; no body may
+     leave the frame; a segment declared ballistic must be\\ simulated}};
 
   % ---------------- the two ways out of validation -------------------------
   \coordinate (fan) at ($(gate.south)+(0,-0.32)$);
@@ -179,38 +175,36 @@
   \node[aplearn, text width=6.2cm, anchor=north east]
     (texture) at ($(gate.south east)+(0,-0.82)$)
     {\textbf{Appearance is written separately}\\[1.5pt]
-     \apsub{a second request, shown nothing about the\\ control, describes the
-     real filmed scene; a\\ reply that mentions the control's own look\\ is
-     rewritten until it does not}};
+     \apsub{a second request, given no access to the\\ control, describes the scene
+     as filmed;\\ replies naming the control's own\\ appearance are rewritten}};
 
   % ---------------- camera, render, and what the generator receives --------
   \node[apdet, text width=13.1cm, anchor=north]
     (camera) at ($(0,0 |- repair.south)+(0,-0.46)$)
     {\textbf{The camera is applied to the accepted specification}\\[1.5pt]
-     \apsub{a panning camera becomes a slow uniform drift of the whole scene,
-     while an orbit or a push-in is\\ left to the generator; bodies named for
-     graphics rather than for physics are dropped here}};
+     \apsub{a panning camera becomes a slow uniform drift of the whole scene; an
+     orbit or a push-in is left\\ to the generator; bodies serving as graphics are
+     dropped here}};
 
   \node[apdet, text width=13.1cm, anchor=north]
     (render) at ($(camera.south)+(0,-0.34)$)
     {\textbf{The accepted specification is rendered into the control video}\\[1.5pt]
      \apsub{the scene is expanded into its full geometry and every frame is drawn
-     from the simulated state\\ over the clip's fixed frame budget; a contact
-     sheet of the frames is saved beside it for review}};
+     from the simulated\\ state over the clip's fixed frame budget, with a contact
+     sheet saved alongside}};
 
   \node[apdet, text width=13.1cm, anchor=north]
     (planrow) at ($(render.south)+(0,-0.34)$)
     {\textbf{What is handed to the generator}\\[1.5pt]
-     \apsub{the control video, the appearance description, what must not appear
-     in the render, a fixed seed,\\ and the strength at which the control is
-     applied --- lowered when the control covers little of the\\ frame, and held
-     low when the generator already renders the motion well without it}};
+     \apsub{the control video, the appearance description, the excluded terms, a
+     fixed seed, and the\\ strength at which the control is applied, which is
+     lowered when the control covers little\\ of the frame}};
 
   \node[aplearn, text width=13.1cm, anchor=north]
     (gen) at ($(planrow.south)+(0,-0.34)$)
     {\textbf{The diffusion backbone follows the control video}\\[1.5pt]
      \apsub{motion comes from the control video; identity, materials, lighting
-     and environment come from\\ the appearance description alone}};
+     and environment from\\ the appearance description}};
 
   % ---------------- edges ------------------------------------------------
   \draw[aparr] (spec.south)    -- (author.north);
