@@ -520,21 +520,8 @@ fraction of frame width, recovered by tracking it in the finished clip. The metr
   \label{fig:prompttraj}
 \end{figure}
 
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\linewidth]{fig_prompt_vs_control.pdf}
-  \caption{Sideways travel of the generated object under one fixed geometric control, with the
-  prompt's motion clause varied. One mark is one clip, and each panel names the seeds it carries:
-  two, three and one respectively. Without the control the clause determines the travel; with the
-  control applied throughout, the three clauses coincide; with the control applied over the first
-  $10$ of $50$ steps the travel follows the seed rather than the clause. The dashed line is the
-  control video's own sideways travel, $0.870$ of the frame width, measured from the control clip
-  with the same tracking metric.}
-  \label{fig:promptcontrol}
-\end{figure}
-
 The result is a crossover in what the outcome varies with
-(\cref{tab:promptcontrol,fig:promptcontrol,fig:prompttraj}). Without a control the prompt
+(\cref{tab:promptcontrol,fig:prompttraj}). Without a control the prompt
 determines the motion, travelling $0.05$ of the frame under the adversarial clause and $0.97$
 under the horizontal one, a range of $0.875$ between clauses against $0.252$ between seeds. The
 unconditioned clips also differ from the conditioned ones in framing: the model places the camera
