@@ -2200,7 +2200,27 @@ conditions are run: no lessons, $8$ lessons distilled from $25$ clips, and $33$ 
 The curve rises sharply and then levels (\cref{tab:iclcurve}). Lessons from the first $25$ experience
 clips carry $+27$ of the $+32$; distilling from a further $92$ clips adds $1.2$ points.
 
-\paragraph{Effect of the additional experience.} The two lesson sets are nested by construction --- every one of the $8$ families induced from $25$ clips
+\paragraph{Which categories the lessons move.} The aggregate curve conceals categories moving in
+opposite directions (\cref{fig:iclcurve}). Order and timing rises $27$ points and counting $13$;
+on-screen text rises $19$ points by $25$ clips and then gives back $6$; object identity rises $7$
+and gives back $5$; spatial relations fall throughout, ending $5$ points below the untaught rate.
+Aggregate coverage rises because the categories that gain are larger than the ones that lose, not
+because the lessons help everywhere.
+
+\paragraph{Lessons aimed at a category do not move that category.} Of the $25$ families added
+between $25$ and $117$ experience clips, one names on-screen text, one names spatial relations,
+three name object identity, and two name counting. On-screen text falls $6$ points over that
+interval, spatial relations fall $2$, and object identity falls $5$; counting rises $7$. The
+category that gains most over the interval, order and timing at $+20$, has three families
+addressed to it, and the category that gains most overall, on-screen text at $+19$ by $25$ clips,
+had none at that point --- it was lifted by lessons that name only actions and roles.
+
+The distillation therefore does not work by writing a rule for an observed failure mode and
+recovering that failure mode. What the first lessons supply is a general instruction to separate
+a compound requirement into checkable parts, and that transfers to categories no lesson mentions.
+The later, more specific families name their targets and do not reach them.
+
+\paragraph{Effect of the additional experience.}  The two lesson sets are nested by construction --- every one of the $8$ families induced from $25$ clips
 reappears among the $33$, none revised away, and the further $92$ clips contribute $25$ new
 families --- but at the level of individual flaws they are not nested at all. Against the untaught
 arm the small set reaches $46$ flaws and the large set $49$, and only $30$ are the same flaws:
@@ -2224,6 +2244,17 @@ chance on its own. The distillation finds the planner's weakest reading first, a
 rarer failures, over which less coverage is available.
 
 \input{tab_icl_curve}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{fig_icl_curve.pdf}
+  \caption{Coverage against the number of experience clips the lessons were distilled from, for
+  each category with at least twelve flaws. The dotted line in each panel is that category's
+  untaught rate and the panel count is its number of flaws; red marks a category ending below its
+  untaught rate. Beside each panel is the number of the $25$ lesson families added between $25$
+  and $117$ experience clips whose name refers to that category.}
+  \label{fig:iclcurve}
+\end{figure}
 
 \input{tab_selfevolve}
 
