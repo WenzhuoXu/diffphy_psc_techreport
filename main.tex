@@ -1940,9 +1940,8 @@ reader named --- not detection of everything wrong with a clip.
 The preceding sections described three concrete artifacts that already run: a
 physics-guided generator (\Cref{sec:generation}), a $1{,}500$-clip human-authored
 defect benchmark (\Cref{sec:dataset}), and a physically grounded, tool-using
-critic whose plan-based adjudication we measure in \Cref{sec:eval}. This section
-steps back and states the single abstraction that ties them together and defines
-what \PhyReAct{} is meant to become. Our thesis is that a physical-reasoning
+critic whose plan-based adjudication we measure in \Cref{sec:eval}. This section states the
+abstraction that ties them together and defines what \PhyReAct{} is meant to become. Our thesis is that a physical-reasoning
 agent should keep everything it has learned not in its weights but in one
 \emph{human-readable, typed, provenance-carrying state}, and should improve by
 \emph{optimizing that state rather than by updating weights}. Every improvement
@@ -1950,8 +1949,8 @@ is then an edit to an object a person can read, version, and veto, and the arc o
 the framework culminates in a system that evolves itself without ever touching a
 weight.
 
-Three components rest on experiments (\Cref{sec:generation,sec:dataset,sec:eval}); the rest of
-this section is framework and roadmap. Because all learning is state optimization on a readable
+\Cref{sec:generation,sec:dataset,sec:eval} report experiments; the remainder of this section
+sets out the framework and the roadmap. Because all learning is state optimization on a readable
 $S$, that boundary falls inside the formalism itself, and \Cref{tab:builtvsroadmap} marks it.
 
 \subsection{From ReAct and agent memory to a physical agent with typed state}
@@ -1980,9 +1979,9 @@ framework below.
   S \;=\; (\Pi,\; M,\; K),
   \label{eq:state}
 \end{equation}
-and it improves by optimizing $S$. The underlying reasoning model and the
-low-level physical experts are frozen; all accumulated competence lives in $S$,
-which is inspectable, diffable, versionable, and revertible. ``Training'' and
+and it improves by optimizing $S$. The reasoning model and the low-level physical
+experts are frozen, so what the system accumulates is held in $S$, which is inspectable,
+diffable, versionable, and revertible. ``Training'' and
 ``inference'' are the same readable procedure run in different directions: one
 map reads $S$ to act, and channels write to $S$ (or to the generator) to improve.
 
@@ -1997,9 +1996,8 @@ map reads $S$ to act, and channels write to $S$ (or to the generator) to improve
     human-readable priors distilled from past traces: nearest-neighbor
     \emph{plans} for similar prompts and \emph{physics-failure priors} over
     common defect modes. $M$ keeps \emph{evidence} (what was measured) separate
-    from \emph{belief} (what we now expect): evidence is non-negotiable, belief
-    is defeasible and can be overridden by fresh measurement, so no distilled
-    prior is ever mistaken for an observation.
+    from \emph{belief} (what we now expect): evidence is retained as
+    recorded, while belief is defeasible and is overridden by fresh measurement.
   \item[$K$ --- external knowledge channel.] Retrieved external or social
     knowledge (physical facts, domain conventions, human corrections) admitted
     only through a candidate-and-pruning discipline. $K$ is the deliberate
@@ -2050,7 +2048,7 @@ there.
 
 Each operator returns a measurement together with a \emph{gate} on its own scope:
 when an operator's preconditions are not met (out-of-scope object, untrackable
-occlusion, no audio track), it emits \abstain{} rather than a fabricated value.
+occlusion, no audio track), it emits \abstain{}.
 The adjudicator $\Phi$ in \eqref{eq:adjudicate} is a \emph{deterministic} roll-up
 from evidence $R$ to a three-valued verdict
 \begin{equation}
@@ -2080,7 +2078,7 @@ via distillation is roadmap (\Cref{sec:framework:builtvsroadmap}).
 \label{sec:framework:control}
 
 The read path produces, for a failed clip, a localized contradiction packet $F$
-(defined in \Cref{sec:loop}). Rather than merely report a score, the outward
+(defined in \Cref{sec:loop}). The critic the outward
 \emph{control channel} maps $F$ into a \emph{local edit of the generator's
 control signal} and regenerates:
 \begin{equation}
@@ -2115,7 +2113,7 @@ in the underlying operators and the compiler untouched. A prompt surviving the c
 \emph{plausible} with respect to the obligations tested, and a static critic improving says
 nothing about the generator.
 
-\subsection{The culmination: weight-free context-training self-evolution}
+\subsection{Weight-free context-training self-evolution}
 \label{sec:selfevolve}
 
 The framework builds toward one capability: a critic that improves itself without
@@ -2134,7 +2132,7 @@ accept them under a strict guard:
 Both successful and failed episodes are distilled (hindsight over
 traces~\cite{hindsight2026,reasoningbank2026}): a success may add a plan to $M$ or
 an operator to $\Pi$; a failure may add a physics-failure prior or a scope caveat.
-This is self-evolution that never touches weights, in the spirit of
+This form of self-evolution leaves weights unchanged, in the spirit of
 context-distillation and experience-memory
 agents~\cite{contexttraining2026,reasoningbank2026,reflexion2023,explicitmem2026,%
 amem2025,agentmemsurvey2024,vilomem2026}, and it treats deployment-time adaptation
@@ -2168,7 +2166,7 @@ Every prior distilled into $M$ is \emph{critic-derived}: a summary of what \PhyR
 verification loop concluded rather than verified truth. The external channel $K$ is roadmap. The
 inward channel is instantiated, and \cref{sec:selfevolve:measured} measures it.
 
-\subsection{Teaching the planner from its own misses}
+\subsection{Distilling lessons from recorded misses}
 \label{sec:selfevolve:measured}
 
 We run \eqref{eq:distill} over episodes in which a plan missed a flaw a human annotator recorded.
@@ -2185,27 +2183,57 @@ $132$ to $495$ model calls per clip to choose among $33$ lessons totalling $9$\,
 from $142$\,s to $611$\,s, so deciding what to supply costs more than supplying everything. And the
 acceptance gate \eqref{eq:elitism} is not applied: $U_{\mathrm{val}}$ is defined on rules that have
 appeared in a run, a rule written from a fresh miss has not, and the gate admits none of $80$
-candidates ($39$ undecidable, $41$ never fired). What follows measures the distilled candidate set.
+candidates ($39$ undecidable, $41$ never fired). The intervention evaluated below is therefore the distilled candidate set.
 
-\paragraph{Protocol.} The $33$ lessons are induced from $117$ experience clips and tested on $262$
-others carrying $429$ annotated flaws. Evaluation clips sharing a clip identifier with the
-experience pool are excluded by construction; we further drop the $50$ clips whose prompt restates
-an experience clip's, since rescoring a prompt a lesson was written from tests nothing. The
-untaught arm loads an empty lesson file through the same retrieval path, so the arms differ in
-their lessons. Both are scored by the matching protocol of \cref{sec:matching}.
+\paragraph{Protocol.} Lessons are distilled from a pool of experience clips and tested on $252$
+others carrying $410$ annotated flaws, the same flaws in every condition. Evaluation clips sharing
+a clip identifier with the experience pool are excluded by construction; we further drop the $48$
+clips whose prompt restates an experience clip's, so that no lesson is evaluated on the prompt it
+was written from. The untaught arm loads an empty lesson file through the same retrieval path. All are scored by the matching protocol of
+\cref{sec:matching}.
 
-\paragraph{Result.} Teaching the planner moves flaw recall from $292$ to $\mathbf{325}$ of $429$
-($68.1\%$ to $\mathbf{75.8\%}$). The taught arm reaches $52$ flaws the untaught arm misses and
-gives up $19$, a net $+33$ at $p = 0.00011$ under a sign test.
+Varying how much experience the lessons come from turns the comparison into a curve. Three
+conditions are run: no lessons, $8$ lessons distilled from $25$ clips, and $33$ from $117$.
+
+\paragraph{Result.} Teaching the planner raises flaw recall from $278$ to $\mathbf{310}$ of $410$
+($67.8\%$ to $\mathbf{75.6\%}$), a net $+32$ at $p = 1\!\times\!10^{-4}$ under a sign test.
+
+The curve is steep and then flat (\cref{tab:iclcurve}). Lessons from the first $25$ experience
+clips carry $+27$ of the $+32$; distilling from a further $92$ clips adds $1.2$ points.
+
+\paragraph{Effect of the additional experience.} The two lesson sets are nested by construction --- every one of the $8$ families induced from $25$ clips
+reappears among the $33$, none revised away, and the further $92$ clips contribute $25$ new
+families --- but at the level of individual flaws they are not nested at all. Against the untaught
+arm the small set reaches $46$ flaws and the large set $49$, and only $30$ are the same flaws:
+$19$ are reached only with the extra lessons, while $16$ that the small set reached are given up.
+The net gain of $3$ flaws is the residue of an exchange over $35$.
+
+The categories make the same point. Compound action descriptions gain $24$ flaws and on-screen
+text $10$ under \emph{both} lesson sets; the extra $25$ families, which include several addressed
+to counting, ordering and text, move those categories by at most one or two flaws each. The first $25$
+experience clips therefore supply close to the whole of the effect, and the additional lessons
+redistribute it. A longer instruction block competing for the planner's attention would produce
+this pattern.
+
+\paragraph{Content of the induced lessons.} All eight families induced from the first $25$ clips concern
+actions and the roles within them: decomposing an action into its parts, verifying that the
+asserted action occurred, checking the manner of a motion, separating the participants of a
+transfer, attributing a subject correctly, preserving a reference frame, reconciling checks that
+disagree, and providing a fallback when a measurement fails. That is also where the measured gain
+sits (\cref{tab:selfevolve}): compound action descriptions are the one category to separate from
+chance on its own. The distillation finds the planner's weakest reading first, and the lessons
+that follow address rarer failures with correspondingly less to recover.
+
+\input{tab_icl_curve}
 
 \input{tab_selfevolve}
 
-The gain is concentrated (\cref{tab:selfevolve}). Two categories carry $26$ of the $33$: compound
-action descriptions ($+15$) and on-screen text ($+11$, gaining $12$ flaws against a single loss).
-Object identity, already at $80\%$ untaught, gains one; spatial relations lose two; the four flaws the
-annotators filed under \emph{other} lose three. The effect does not concentrate in mild defects:
-severity-3 flaws move $69\%$ to $75\%$ ($+16$, $p = 0.014$) and severity-4 $68\%$ to $77\%$
-($+12$, $p = 0.036$).
+The gain is concentrated (\cref{tab:selfevolve}). Two categories carry $26$ of the $32$: compound
+action descriptions ($+19$, $p = 0.0005$) and on-screen text ($+7$, $p = 0.09$). Object identity,
+already at $79\%$ untaught, gains one; spatial relations lose two. Across severities the movement
+is broadly even, with the largest group, severity-3, going from $67\%$ to $75\%$ ($+18$,
+$p = 0.003$) and severity-4 from $69\%$ to $76\%$ ($+10$, $p = 0.09$); the effect is not confined
+to mild defects, and only the action category separates from chance on its own.
 
 \paragraph{What the lessons change about the plan.} Each lesson instructs the planner to create a
 separate check, which suggests they split one claim into several. They do not: checks per claim
@@ -2231,7 +2259,7 @@ first-class signal $\phi$. Because updates are readable diffs of $S$, oversight 
 reading and approving them. The reviewing tooling and deployment protocol are roadmap; the
 artifacts they act on --- traces, three-valued state, provenance --- exist today.
 
-\subsection{What is built vs.\ what is roadmap}
+\subsection{Built and roadmap components}
 \label{sec:framework:builtvsroadmap}
 
 Because all learning is state optimization on a readable $S$, we can mark
@@ -2246,15 +2274,14 @@ traces $T$; the flaw-level measurement in \Cref{sec:eval} against human labels
 ($228$ of $304$ for \PhyReAct{}, $164$ for question decomposition, recall-only, on
 the development core, \emph{not} a held-out split); and the inward distillation of
 $M$ via \eqref{eq:distill}, measured on a held-out split in
-\cref{sec:selfevolve:measured} ($325$ of $429$ against $292$ untaught).
+\cref{sec:selfevolve:measured} ($310$ of $410$ against $278$ untaught).
 \textbf{Roadmap (Phase~1+):} the
 outward control map $\delta$ and the closed critic$\rightarrow$generator loop
 \eqref{eq:control}; the scaling-up of $\Pi$; the acceptance gate \eqref{eq:elitism}
 that admits distilled candidates on a measured proxy improvement; the external
 knowledge channel $K$; and human-in-the-loop deployment at scale. Every roadmap
 item is a \emph{write} path in the same formalism whose \emph{read} counterpart is
-already exercised, which is why we can state the vision precisely without implying
-it has been run. The executable plan follows in \Cref{sec:roadmap}.
+already exercised, Roadmap rows are unmeasured. The executable plan follows in \Cref{sec:roadmap}.
 
 \begin{table}[t]
 \centering
@@ -2276,8 +2303,7 @@ P4$^{+}$ Human oversight & supervision $+$ deployment gate & roadmap \\
 \end{tabular}
 \caption{Each pillar is a projection of the same loop at a different radius. Only
 Phase~0 rows are backed by measurements; solid arrows in \Cref{fig:phyreact}
-correspond to them, dashed arrows to the roadmap rows. No result in this paper is
-evidence for a roadmap row.}
+correspond to them, dashed arrows to the roadmap rows, which are unmeasured.}
 \label{tab:builtvsroadmap}
 \end{table}
 
@@ -2704,7 +2730,7 @@ pruning candidate contexts against a held-out signal is what turns external
 information into consistent gains~\cite{contexttraining2026}.
 
 \paragraph{Positioning.}
-What distinguishes \PhyReAct{} within this literature is the carrier of memory: a structured
+What distinguishes \PhyReAct{} within this literature is where memory is held: a structured
 physical-verification trace with full provenance and a three-valued verdict, where these systems
 accumulate free-text notes or latent vectors. A trace of that form is auditable as accumulated,
 which is the property the roadmap of \cref{sec:roadmap} depends on. None of the cross-clip
@@ -2755,10 +2781,11 @@ $U_{\mathrm{val}}$ defined on unrun rules. The taught planner reads $1.74$ times
 as many requirements out of a prompt as the untaught one, and flaw recall rewards
 asking more, so the effect combines a better-targeted plan with a larger one; a
 run holding the taught arm to the untaught arm's question budget would separate
-them. The lessons are induced once from a fixed pool rather than accumulated
-online, so the result is a single treatment effect and not a learning curve:
-whether recall keeps rising with more experience is unmeasured. Finally, the
-$429$-flaw held-out set is a different population from the $304$-flaw evaluation
+them. The lessons are induced once from a fixed pool rather than accumulated online, so the curve of
+\cref{tab:iclcurve} measures the effect of the amount of experience distilled, not of
+accumulating it during deployment; and it covers two non-zero points, so the shape beyond $117$
+experience clips is unmeasured. Finally, the
+$410$-flaw held-out set is a different population from the $304$-flaw evaluation
 core used everywhere else in this paper, and the two rates should not be compared
 directly. Every distilled prior is \emph{critic-derived} rather than ground truth,
 and retrieval quality, staleness, and the propagation of a wrong prior remain

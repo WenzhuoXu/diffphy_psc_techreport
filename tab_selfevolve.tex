@@ -9,20 +9,20 @@
 \textbf{What the annotator complained about} & \textbf{Flaws} & \textbf{Untaught}
  & \textbf{Taught} & \textbf{$\Delta$} & \textbf{Gained} & \textbf{Lost} \\
 \midrule
-action or event occurs & 190 & 71\% & 78\% & +15 & 24 & 9 \\
-on-screen text & 56 & 64\% & 84\% & +11 & 12 & 1 \\
-order and timing & 16 & 44\% & 69\% & +4 & 4 & 0 \\
-how many & 15 & 53\% & 73\% & +3 & 4 & 1 \\
+action or event occurs & 177 & 70\% & 81\% & +19 & 24 & 5 \\
+on-screen text & 55 & 65\% & 78\% & +7 & 10 & 3 \\
+order and timing & 15 & 40\% & 67\% & +4 & 4 & 0 \\
 attribute & 38 & 63\% & 68\% & +2 & 3 & 1 \\
-object identity & 44 & 80\% & 82\% & +1 & 1 & 0 \\
+how many & 15 & 53\% & 67\% & +2 & 3 & 1 \\
+object identity & 42 & 79\% & 81\% & +1 & 1 & 0 \\
 camera and style & 13 & 85\% & 92\% & +1 & 1 & 0 \\
-physical motion & 12 & 58\% & 67\% & +1 & 1 & 0 \\
-spatial relation & 41 & 63\% & 59\% & -2 & 2 & 4 \\
-other & 4 & 100\% & 25\% & -3 & 0 & 3 \\
+physical motion & 12 & 67\% & 67\% & +0 & 1 & 1 \\
+spatial relation & 40 & 62\% & 57\% & -2 & 2 & 4 \\
+other & 3 & 100\% & 33\% & -2 & 0 & 2 \\
 \midrule
-\textbf{All} & \textbf{429} & 68.1\% & \textbf{75.8\%} & \textbf{+33} & 52 & 19 \\
+\textbf{All} & \textbf{410} & 67.8\% & \textbf{75.6\%} & \textbf{+32} & 49 & 17 \\
 \bottomrule
 \end{tabular}
-\caption{Flaw recall before and after the planner is taught, by the annotators' own category, over the $429$ flaws of the held-out set. ``Untaught'' is the $k{=}0$ arm and ``Taught'' the arm carrying $33$ distilled lessons; the two read the same clips through the same code path and differ only in the lessons. ``Gained'' counts flaws the taught arm reaches and the untaught arm misses, ``Lost'' the reverse; their difference is $\Delta$. Rows are ordered by $\Delta$. Every figure is recomputed from the per-flaw record of both arms.}
+\caption{Flaw recall before and after the planner is taught, by the annotators' own category, over the $410$ flaws of the held-out set. ``Untaught'' is the $k{=}0$ arm and ``Taught'' the arm carrying $33$ distilled lessons; the two read the same clips through the same code path and differ only in the lessons. ``Gained'' counts flaws the taught arm reaches and the untaught arm misses, ``Lost'' the reverse; their difference is $\Delta$. Rows are ordered by $\Delta$. Every figure is recomputed from the per-flaw record of both arms.}
 \label{tab:selfevolve}
 \end{table}
