@@ -2107,7 +2107,7 @@ $S\!\rightarrow\!S'$ is a human-readable diff of $\Pi$, $M$, or $K$. Weight-free
 its human supervision both rest on that property: the reviewer inspects readable objects rather
 than gradients.
 
-Auditability bounds what a verdict means. A \supported{} verdict is a critic judgment, where the
+Auditability determines what a verdict can be taken to mean. A \supported{} verdict is a critic judgment, where the
 ground truth in this paper is human annotation. Determinism in the roll-up leaves evaluator drift
 in the underlying operators and the compiler untouched. A prompt surviving the checks is
 \emph{plausible} with respect to the obligations tested, and a static critic improving says
@@ -2136,7 +2136,7 @@ This form of self-evolution leaves weights unchanged, in the spirit of
 context-distillation and experience-memory
 agents~\cite{contexttraining2026,reasoningbank2026,reflexion2023,explicitmem2026,%
 amem2025,agentmemsurvey2024,vilomem2026}, and it treats deployment-time adaptation
-as \emph{learning as state optimization} rather than fine-tuning. Acceptance is governed by
+as \emph{learning as state optimization}. Acceptance is governed by
 \begin{equation}
   S' =
   \begin{cases}
@@ -2150,11 +2150,11 @@ distilled candidates. Candidates that do not strictly improve the proxy are
 pruned, and when none improves it the state is left unchanged. That default makes the proxy
 monotone across updates, bounding how far a distilled candidate can degrade $S$.
 
-\paragraph{Breaking the closed loop with external knowledge \textnormal{(P6)}.}
+\paragraph{Admitting external knowledge \textnormal{(P6)}.}
 A system whose only inputs are its own traces---CoT $\rightarrow$ feedback
 $\rightarrow$ context $\rightarrow$ CoT---is a \emph{closed} loop that can amplify
 its own biases: distilled priors condition future reasoning, whose traces distill
-into more priors. The external knowledge channel $K$ is the deliberate opening.
+into more priors. The external knowledge channel $K$ is the opening provided for this.
 \PhyReAct{} may issue retrieval or ask for external or social knowledge (physical
 facts, human corrections, domain conventions) and admit it into $K$ under the same
 candidate-and-pruning discipline as \eqref{eq:elitism}: a retrieved candidate is admitted only when it improves the held-out proxy, and $K$-sourced facts carry a provenance tag distinct from
@@ -2213,7 +2213,7 @@ three name object identity, and two name counting. On-screen text falls $6$ poin
 interval, spatial relations fall $2$, and object identity falls $5$; counting rises $7$. The
 category that gains most over the interval, order and timing at $+20$, has three families
 addressed to it, and the category that gains most overall, on-screen text at $+19$ by $25$ clips,
-had none at that point --- it was lifted by lessons that name only actions and roles.
+had none at that point --- the gain came from lessons naming only actions and roles.
 
 The distillation therefore does not work by writing a rule for an observed failure mode and
 recovering that failure mode. What the first lessons supply is a general instruction to separate
@@ -2227,10 +2227,10 @@ arm the small set reaches $46$ flaws and the large set $49$, and only $30$ are t
 $19$ are reached only with the extra lessons, while $16$ that the small set reached are lost.
 The net gain is $3$ flaws, from an exchange over $35$.
 
-The categories make the same point. Compound action descriptions gain $24$ flaws and on-screen
+The category breakdown shows the same pattern. Compound action descriptions gain $24$ flaws and on-screen
 text $10$ under \emph{both} lesson sets; the extra $25$ families, which include several addressed
-to counting, ordering and text, move those categories by at most one or two flaws each. The first $25$
-experience clips therefore supply close to the whole of the effect, and the additional lessons
+to counting, ordering and text, move those categories by at most one or two flaws each. The first $25$ experience clips therefore account for most of the
+measured effect, and the additional lessons
 redistribute it. A longer instruction block competing for the planner's attention would produce
 this pattern.
 
@@ -2266,9 +2266,9 @@ $p = 0.003$) and severity-4 from $69\%$ to $76\%$ ($+10$, $p = 0.09$); the effec
 to mild defects, and only the action category separates from chance on its own.
 
 \paragraph{Effect of the lessons on the plan.} Each lesson instructs the planner to create a
-separate check, which suggests they split one claim into several. They do not: checks per claim
-move from $1.12$ to $1.16$. What moves is how many separately verifiable requirements the planner
-reads out of the prompt at all, $2{,}414$ to $4{,}209$. The lessons condition on the prompt --- \emph{when a prompt specifies X} --- and take effect at
+separate check, which suggests they split one claim into several. They do not. Checks per claim
+move from $1.12$ to $1.16$. What moves is the number of separately verifiable requirements the
+planner extracts from the prompt, $2{,}414$ to $4{,}209$. The lessons condition on the prompt --- \emph{when a prompt specifies X} --- and take effect at
 that stage, on how the prompt is read, not on the handling of a requirement already extracted.
 
 That mechanism accounts for the shape of \cref{tab:selfevolve}. A compound action sentence and an
@@ -2292,8 +2292,8 @@ artifacts they act on --- traces, three-valued state, provenance --- exist today
 \label{sec:framework:builtvsroadmap}
 
 Because all learning is state optimization on a readable $S$, we can mark
-built-vs-roadmap directly on the formalism, and each pillar is a projection of the
-same loop at a different radius (\Cref{tab:builtvsroadmap}). \textbf{Instantiated
+built-vs-roadmap directly on the formalism, and each pillar is one component of the
+same loop (\Cref{tab:builtvsroadmap}). \textbf{Instantiated
 today (Phase~0):} the frozen generator pipeline $\mathrm{Gen}$
 (\Cref{sec:generation}); the $1{,}500$-clip defect benchmark that exercises the
 read path (\Cref{sec:dataset}); the episode read operator
@@ -2330,7 +2330,7 @@ P3$^{+}$ Acceptance gate & elitism~\eqref{eq:elitism} over distilled candidates 
 P4$^{+}$ Human oversight & supervision $+$ deployment gate & roadmap \\
 \bottomrule
 \end{tabular}
-\caption{Each pillar is a projection of the same loop at a different radius. Only
+\caption{Each pillar is one component of the same loop. Only
 Phase~0 rows are backed by measurements; solid arrows in \Cref{fig:phyreact}
 correspond to them, dashed arrows to the roadmap rows, which are unmeasured.}
 \label{tab:builtvsroadmap}
