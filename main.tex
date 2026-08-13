@@ -2131,7 +2131,7 @@ accept them under a strict guard:
 \end{align}
 Both successful and failed episodes are distilled (hindsight over
 traces~\cite{hindsight2026,reasoningbank2026}): a success may add a plan to $M$ or
-an operator to $\Pi$; a failure may add a physics-failure prior or a scope caveat.
+an operator to $\Pi$; a failure may add a physics-failure prior or a scope restriction.
 This form of self-evolution leaves weights unchanged, in the spirit of
 context-distillation and experience-memory
 agents~\cite{contexttraining2026,reasoningbank2026,reflexion2023,explicitmem2026,%
@@ -2172,121 +2172,138 @@ We run \eqref{eq:distill} over episodes in which a plan missed a flaw a human an
 $\mathrm{Distill}$ reads the trace and the miss and writes a lesson naming a property of the claim
 and the action it licenses --- \emph{when a prompt specifies a singular entity or exact quantity,
 create a separate cardinality check and verify that count across the beginning, middle and end} ---
-and a curation pass merges the candidates into $33$ distinct families. Lessons are appended to the
-planner's rubric. Only $M$ changes: the operator library $\Pi$ and the external channel $K$ are
-untouched, so $S' = (\Pi, M', K)$.
+and a curation pass groups the candidates into $33$ \emph{families} of equivalent advice and keeps
+one lesson from each. Those $33$ lessons are appended to the planner's rubric; a family is the
+group a kept lesson stands for, and its name is what the analysis below uses to say which kind of
+defect a lesson is about. Only $M$ changes: the operator library $\Pi$ and the external channel
+$K$ are untouched, so $S' = (\Pi, M', K)$.
 
-Two aspects of the implementation depart from the formalism above. All $33$ lessons are supplied on every
-clip: we built the selective form --- one relevance call per (lesson, claim) --- and measured it at
-$132$ to $495$ model calls per clip to choose among $33$ lessons totalling $9$\,kB, taking a clip
-from $142$\,s to $611$\,s, the cost of selecting lessons exceeded the cost of supplying all of them. And the
-acceptance gate \eqref{eq:elitism} is not applied: $U_{\mathrm{val}}$ is defined on rules that have
-appeared in a run, a rule written from a fresh miss has not, and the gate admits none of $80$
-candidates ($39$ undecidable, $41$ never fired). The intervention evaluated below is therefore the distilled candidate set.
+Two aspects of the implementation depart from the formalism above. All $33$ lessons are supplied on
+every clip. We built the selective form as well --- one relevance call per lesson--claim pair --- and
+it is the more expensive of the two. Choosing among the $33$ lessons costs $132$ model calls for a
+four-claim prompt and $495$ for a fifteen-claim one, whereas supplying all of them costs no model
+calls and adds $9$\,kB to a planner prompt already $17.8$\,kB long.
 
-\paragraph{Protocol.} Lessons are distilled from a pool of experience clips and tested on $252$
-others carrying $410$ annotated flaws, the same flaws in every condition. Evaluation clips sharing
-a clip identifier with the experience pool are excluded by construction; we further drop the $48$
-clips whose prompt restates an experience clip's, so that no lesson is evaluated on the prompt it
-was written from. The untaught arm loads an empty lesson file through the same retrieval path. All are scored by the matching protocol of
-\cref{sec:matching}.
+The acceptance gate \eqref{eq:elitism} is also not applied. $U_{\mathrm{val}}$ is defined on rules
+that have appeared in a run, so it cannot score a rule written from a fresh miss. Applied as a
+diagnostic to $80$ earlier candidate rules over a ten-clip decision set, it admitted none: $39$ did
+not meet its minimum-evidence criterion, and $41$ never triggered on a clip in that set. The
+intervention evaluated below is therefore the curated set of $33$ lessons, without the gate.
 
-Varying how much experience the lessons come from turns the comparison into a curve. Three
-conditions are run: no lessons, $8$ lessons distilled from $25$ clips, and $33$ from $117$.
+\paragraph{Protocol.} Lessons are distilled from a pool of experience clips and tested on clips held
+out from it. Excluding every clip that shares an identifier with a clip in the experience pool
+leaves $363$ candidates; we then exclude the $57$ whose prompt restates the prompt of an experience clip,
+so that no lesson is evaluated on the prompt it was written from. The evaluation set is the
+remaining $306$ clips and the $502$ flaws they carry, and every condition is scored on those same
+flaws. The untaught condition loads an empty lesson file through the same retrieval path. All are
+scored by the matching protocol of \cref{sec:matching}, under which a flaw counts as \emph{found}
+when the critic's findings cover it wholly or in part, the same criterion as \cref{tab:headline}.
 
-\paragraph{Result.} Teaching the planner raises flaw recall from $278$ to $\mathbf{310}$ of $410$
-($67.8\%$ to $\mathbf{75.6\%}$), a net $+32$ at $p = 1\!\times\!10^{-4}$ under a sign test. The
-intermediate condition, $8$ lessons from $25$ experience clips, reaches $305$, a net $+27$ at
-$p = 1\!\times\!10^{-3}$.
+Varying how much experience the lessons are distilled from turns the comparison into a curve. Five
+conditions are run: no lessons, then $8$, $13$, $19$ and $33$ lessons distilled from $25$, $50$,
+$75$ and $117$ experience clips. Each pool is a prefix of the next, so the lesson sets are nested
+--- every set is the previous one plus the families the additional experience produced, with none
+revised away --- and the conditions differ only in how much experience was available to distil
+from.
 
-The curve rises sharply and then levels (\cref{fig:iclaggregate}). Lessons from the first $25$ experience
-clips carry $+27$ of the $+32$; distilling from a further $92$ clips adds $1.2$ points.
+\paragraph{Result.} With all $33$ lessons the planner finds $\mathbf{375}$ of the $502$ flaws
+($\mathbf{74.7\%}$) against $340$ untaught ($67.7\%$). Relative to the untaught condition, $62$
+flaws switch from missed to found and $27$ switch the other way, a net $+35$ at
+$p = 3\!\times\!10^{-4}$ under a paired sign test.
 
-\paragraph{Effect by flaw category.} A flaw counts as \emph{found} when the critic's findings
-cover it wholly or in part, the same criterion as \cref{tab:headline}. The aggregate rise
-conceals categories moving in opposite directions, and most of that movement does not survive its own sampling noise
-(\cref{tab:iclcategory}). Because the three conditions score the same flaws, the informative
-quantity is the paired change, and its interval comes from the flaws that switched. On that test
-two categories change: compound action descriptions gain $19$ flaws of $177$, $+11$ points with
-interval $[+5, +14]$; and order and timing gains $4$ of $15$, $+27$ points with $[+1, +27]$.
-Every other category has an interval containing zero, including on-screen text at $+7$ flaws and
-the fall of $2$ flaws in spatial relations. Reading those movements as rates overstates them:
-the $+8$ points for camera and style and the $+2$ for object identity are one flaw each.
+Distilling from more experience does not extend that gain. The four taught conditions find $375$,
+$377$, $374$ and $375$ flaws (\cref{fig:iclaggregate}); each exceeds the untaught condition by $+34$
+to $+37$ at $p < 10^{-3}$, and no two of them differ by more than $3$ flaws, with every pairwise
+sign test returning $p \geq 0.8$. Comparing the smallest and largest lesson sets directly, $36$
+flaws move each way for a net of zero. The gain is already present with lessons distilled from $25$
+clips and does not increase across the larger experience pools. Before the prompt filter,
+on $363$ clips and $626$ flaws, the five conditions find $428$, $463$, $470$, $473$ and $465$:
+every taught condition again exceeds the untaught one, and the taught conditions again do not
+separate from each other, spanning $10$ flaws with $p \geq 0.3$ for every pairwise comparison
+among them.
 
-Only compound action descriptions rests on enough flaws to be read closely. Order and timing
-clears zero on four switched flaws, which locates a direction rather than a magnitude. Aggregate
-coverage rises because the largest category is the one that moves.
-
-\paragraph{Targeting of the added lessons.} Of the $25$ families added
-between $25$ and $117$ experience clips, one names on-screen text, one names spatial relations,
-three name object identity, and two name counting. On-screen text falls $6$ points over that
-interval, spatial relations fall $2$, and object identity falls $5$; counting rises $7$. The
-category that gains most over the interval, order and timing at $+20$, has three families
-addressed to it, and the category that gains most overall, on-screen text at $+19$ by $25$ clips,
-had none at that point --- the gain came from lessons naming only actions and roles.
-
-The distillation therefore does not work by writing a rule for an observed failure mode and
-recovering that failure mode. What the first lessons supply is a general instruction to separate
-a compound requirement into checkable parts, and that transfers to categories no lesson mentions.
-The later, more specific families name their targets and do not reach them.
-
-\paragraph{Effect of the additional experience.}  The two lesson sets are nested by construction --- every one of the $8$ families induced from $25$ clips
-reappears among the $33$, none revised away, and the further $92$ clips contribute $25$ new
-families --- but the flaws they reach differ. Against the untaught
-arm the small set finds $46$ flaws and the large set $49$, and only $30$ are the same flaws:
-$19$ are reached only with the extra lessons, while $16$ that the small set reached are lost.
-The net gain is $3$ flaws, from an exchange over $35$.
-
-The category breakdown shows the same pattern. Compound action descriptions gain $24$ flaws and on-screen
-text $10$ under \emph{both} lesson sets; the extra $25$ families, which include several addressed
-to counting, ordering and text, move those categories by at most one or two flaws each. The first $25$ experience clips therefore account for most of the
-measured effect, and the additional lessons
-redistribute it. A longer instruction block competing for the planner's attention would produce
-this pattern.
-
-\paragraph{Content of the induced lessons.} All eight families induced from the first $25$ clips concern
-actions and the roles within them: decomposing an action into its parts, verifying that the
-asserted action occurred, checking the manner of a motion, separating the participants of a
-transfer, attributing a subject correctly, preserving a reference frame, reconciling checks that
-disagree, and providing a fallback when a measurement fails. That is also where the measured gain
-sits (\cref{tab:selfevolve}): compound action descriptions are the one category to separate from
-chance on its own. The distillation finds the planner's weakest reading first, and the lessons that follow address
-rarer failures, over which less coverage is available.
+\paragraph{What the additional experience changes.} Although the later lessons do not change the
+total number of flaws found, they change which flaws are found. Comparing the $33$-lesson
+condition against the $8$-lesson one directly, $36$ flaws move each way. Of the $36$ it newly
+finds, $26$ were missed in the untaught condition too and $10$ were found untaught but missed at
+$8$ lessons; of the $36$ it no longer finds, $19$ were untaught misses the smaller set had
+recovered and $17$ were found in both the untaught and $8$-lesson conditions. Distilling from a
+further $92$ clips therefore changes which individual flaws are found while leaving the total
+unchanged.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{fig_icl_aggregate.pdf}
   \caption{Flaws found against the number of experience clips the lessons were distilled from,
-  over the same $410$ flaws in every condition. The dotted line is the untaught rate. Whiskers are
-  $95\%$ intervals on the change from untaught, computed from the flaws that switch status, since
-  the conditions score the same flaws. Most of the effect is present at $25$ experience clips, and
-  the two taught intervals overlap.}
+  over the same $502$ held-out flaws in every condition. The dotted line marks the untaught
+  condition, $340$ of $502$ ($67.7\%$).
+  Whiskers are $95\%$ intervals on the change from untaught, in flaws, computed from the flaws that
+  switch status, since the conditions score the same flaws. Every taught condition exceeds the
+  untaught one, while pairwise comparisons among the taught conditions return $p \geq 0.8$.}
   \label{fig:iclaggregate}
 \end{figure}
 
+\paragraph{Effect by flaw category.} Because the conditions score the
+same flaws, the informative quantity is the paired change, and its interval comes from the flaws
+that switched status (\cref{tab:iclcategory}). Taking the untaught and $33$-lesson conditions, two
+categories have a $95\%$ interval excluding zero. \emph{Action or event occurs}, the largest
+category at $211$ flaws, gains $17$ of them, a rise of $8.1$ percentage points with a $95\%$
+interval of $[+2, +12]$ points; \emph{on-screen text} gains $8$ of $73$, a rise of $11.0$ points
+with $[+2, +15]$. Every other interval contains
+zero. Reading the smaller movements as rates overstates them: the $+7$ points for camera and style
+are one flaw of $14$, and the $+16$ for counting three of $19$. The number of flaws found rises in both of
+the severity grades that carry the bulk of the set, by $19$ of $288$ at severity~$3$ ($p = 0.01$)
+and by $13$ of $163$ at severity~$4$ ($p = 0.03$); the remaining $51$ flaws sit at grades $1$, $2$
+and $5$.
 
 \input{tab_icl_category}
 
-\input{tab_selfevolve}
+\paragraph{Where the lessons point.} All eight families induced from the first $25$ clips concern
+actions and the roles within them: decomposing an action into its parts, verifying that the
+asserted action occurred, checking the manner of a motion, separating the participants of a
+transfer, attributing a subject correctly, preserving a reference frame, reconciling checks that
+disagree, and providing a fallback when a measurement fails. None mentions text, counting or
+spatial relations. In the $8$-lesson condition \emph{action or event occurs} gains $23$ flaws and
+\emph{on-screen text} $10$, together $33$ of that condition's $+35$.
 
-The gain is concentrated (\cref{tab:selfevolve}). Two categories carry $26$ of the $32$: compound
-action descriptions ($+19$, $p = 0.0005$) and on-screen text ($+7$, $p = 0.09$). Object identity,
-already at $79\%$ untaught, gains one; spatial relations lose two. Across severities the movement
-is broadly even, with the largest group, severity-3, going from $67\%$ to $75\%$ ($+18$,
-$p = 0.003$) and severity-4 from $69\%$ to $76\%$ ($+10$, $p = 0.09$); the effect is not confined
-to mild defects, and only the action category separates from chance on its own.
+\Cref{tab:iclcategory} assigns a family to a flaw category when the family's name contains a word
+that names it, and to \emph{action or event occurs} otherwise; on that rule seven of these eight
+names go to action or event occurs and the eighth, \emph{subject attribution error}, to object
+identity. The later $25$ families name their targets more narrowly: $13$ again go to action or
+event occurs --- giving the $20$ the table records --- three to order and timing, three to object
+identity, two to counting, two to attributes, one to spatial relations and one to on-screen text.
+Between the $8$- and $33$-lesson conditions the six non-action categories
+the later families name move by $+1$ flaw for order and timing, $0$ for object identity, $+3$
+for counting, $+3$ for attributes, $-1$ for spatial relations and $-2$ for on-screen text: a net of
+$+4$. Action or event occurs, which draws $13$ of the $25$, falls $6$.
 
-\paragraph{Effect of the lessons on the plan.} Each lesson instructs the planner to create a
-separate check, which suggests they split one claim into several. Checks per claim
-move from $1.12$ to $1.16$. What moves is the number of separately verifiable requirements the
-planner extracts from the prompt, $2{,}414$ to $4{,}209$. The lessons condition on the prompt --- \emph{when a prompt specifies X} --- and take effect at
-that stage, on how the prompt is read, not on the handling of a requirement already extracted.
+Category gains are therefore not consistently aligned with the lesson names. Nothing among the first eight families
+mentions text, yet on-screen text gains $10$ of $73$ flaws at that condition, the largest gain of
+any category in percentage points; and the later families, which do name six categories between
+them, move those categories by $+4$ flaws in total. On-screen text is the clearest example in both
+directions: it gains ten flaws before any lesson refers to text, and loses two after one does. This
+pattern is consistent with the first lessons supplying a general instruction to separate a compound
+requirement into checkable parts, one that applies to prompts well outside the categories the
+lessons were written from. The plan measurements below assess that interpretation.
 
-That mechanism accounts for the shape of \cref{tab:selfevolve}. A compound action sentence and an
-on-screen text requirement are what a coarse reading merges or drops, while object identity is
-extracted either way. On-screen text gains by depth rather than reach: the taught arm asks about
-text on $35$ of the $88$ clips carrying a text flaw against the untaught arm's $34$, but asks $222$
-questions where the untaught arm asks $107$.
+\paragraph{Effect of the lessons on the plan.} A lesson names a property of a claim and the check
+it licenses, which suggests the lessons split one claim into several checks. That is the smaller of
+the two movements they produce. Between the untaught and $33$-lesson conditions, checks per claim
+rise from $1.13$ to $1.18$, while the number of typed physical claims the planner compiles from the
+prompt rises from $2{,}905$ to $5{,}106$ over the $306$ evaluation clips, or $9.5$ to $16.7$ per
+clip. Each lesson is a conditional instruction of the form \emph{when a prompt specifies X}, and
+the change is concentrated in how many claims the prompt is compiled into rather than in how many
+checks each claim receives, which is the pattern the decomposition reading predicts.
+
+The same measurement locates where the curve flattens. Claims per clip continue to rise
+across all five conditions --- $9.5$, $15.1$, $16.0$, $16.1$ and $16.7$ --- so the later lessons go
+on changing the plan, but the number of flaws found does not rise with them. On-screen text shows the pattern at
+clip level. Of the $56$ evaluation clips carrying a text flaw, the number receiving at least one
+text check does not rise: $41$ untaught against $40$ with $33$ lessons. The two sets overlap on
+$37$ clips, with three checked only when taught and four only when untaught. The number of text
+checks written across those clips rises from $81$ to $136$, and the $8$-lesson condition already
+produces $114$ of them. The lessons therefore add checks without widening the set of clips on which
+text is checked at all, and $25$ experience clips supply $33$ of the $55$ added.
 
 \subsection{Human oversight}
 \label{sec:framework:human}
@@ -2314,7 +2331,7 @@ traces $T$; the flaw-level measurement in \Cref{sec:eval} against human labels
 ($228$ of $304$ for \PhyReAct{}, $164$ for question decomposition, recall-only, on the development core, which is
 not held out); and the inward distillation of
 $M$ via \eqref{eq:distill}, measured on a held-out split in
-\cref{sec:selfevolve:measured} ($310$ of $410$ against $278$ untaught).
+\cref{sec:selfevolve:measured} ($375$ of $502$ against $340$ untaught).
 \textbf{Roadmap (Phase~1+):} the
 outward control map $\delta$ and the closed critic$\rightarrow$generator loop
 \eqref{eq:control}; the scaling-up of $\Pi$; the acceptance gate \eqref{eq:elitism}
@@ -2817,15 +2834,15 @@ reduce but do not remove semantic opacity.
 \eqref{eq:elitism} is not exercised, so the measurement covers distillation
 without the admission discipline that is meant to keep a bad lesson out; a rule
 written from a fresh miss has no proxy history, and closing that gap needs a
-$U_{\mathrm{val}}$ defined on unrun rules. The taught planner reads $1.74$ times
-as many requirements out of a prompt as the untaught one, and flaw recall rewards
+$U_{\mathrm{val}}$ defined on unrun rules. The taught planner reads $1.76$ times
+as many claims out of a prompt as the untaught one, and flaw recall rewards
 asking more, so the effect combines a better-targeted plan with a larger one; a
 run holding the taught arm to the untaught arm's question budget would separate
 them. The lessons are induced once from a fixed pool rather than accumulated online, so the curve of
 \cref{fig:iclaggregate} measures the effect of the amount of experience distilled, not of
-accumulating it during deployment; and it covers two non-zero points, so the shape beyond $117$
+accumulating it during deployment; the shape beyond $117$
 experience clips is unmeasured. Finally, the
-$410$-flaw held-out set is a different population from the $304$-flaw evaluation
+$502$-flaw held-out set is a different population from the $304$-flaw evaluation
 core used everywhere else in this paper, and the two rates should not be compared
 directly. Every distilled prior is \emph{critic-derived} rather than ground truth,
 and retrieval quality, staleness, and the propagation of a wrong prior remain
