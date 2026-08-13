@@ -1619,319 +1619,334 @@ generated clip more physically correct.
 % =====================================================================
 \section{Evaluation Protocol and Measurement}\label{sec:eval}
 % =====================================================================
-Human annotators are the only ground truth here: \PhyReAct{} is measured against what they wrote
-about these clips, under the conventions of \cref{sec:bench-spec}. A dash anywhere below marks a
-measurement nobody has run.
+\paragraph{Target and reference standard.} The evaluation core of \cref{sec:dataset} contains
+$149$ clips carrying $304$ annotated flaws. These flaws are the reference standard, under the
+conventions of \cref{sec:bench-spec}, and the denominator for all core recall analyses unless
+stated otherwise; the evaluation measures agreement with the annotated flaws rather than
+detection of every defect present in a clip. Because these clips were inspected during system
+development, the core results describe performance on development data; the held-out
+evaluation is reported in \cref{sec:physion}. Dashes in tables are defined in each table's
+caption.
 
 \paragraph{Implementation.}
 Qwen3-VL-30B-A3B-Instruct~\cite{qwen3vl2025}, served in BF16 without
-quantization and tensor-parallel over two GPUs, is used for both the text-only
+quantization and with tensor parallelism across two GPUs, is used for both the text-only
 planner and the video-aware semantic verifier. These are separate calls: the
 planner receives the prompt and claim state but no frames, while the verifier
 receives densely decoded, timestamped frames and a single declared predicate.
-The specialist revisions are frozen for the evaluated run and the running
-backends are those in \cref{tab:arms}.
+The evaluated run uses frozen specialist revisions and the backends listed in
+\cref{tab:arms}.
 
-\paragraph{Target.} The evaluation core of \cref{sec:dataset}: $149$ clips carrying $304$
-annotated flaws.
-
-\paragraph{Dense-frame requirement.} The critic must observe the video densely.
-The evaluated components extract frames densely under a logged sampling policy,
-and any measurement obtained from a sparsely sampled input is excluded. A re-run
-counts only if it uses the dense path on the unchanged frozen target with BF16
-tools at pinned revisions.
+\paragraph{Dense-frame requirement.} All evaluated video-aware components receive video
+through the logged dense-input path. Individual measurements may operate on a recorded
+subset of the decoded frames; measurements produced from a sparse-input path are excluded.
+A rerun is included only if it uses this dense input path, the same frozen evaluation
+target, BF16 model inference, and pinned tool revisions.
 
 \paragraph{Cost and uncertainty.} A detector call, a tracker call and a full vision-language
 judgement do not cost the same, so cost is reported as model and tool calls per clip rather than
 as wall-clock time. Uncertainty is estimated by resampling whole clips, because two flaws in one
 clip are not independent.
 
-\paragraph{Planner validity and measurement coverage.}\label{sec:planner-gaps}
-Before end-to-end evaluation, the prompt-only planning stage was inspected
-without video or tool access. On 233 claims from 22 annotated clips, every claim
-produced a valid, compilable plan at one to two planner calls per clip.
-Twenty-seven claims (11.6\%) contained at least one specialist action that
-survived validation, compared with 2.3\% for an earlier tabular plan format.
-On measurement-dense diagnostics the corresponding rates were
-19/30 for counting, spatial, and ordering claims, and 10/10 for synthetic
-counting prompts. These diagnostics test routing and syntax; they are not
-estimates of verdict accuracy or coverage on the evaluation core. The present
-surface vocabulary also lacks an ``on top of'' spatial predicate and rejects
-negated quantitative measurements; such terms become recorded, charged
-generalist fallbacks.
+\paragraph{Planner validity.}\label{sec:planner-gaps}
+Before end-to-end evaluation, the prompt-only planning stage was inspected without video or
+tool access. For $233$ claims from $22$ annotated clips, the planner produced a valid,
+compilable plan for every claim, using one or two planner calls per clip; $27$ claims
+($11.6\%$) contained at least one specialist action that survived validation, compared with
+$2.3\%$ under an earlier tabular plan format.
 
-\subsection{How a finding is matched to a human flaw}\label{sec:matching}
-Matching runs as a separate protocol after the critic has finished, with no path back into it.
+\paragraph{Diagnostic routing coverage.} On diagnostic sets composed of claims that require
+quantitative measurement, the routing rate was $19/30$ pooled across counting, spatial, and
+ordering claims, and $10/10$ for synthetic counting prompts. These diagnostics test routing
+and syntax; they are not estimates of verdict accuracy or coverage on the evaluation core.
+
+\paragraph{Unsupported predicates and fallback handling.} The supported predicate vocabulary
+lacks an ``on top of'' spatial predicate and rejects negated quantitative measurements;
+claims using these forms are routed to the generalist fallback verifier and counted as
+fallback cases.
+
+\subsection{Matching critic findings to annotated flaws}\label{sec:matching}
+Matching is performed after critic inference and cannot affect the critic's outputs.
 The unit of comparison is a pair of sentences: what the annotator wrote about the clip, and
 what the critic reports the video showed. Comparing the prompt fragment against the critic's
 restatement of it would instead measure agreement about the prompt, since both are assertions
 of the same requirement.
 
-Each pair is judged on meaning, in two stages. The first question is strict: do the two
-statements point at the same defect? Different wording, a different name for one object, and a
-measured quantity in place of a description all count as the same defect; two different
-problems with the same object do not. Where that answer is no, a second question asks whether
-the critic's finding identifies \emph{part} of what the annotator describes. An annotator's one
-sentence can span several aspects while the critic reports one thing at a time, so a finding
-may account for half a compound complaint, and the second stage is what distinguishes that from
-having found nothing.
+Each pair is judged on meaning and assigned one of three outcomes. A \emph{whole} match
+requires the two statements to assert the same defect: different wording, a different name for
+the same object, and a measured quantity in place of a description all qualify, while two
+different problems with the same object do not. Failing that, a \emph{partial} match requires
+the critic's finding to identify at least one aspect of a compound annotated defect, which an
+annotator's single sentence can span while the critic reports one aspect at a time. Pairs
+meeting neither condition are non-matches.
 
-Surviving pairs are assigned by maximum bipartite matching, one finding per flaw. Greedy
-assignment loses flaws: if one flaw can be matched by either of two findings and a second flaw
-only by one of them, spending that finding on the first leaves the second unmatched. Each flaw
-resolves as \emph{whole}, \emph{partial}, or \emph{missed}, reported as three separate counts.
-The judge is a model that appears nowhere in any system under test, since a model asked to score
-its own findings is grading itself. It runs at temperature zero, three votes per pair, and a
-split pair falls to its lowest tier; pairs that remain split escalate to nine votes within the
-same batch and resolve by majority. An unparsable reply is retried and then recorded as a
-matching error, which keeps a failed call from being scored as a non-match and understating
-recall, and a run in which more than $2\%$ of flaws lack a usable vote aborts rather than
-reporting a number.
+Whole and partial pairings then form the candidate edges for maximum bipartite matching,
+subject to the constraint that each finding and each annotated flaw may be used at most
+once; after assignment, each flaw is reported as whole, partial, or missed. Greedy
+assignment can reduce the number of matched flaws: if one flaw can be matched by either of
+two findings and a second flaw can be matched by only one of them, assigning that finding
+to the first flaw leaves the second unmatched. 
+The matching judge is distinct from all evaluated system components. For each pair, it
+initially produces three votes at temperature zero. Each unparsable reply is retried once;
+if the retry remains unparsable, that vote is recorded as a matching error. Among valid
+votes, disagreement is resolved by assigning non-match if any valid vote is a non-match,
+otherwise partial if any valid vote is partial, and otherwise whole. If no valid vote
+remains after retries, the judge produces nine new votes and assigns the majority outcome.
+A run aborts rather than reporting a number if the matching judge cannot produce a usable
+matching outcome for more than $2\%$ of annotated flaws.
 
-The judge performs \emph{flaw matching only}. It is not a component of the critic and does not
-produce its verdict. The human labels are the ground truth.
+
 
 \subsection{Flaw recall on the evaluation core}
 \label{sec:headline}
 Across the $149$ clips of the evaluation core, which carry $304$ human-annotated flaws,
 \PhyReAct{} finds \textbf{228 of them ($75.0\%$)} under the protocol of \cref{sec:matching}. Of
-the $228$, $191$ are covered by a single finding accounting for the whole complaint, and $37$
-in part, where the findings speak to an aspect of the defect without any one being the defect.
-Every annotated flaw is found on $91$ of the $149$ clips.
+these $228$ flaws, $191$ are whole matches, each covered completely by a single finding;
+the remaining $37$ are partial matches, each consisting of a finding that addresses an
+aspect of the annotated defect without covering it completely.
+On $91$ of the $149$ clips, the critic finds every annotated flaw in that clip.
 
-Two mechanisms carry a large share. The fallback verifier, gpt-5.6-sol, re-examines claims the
-dense semantic pass has passed, and where it disagrees the claim resolves as a contradiction:
-$83$ of the $228$ carry such an override in their record. The second is the recognition engine
-for on-screen text, which returns the malformed glyphs a generative reader would repair into the
-requested phrase, so the string comparison fails on a genuinely garbled render.
+Two components contribute to matched findings in distinct ways. For $83$ of the $228$ found
+flaws, the fallback verifier, gpt-5.6-sol, overrode a pass from the dense semantic verifier
+and changed the claim state to contradiction. Separately, the on-screen-text recognizer
+transcribes malformed glyphs literally rather than normalizing them to the requested
+phrase, allowing string comparison to identify garbled text.
 
 \input{tab_headline}
 
 Broken down by the annotators' own categories (\cref{tab:headline}), recall runs from $90\%$ to
-$49\%$. Camera and style ($90\%$) and on-screen text ($84\%$) sit at the top: both are settled by
-a direct measurement against an explicit target. Counting is weakest at $49\%$, and
-\cref{sec:contract} shows why --- the counting path reduces a per-frame series to its mode, so a
-subject the segmenter finds intermittently is reported as absent. Physical motion falls low for an
-unrelated reason: the annotators file only seven flaws under it, of which four are found, and most
-of those seven are deformations --- cloth that folds wrongly, a body that bends where it should
-not --- which the trajectory measurements do not reach. Seven flaws is too few to support a
-rate, and the category is listed for completeness.
+$49\%$. Camera and style ($90\%$) and on-screen text ($84\%$) have the highest observed
+recall: both are evaluated using a direct measurement against an explicit target. Counting has the
+lowest recall at $49\%$: as described in \cref{sec:contract}, the counting path reduces a
+per-frame series to its mode, so a subject detected intermittently by the segmenter may be
+reported as absent. The
+physical-motion category contains seven flaws, four of which are found. Most of these seven
+flaws concern deformation --- cloth that folds wrongly or a body that bends where it should
+not; such defects lie outside the trajectory measurements, and given the category's size,
+its recall is interpreted descriptively.
 
 \subsection{Recall against clip properties}
 \label{sec:bycat}
-Category describes which kinds of defect the critic reaches. Difficulty is a separate axis:
-longer clips, clips carrying many flaws, and clips the annotators marked severe.
-\Cref{tab:robust} groups the same $304$ flaws four ways.
+Category-level recall describes the kinds of defects the critic identifies. \Cref{tab:robust}
+instead groups the same $304$ flaws by four clip properties: annotator severity, clip
+duration, number of annotated flaws, and difficulty stratum.
 
 \input{tab_robust}
 
-Recall is close to flat across all four. No band sits more than about ten points from the
-overall rate, and each departure is of the order of the variation the scorer shows when
-re-scoring unchanged text. The lowest band is severity~$5$ at $18$ of $28$, which is
-suggestive but rests on ten missed flaws --- too few to separate from noise. On the evidence
-here, difficulty as the annotators marked it does not predict whether the critic finds the
-defect.
+Across the four groupings, subgroup recall remains within approximately ten percentage
+points of overall recall, a range comparable to the variation observed when the matching
+judge reevaluates unchanged text. Severity~$5$ has the lowest recall, at $18$ of $28$
+flaws. These descriptive estimates show no clear association of either annotator severity or
+difficulty stratum with whether the critic finds a defect.
 
-\subsection{Six catches, opened up}
+\subsection{Illustrative specialist measurement traces}
 \label{sec:cases}
-What is a single catch made of? \Cref{fig:criticcases} opens six of them: the clip, the
-annotator's sentence, the measurement a specialist returned, and the verdict that measurement
-forced. Each accusation rests on a number rather than a yes-or-no judgement, so each panel
-carries the number the flaw was reported on.
+\Cref{fig:criticcases} presents six illustrative matched findings from an earlier
+physics-routing pass over the evaluation core; they are not drawn from the run of
+\cref{tab:headline} and do not contribute to its recall. Each panel shows the clip, the
+annotator's sentence, the specialist evidence, and the resulting verdict. Five cases rest on
+numeric measurements; the text case rests on a recognition-head transcript compared as a
+string.
 
 \begin{figure}[tp]
   \centering
   \includegraphics[width=\linewidth]{fig_critic_cases.pdf}
-  \caption{Six flaws caught by measurement. Each panel gives the clip identifier and the
-  specialist that answered, the first and last decoded frame of the clip, the human
+  \caption{Six flaws identified through specialist measurement. Each panel gives the clip identifier and the
+  specialist that answered, the first and last decoded frames of the clip, the human
   annotator's sentence verbatim, the specialist's own required-versus-measured pair with
-  its evidence, and the resulting claim state. Every panel shows the first and last decoded
-  frame, a fixed choice that brackets the whole clip. Displacements are reported in multiples
-  of the subject's own radius, which needs no scene calibration. In the text case, the boxed
+  its evidence, and the resulting claim state. Displacements are normalized by the
+  subject's radius, so no scene calibration is required. In the text case, the boxed
   banner region of that last frame is magnified in place, showing the render's own glyphs.
   Measurement text is copied from the run's records.}
   \label{fig:criticcases}
 \end{figure}
 
-\paragraph{Case selection.} These six come from an earlier physics-routing pass over clips
-of the core rather than from the run of \cref{tab:headline}; they carry no recall figure of
-their own and are here for their measurement traces. The selection rule was fixed in advance:
-beginning from the clips whose every human flaw the matching protocol had linked, a case was kept
-only where the raw per-check record showed a specialist, with its numbers, as the source of the
-accusation for \emph{that} flaw. Ten candidates failed and were dropped: in two the
-protocol had linked a flaw other than the one the tool addressed; in seven the accusation
-came from the video-aware verifier while the specialist abstained; and in one the
-clip-timing operation read the aspect ratio ``vertical 9:16'' as a duration of $9.0$
-against $16.0$ seconds, producing a correct complaint for an incorrect reason --- which a per-clip
-caught-or-missed tally would have scored as a success.
+\paragraph{Case selection.} The selection rule was fixed in advance. Cases were selected
+from clips for which the matching protocol linked every annotated flaw to a critic finding;
+a case was included only when the raw per-check record attributed the finding for that flaw
+to a specialist measurement and recorded the measurement values. Ten candidates were
+excluded: two because the protocol linked a different flaw from the one addressed by the
+tool, seven because the video-aware verifier produced the finding while the specialist
+abstained, and one because the clip-timing operation misread the aspect ratio ``vertical
+9:16'' as a duration comparison of $9.0$ against $16.0$ seconds, a finding with the
+correct conclusion but an invalid rationale.
 
-\paragraph{What each measurement discriminates.} The dolphin does move --- its
-vertical spread is $0.65$ of its own radius against $0.20$ horizontal --- so a test for
-motion would have passed the clip. What the prompt asserts is a leap, and the largest
-single excursion off the animal's own baseline is $0.00$ radii against the $0.30$ that
-would count as leaving the water. The bottle case turns on the opposite confusion: the
-picture is full of motion, but it is the camera's. Reading the bottle's surface against
-the background flow separates them, and $10.20$\,px/frame of surface motion against
-$11.00$\,px/frame of background is not a bottle rolling. The sun is tested on its
-furthest departure from its starting height rather than on net displacement, because a
-rise followed by a fall cancels; $0.71$ radii of peak departure sits below the $0.75$
-threshold, and the camera moved $0.67$ radii over the same interval. The two counting
-cases are the simplest, and are exact-match. The banner is read by a recognition head and
-compared as a string. The head returns \code{GOBADRAEAT(CRSTRORISEUND} and the comparison fails;
-a generative model asked the same question repairs the string into the phrase the prompt
-requested.
+\paragraph{What each measurement discriminates.}
+\begin{itemize}
+\item \emph{Dolphin.} Asserted: a leap. Measured: vertical spread, $0.65$ animal radii;
+horizontal spread, $0.20$ radii; largest single excursion from the animal's baseline,
+$0.00$ radii. Comparator: $0.30$ radii for leaving the water. Verdict: contradicted,
+although a motion-only test would have passed the clip.
+\item \emph{Bottle.} Asserted: the bottle rolls. Measured: $10.20$\,px/frame surface motion
+against $11.00$\,px/frame background motion. Comparator: comparable magnitudes indicate
+camera rather than object motion. Verdict: contradicted, although the scene contains
+substantial apparent motion.
+\item \emph{Sun.} Asserted: a rise. Measured: peak departure from the starting height,
+$0.71$ radii, used instead of net displacement because a rise followed by a fall cancels.
+Comparator: $0.75$ radii, with $0.67$ radii of camera motion over the same interval.
+Verdict: contradicted.
+\item \emph{Counting (two cases).} Asserted counts compared exactly against measured counts.
+\item \emph{Text.} Asserted: the requested phrase. Measured: the recognition head returns
+\code{GOBADRAEAT(CRSTRORISEUND}. Comparator: string equality, which fails; a generative
+model asked the same question normalizes the string to the requested phrase.
+\end{itemize}
 
-\paragraph{Independent measurements on one clip.} The dolphin clip carries
-a second annotator sentence --- that the animal never disappears into the depths --- and
-two further specialists answered it independently. Vertical travel required \emph{down}
-and measured $2.07$ radii \emph{up} at the furthest point, a net $-317$\,px over $37$
-tracked frames. Persistence required the dolphin to vanish and found it on $121$ of $121$
-frames, with no gap of three frames or more. The two fail the same assertion on
-independent evidence.
+\paragraph{Independent measurements on one clip.} The dolphin clip carries a second
+annotator sentence stating that the animal never disappears into the depths; two further
+specialists independently evaluated the corresponding prompt requirement that the animal
+disappear. The vertical-travel check required downward motion but measured a maximum
+displacement of $2.07$ radii upward, corresponding to a net image-coordinate displacement of $-317$\,px
+over $37$ tracked frames, where negative vertical displacement denotes upward motion. The persistence check required the dolphin to vanish and found it on
+$121$ of $121$ frames, with no gap of three frames or more. Both specialist measurements
+independently contradict that prompt requirement.
 
-\paragraph{Most specialist calls end in abstention.} Physical specialists were called on $227$
-checks in the evaluated run, abstaining on $166$ and contradicting the prompt on $61$. Each
-abstention carries the reason it occurred.
+\paragraph{Measurement coverage.} The record also states the temporal coverage of each
+measurement. In the banner case the recognition head read $25$ of that clip's $241$ frames at
+a stride of ten, and the record states both figures. A transcript stable across those $25$
+frames is strong evidence about a banner present throughout the clip; a caption appearing
+only briefly could fall between the frames sampled.
 
-The usual reason is that the subject was never grounded: nothing the segmenter returned for the
-noun phrase survived, leaving no track to measure over. Groundings are screened by a semantic
-guard, shown one frame with the candidate boxes drawn on it and asked only whether those regions
-are the thing the phrase named. On a clip requesting seagulls scattering in the wake of fighter
-jets, the boxes offered for ``the seagulls'' contained the jets, and the guard discarded them.
-The check then yields \unknownv{}, separating a failure to find the subject from a violation
-by it.
-
-Coverage is recorded to the same standard. In the banner case the recognition head read $25$
-of that clip's $241$ frames at a stride of ten, and the record states both figures. A transcript
-stable across those $25$ frames is strong evidence about a banner present throughout the clip;
-a caption appearing only briefly could fall between the frames sampled.
+\paragraph{Specialist abstention.} In the evaluated run of \cref{tab:headline}, physical
+specialists were called on $227$ checks, abstaining on $166$ and contradicting the prompt
+on $61$; each abstention carries the reason it occurred. The
+most common abstention occurred when no candidate grounding passed screening: the segmenter
+produced no usable track for the named subject. Groundings are screened by a semantic guard,
+shown one frame with the candidate boxes drawn on it and asked only whether those regions
+correspond to the named subject. On a clip requesting seagulls scattering in the wake of
+fighter jets, the boxes offered for ``the seagulls'' contained the jets, and the guard
+discarded them. The check then yields \unknownv{}, separating a failure to find the subject
+from a violation by it.
 
 \subsection{Agreement with human ratings}
 \label{sec:vs2}
-A clip-level scalar cannot be set against a localized human flaw, but both kinds of
-evaluator can rate a clip on the scale a human used. VideoScore2~\cite{videoscore2_2025} is the
-natural comparison on that axis: a judge trained for the task, with a published evaluation
-script, which this comparison follows. On a sample of
-VideoPhy-2~\cite{videophy2_2025} test clips, each judge emits an integer $1$--$5$ per
-dimension; agreement with the human rating is scored as exact accuracy, accuracy within
-one point, and the linear and rank correlations (PLCC and SRCC), with unparsed
-predictions excluded pairwise. The sample is $200$ clips drawn uniformly with a fixed
-seed, and the sample, the score definition and the metrics were registered before any
-result existed; nothing in the scoring function is fitted to these clips. Of the $200$,
-$55$ carry the benchmark's \emph{hard} flag.
+Because localized flaw recall and clip-level scalar scores are not directly comparable, this
+subsection compares \PhyReAct{} and VideoScore2~\cite{videoscore2_2025} using human
+clip-level semantic-adherence ratings. VideoScore2 produces ratings on the same $1$--$5$
+scale, and the analysis follows its published evaluation script. The analysis uses a
+fixed-seed uniform sample of $200$ VideoPhy-2~\cite{videophy2_2025} test clips, $55$ of
+which carry the benchmark's \emph{hard} flag; the sample, score definition, and metrics
+were prespecified, and the scoring function was not fitted to these clips. Each judge assigns semantic adherence an integer rating from $1$ to $5$. Agreement
+with the human rating is measured by exact accuracy, accuracy within one point, PLCC, and
+SRCC; for each metric, clips with an unparsed prediction from either judge are excluded.
 
 \begin{table}[t]
 \centering\small
 \setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.18}
 \begin{tabular}{@{}p{4.35cm} c c c c c c@{}}
 \toprule
- & \multicolumn{4}{c}{\textbf{All 200 clips}} & \multicolumn{2}{c}{\textbf{Hard 55}} \\
+ & \multicolumn{4}{c}{\textbf{All clips ($n=200$)}} & \multicolumn{2}{c}{\textbf{Hard subset ($n=55$)}} \\
 \cmidrule(lr){2-5}\cmidrule(lr){6-7}
-\textbf{Judge} & \textbf{exact} & \textbf{$\pm1$} & \textbf{PLCC} & \textbf{SRCC}
+\textbf{Judge} & \textbf{Exact} & \textbf{Within 1} & \textbf{PLCC} & \textbf{SRCC}
  & \textbf{PLCC} & \textbf{SRCC} \\
 \midrule
 VideoScore2~\cite{videoscore2_2025} & \textbf{33.0\%} & \textbf{83.0\%} & 0.353 & 0.327 & 0.239 & 0.151 \\
-This work & 31.0\% & 76.0\% & \textbf{0.464} & \textbf{0.465} & \textbf{0.480} & \textbf{0.460} \\
+\PhyReAct{} & 31.0\% & 76.0\% & \textbf{0.464} & \textbf{0.465} & \textbf{0.480} & \textbf{0.460} \\
 \bottomrule
 \end{tabular}
-\caption{Prompt match: agreement with the human semantic-adherence rating on $200$
-pre-registered VideoPhy-2 test clips, scored with VideoScore2's own evaluation script.
-VideoPhy-2 also carries a physical-commonsense rating; the critic emits no score on that
-scale, so that dimension is outside this comparison.}
+\caption{Semantic-adherence agreement with human ratings on the $200$-clip VideoPhy-2
+sample described in the text, scored with VideoScore2's evaluation script. The
+physical-commonsense dimension is excluded because the critic does not emit a score on
+that scale.}
 \label{tab:vs2}
 \end{table}
 
-\Cref{tab:vs2} reports both judges, and the two families of metric disagree: neither
-judge leads on both. VideoScore2 is
-better calibrated to the human's absolute point on the scale, winning exact agreement
-($33.0\%$ against $31.0\%$) and agreement within one point ($83.0\%$ against $76.0\%$).
-The critic correlates better with the human ordering. Bootstrapping the paired
-per-clip difference over the same $200$ clips, the rank-correlation advantage is
-$+0.138$ with a $95\%$ interval of $[+0.005,+0.277]$, which excludes zero only narrowly;
-the linear-correlation advantage is $+0.110$ with an interval of $[-0.018,+0.242]$, which
-does \emph{not} exclude zero. On the full sample, then, the ordering advantage is real
-but slight, and the linear one is not established.
+As \cref{tab:vs2} shows, VideoScore2 has higher exact and within-one-point agreement,
+whereas the critic has higher PLCC and SRCC. In a paired bootstrap over the same $200$
+clips, the SRCC difference is $+0.138$ with a $95\%$ interval of $[+0.005,+0.277]$; the
+PLCC difference is $+0.110$ with an interval of $[-0.018,+0.242]$. On the $55$ hard-flagged
+clips, the differences are $+0.242$ for PLCC ($[+0.018,+0.511]$) and $+0.309$ for SRCC
+($[+0.050,+0.583]$). This pattern is consistent with evidence assembled per claim degrading
+more gracefully on difficult clips than a single learned scalar, but the hard subset is
+small and the intervals are wide.
 
-The hard slice is where the two separate. On those $55$ clips the critic's advantage is
-$+0.242$ linear ($[+0.018,+0.511]$) and $+0.309$ rank ($[+0.050,+0.583]$), both excluding
-zero, as VideoScore2's rank correlation falls to $0.151$ while the critic's holds at
-$0.460$. That is the pattern one would expect if evidence assembled per claim degrades
-more gracefully on difficult clips than a single learned scalar, though $55$ clips is a
-small sample and the intervals are correspondingly wide.
-
-\paragraph{Scope of the comparison.} VideoPhy-2 rates each clip on a
-second scale, physical commonsense, and the registered plan mapped the critic's output
-into that column as well. That analysis is not reported as a result, because it does not
-measure what the column is for. The critic's score is the fraction of a clip's claims
-that its checks contradicted, converted to a $1$--$5$ number; rating how physically
-plausible a video looks is a different output from deciding whether a stated claim is
-contradicted, and the critic emits no score on the former scale. Comparing the one
-against the other measures the mismatch, not the capability. Producing such a rating
-would need a head that consumes the kinematic and trajectory checks directly, which does
-not exist here. This analysis therefore provides no evidence about physical-commonsense
-rating, and none about physics-flaw detection either; the flaw-level evidence for that is
-\cref{sec:headline}, on human-localized flaws.
-
-Two further limits. This is one fixed sample of $200$ clips, so it bounds agreement on
-that sample rather than across the benchmark. And the two judges are not cost-matched:
-the critic runs a decomposition and a set of tool calls per clip, VideoScore2 a single
-forward pass, so nothing here speaks to efficiency.
+Two additional limits apply. The sample is a single fixed draw of $200$ clips, so the
+estimates describe agreement on that sample rather than across the benchmark. The two
+judges are also not cost-matched: the critic runs a decomposition and a set of tool calls
+per clip while VideoScore2 runs a single forward pass, so this comparison carries no
+information about efficiency.
 
 \subsection{Comparison against published evaluators}
-How many of the same $304$ defects does a published evaluator find? Only evaluators that name a
-defect can be asked, because only a named defect can be matched to an annotator's sentence.
-Question decomposition and modular video question answering both answer question by question, so
-a failed question points back to the claim that raised it. Alignment scoring and learned quality
-scoring return a single number for the clip, which names nothing.
+This subsection compares \PhyReAct{} with evaluators whose outputs can be linked to
+specific defects, and separately reports whether CLIPScore tracks aggregate clip
+properties. Question-decomposition and scene-graph methods produce per-question answers
+that can be linked to the generating claims, while free-text evaluators produce localized
+but unstructured flaw lists; modular video question answering is listed for context but was
+not evaluated under this protocol. Clip-level agreement with human ratings is addressed in
+\cref{tab:vs2}.
 
-One further comparison holds the model fixed and removes the framework: the same served
-Qwen3-VL-30B, given the prompt and every frame of the clip in one call, with no plan, no tools
-and no per-claim verification. It accounts for $222$ of the $304$ flaws at one model call per
-clip.
-That figure is not a peer measurement of the same quantity, and \cref{tab:external} separates it
-for that reason: rephrasing the request changes what the model reports, so the number describes a
-prompt as much as a capability, and the free-text paragraph it returns names no evidence a reader
-can inspect. What the row does establish is that recall alone does not distinguish a plan of
-typed measurements from a single broad question --- the case for the plan rests on the evidence
-each verdict carries, not on the count.
+The same served Qwen3-VL-30B-A3B-Instruct model was also evaluated in a single pass, given the prompt and every
+frame of the clip in one call, without planning, tools, or per-claim verification. Under the matching protocol its free-text findings match $222$ of the $304$ annotated flaws,
+at one model call per clip. \Cref{tab:external}
+reports this result separately because free-text flaw lists are prompt-sensitive and do not
+provide the per-verdict evidence produced by the framework; recall alone does not capture
+that difference.
 
-Question decomposition accounts for \textbf{164 of the $304$ flaws ($53.9\%$)}, $125$ whole and
-$39$ in part, against \PhyReAct{}'s $228$ (\cref{tab:external}). Both read the same $149$ clips
-densely, both send their questions to the same served model, and on $148$ of those clips both work
-from an identical list of claims, so neither side benefits from being asked easier things. They
-differ in one respect: question decomposition puts one closed question to each claim and accepts
-the answer, while \PhyReAct{} plans what to measure and may return to a claim from several
-directions.
+Question decomposition matches \textbf{164 of the $304$ annotated flaws ($53.9\%$)}: $125$
+whole and $39$ partial matches, against \PhyReAct{}'s $228$ (\cref{tab:external}). Both evaluators read the same $149$ clips densely and send their questions to the same
+served model; for $148$ clips they also use identical claim lists. Question decomposition
+asks one closed question per claim and accepts the answer, whereas \PhyReAct{} plans
+measurements and may apply multiple checks to a claim.
 
-The gap is not accuracy, and runs the other way. Question decomposition is the more reliable
-accuser of the two: $0.29$ of its accusations reach a human flaw, against \PhyReAct{}'s $0.26$. It
-accuses far less often --- $557$ times against $871$ --- and passes two thirds of the questions it
-raises. Its questions show why. Roughly a third ask whether something is present, \emph{is there a
-vending machine}, which one frame settles and which the generator almost always gets right, a
-static object being the easiest part of a prompt to render. Twelve clips draw no accusation at
+\PhyReAct{}'s higher recall does not correspond to a higher match rate per reported finding: question
+decomposition matches a human flaw for $29\%$ of its findings, compared with $26\%$ for
+\PhyReAct{}. It reports substantially fewer findings --- $557$ compared with $871$ --- and
+returns a passing answer for most questions. The question forms help explain this pattern. Roughly one third ask only whether an object is present, for example, \emph{Is there a vending machine?}; such questions can often be answered from one frame, and static objects
+are comparatively easy for the generator to render. Twelve clips receive no finding at
 all. Clip by clip, question decomposition finds fewer flaws than \PhyReAct{} on $70$, the same
 number on $63$, and more on $16$.
 
-Alignment scoring and learned quality scoring are absent from \cref{tab:external} because a
-clip-level scalar admits no entry in its columns. A score of $0.42$ names no defect and points at
-no moment, and $86$ of the $149$ clips carry more than one annotated flaw --- $241$ of the $304$
---- so one number cannot identify which of them it found, whatever threshold converts it. Nor
-does the scalar order these clips: CLIPScore over all $149$ correlates with the annotators' own
-clip severity at $r=+0.035$ ($p=0.67$) and with the number of flaws they marked at $r=-0.024$
-($p=0.77$). The sound axis against a learned scalar judge is the clip-level rating of
-\cref{tab:vs2}.
+As an aggregate clip-level diagnostic, CLIPScore correlates, across all $149$ clips, with
+severity at $r=+0.035$ ($p=0.67$) and with annotated-flaw count at $r=-0.024$ ($p=0.77$). Because $86$ of the $149$ clips contain
+more than one annotated flaw, accounting for $241$ of the $304$, a single clip-level score
+cannot identify individual flaws.
 
 \input{tab_external}
 
-\subsection{What these numbers do and do not establish}
-These $149$ clips were inspected while \PhyReAct{} was being built. The per-claim baseline was
-written after its outputs had been seen, and no held-out split exists inside the set. Every recall
-figure above therefore describes a system measured on clips it was tuned against; whether it
-generalizes is a question for a set nobody has looked at.
+\subsection{Held-out evaluation on Physion-Eval}\label{sec:physion}
+Physion-Eval (\cref{sec:bench-vs}) provides clips that were not used in the development of
+this system. Its public release contains $9{,}569$ generated clips from five current
+generators, each accompanied by a human report describing the clip's physical glitches;
+$8{,}745$ clips have at least one reported glitch. Two properties of the release bound what can be measured on it. The matched real-world
+reference videos required for the benchmark's $J$ statistic are withheld for copyright, and
+clips without reported glitches are not verified negatives. The public release therefore
+supports neither $J$ nor false-alarm rates, for any evaluator. It supports evaluator flag
+rates on release clips and matched-report rates on clips with a reported glitch.
 
-What can be counted is also bounded by what the annotators noticed. A defect nobody wrote down
-cannot be scored either way, so recall here means agreement with a reader about the defects that
-reader named --- not detection of everything wrong with a clip.
+\PhyReAct{} is being run over a fixed randomized stream of the release; the figures are
+interim and cover all of the first $601$ clips scored: $543$ with a reported glitch and
+$58$ without. The in-context lesson state of \cref{sec:framework} was active and
+updated as the stream progressed, so the figures describe this evolving configuration rather
+than a single frozen system; the run is prequential, and no component saw a Physion-Eval
+label before its clip was scored.
+
+To distinguish prompt-grounded findings from physics-grounded benchmark reports, three
+measures are reported, defined below and labeled in \cref{tab:physion}. The \emph{matched-report clip rate} is the share of
+reported-glitch clips for which at least one critic finding matches the annotator's report
+under \cref{sec:matching}. The \emph{evidence-conditioned flag rate} is the share of clips classified as physically
+unrealistic by the served model using only the records of every check --- the question,
+verdict, stated reason, and numerical evidence --- without receiving frames or having to
+identify the reported defect. The \emph{anomaly-phrased finding rate} is the share of clips
+with at least one finding that explicitly alleges a physical anomaly rather than an unmet
+prompt requirement.
+
+Panel~A of \cref{tab:physion} reports the three rates for the interim stream. Panel~B
+transcribes the benchmark's published $J$ and flag-rate results; because the panels use
+different samples and system configurations, their juxtaposition is descriptive rather
+than a common-protocol comparison.
+
+\input{tab_physion}
+
+The evidence-conditioned flag rate is nearly twice the anomaly-phrased finding rate,
+indicating that the accumulated evidence supports physical-implausibility
+judgements beyond what the wording of individual findings states.
+
+\subsection{Scope and interpretation}
+The evaluations use distinct settings and should be interpreted separately. Core recall
+uses recorded annotations on development data, where an unrecorded defect cannot be scored
+either way; the question-decomposition baseline was specified after inspection of critic
+outputs; the VideoPhy-2 analysis measures clip-level agreement with human ratings; and the
+interim, prequential Physion-Eval evaluation uses held-out clips with an evolving lesson
+state, a different annotation vocabulary, and no use of the frozen core protocol.
 
 % =====================================================================
 \section{Framework: Learning as State Optimization}\label{sec:framework}

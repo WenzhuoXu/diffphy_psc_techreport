@@ -6,7 +6,7 @@
 \setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.12}
 \begin{tabular}{@{}p{5.0cm} c c c@{}}
 \toprule
- & \textbf{Flaws} & \textbf{Found} & \textbf{Rate} \\
+\textbf{Group} & \textbf{Annotated} & \textbf{Found} & \textbf{Recall} \\
 \midrule
 \multicolumn{4}{@{}l}{\textit{Annotator severity}} \\
 \quad severity 1 & 3 & 3 & 100\% \\
@@ -20,7 +20,7 @@
 \quad 6-8 s & 46 & 29 & 63\% \\
 \quad over 8 s & 182 & 139 & 76\% \\
 \addlinespace
-\multicolumn{4}{@{}l}{\textit{Flaws annotated in the clip}} \\
+\multicolumn{4}{@{}l}{\textit{Number of annotated flaws per clip}} \\
 \quad 1 & 63 & 49 & 78\% \\
 \quad 2 & 92 & 65 & 71\% \\
 \quad 3-4 & 113 & 87 & 77\% \\
@@ -28,13 +28,11 @@
 \addlinespace
 \multicolumn{4}{@{}l}{\textit{Difficulty stratum}} \\
 \quad hard & 83 & 60 & 72\% \\
-\quad rest & 221 & 168 & 76\% \\
+\quad not hard & 221 & 168 & 76\% \\
 \bottomrule
 \end{tabular}
-\caption{Recall against four properties of the clip and the flaw, on the published run.
-The profile is close to flat: no band departs from the overall rate by more than about ten
-points, and every band's departure is of the order of the scorer's own measured noise, so
-this is evidence of no strong dependence rather than a measured trend. Severity is the
+\caption{Recall grouped by annotator severity, clip duration, number of annotated flaws in
+the clip, and difficulty stratum, on the run of \cref{tab:headline}. Severity is the
 annotator's own $1$--$5$ judgement of how badly the clip fails.}
 \label{tab:robust}
 \end{table}

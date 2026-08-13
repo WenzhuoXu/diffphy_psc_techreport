@@ -6,8 +6,8 @@
 \setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.15}
 \begin{tabular}{@{}p{4.4cm} c c c c c@{}}
 \toprule
-\textbf{What the annotator complained about} & \textbf{Flaws} & \textbf{Whole}
- & \textbf{Part} & \textbf{Found} & \textbf{Rate} \\
+\textbf{Annotated flaw category} & \textbf{Annotated} & \textbf{Whole}
+ & \textbf{Partial} & \textbf{Found} & \textbf{Recall} \\
 \midrule
 action or event occurs & 137 & 100 & 14 & 114 & 83\% \\
 how many & 37 & 10 & 8 & 18 & 49\% \\
@@ -23,11 +23,9 @@ physical motion & 7 & 4 & 0 & 4 & 57\% \\
 \textbf{All} & \textbf{304} & 191 & 37 & \textbf{228} & \textbf{75.0\%} \\
 \bottomrule
 \end{tabular}
-\caption{Flaw recall on the evaluation core, by the annotators' own category: 228 of 304
-human-annotated flaws over $149$ clips. ``Whole'' counts flaws a single finding covers completely;
-``Part'' counts flaws our findings address in aspect without any one being the whole defect; their
-sum is ``Found''. Categories are the annotators' labels, assigned before any critic ran. Every
-figure is recomputed from one row per (clip, flaw) parsed from the run's own record, which the
-parser cross-checks against that record's stated totals before any table is built.}
+\caption{Flaw recall on the evaluation core, by annotated flaw category: $228$ of $304$
+human-annotated flaws over $149$ clips. Whole and partial are the match outcomes defined in
+\cref{sec:matching}; Found is their sum. Categories are the annotators' labels, assigned
+before any critic ran.}
 \label{tab:headline}
 \end{table}

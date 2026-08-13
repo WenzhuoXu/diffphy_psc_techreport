@@ -62,7 +62,7 @@ def tab_category(cat: dict) -> str:
 \setlength{{\tabcolsep}}{{6pt}}\renewcommand{{\arraystretch}}{{1.15}}
 \begin{{tabular}}{{@{{}}p{{6.0cm}} c c c@{{}}}}
 \toprule
-\textbf{{What the annotator complained about}} & \textbf{{Flaws}} & \textbf{{Found}}
+\textbf{{Annotated flaw category}} & \textbf{{Flaws}} & \textbf{{Found}}
  & \textbf{{Rate}} \\
 \midrule
 {body}
@@ -280,7 +280,7 @@ def tab_headline(rows) -> str:
 \setlength{{\tabcolsep}}{{6pt}}\renewcommand{{\arraystretch}}{{1.15}}
 \begin{{tabular}}{{@{{}}p{{4.4cm}} c c c c c@{{}}}}
 \toprule
-\textbf{{What the annotator complained about}} & \textbf{{Flaws}} & \textbf{{Whole}}
+\textbf{{Annotated flaw category}} & \textbf{{Flaws}} & \textbf{{Whole}}
  & \textbf{{Part}} & \textbf{{Found}} & \textbf{{Rate}} \\
 \midrule
 {rows_tex}
@@ -344,14 +344,14 @@ def tab_external(cost: dict | None) -> str:
 \textbf{{Evaluator}} & \textbf{{Output it produces}} & \textbf{{Found}} & \textbf{{Recall}}
  & \textbf{{Calls}} \\
 \midrule
-This work & localized allegation & \textbf{{228}} & \textbf{{75.0\%}} & {ours} \\
+\PhyReAct{} & localized allegation & \textbf{{228}} & \textbf{{75.0\%}} & {ours} \\
 \addlinespace
 \multicolumn{{5}}{{@{{}}l}}{{\textit{{Comparable on localized recall}}}} \\
 {qd_row}
 {dsg_row}
 \quad Modular video QA~\cite{{proviq2023,morevqa2024}} & per-question answers & --- & --- & --- \\
 \addlinespace
-\multicolumn{{5}}{{@{{}}l}}{{\textit{{Recall reported, but not a stable quantity}}}} \\
+\multicolumn{{5}}{{@{{}}l}}{{\textit{{Free-text output}}}} \\
 {mono_row}
 \bottomrule
 \end{{tabular}}
@@ -361,7 +361,7 @@ excludes the matching protocol, which is the scorer rather than the evaluator. Q
 decomposition is given the same claim decomposition \PhyReAct{{}} used, so its recall cannot differ
 because it checked different things. The single-pass row is the same served model as \PhyReAct{{}}'s
 own, prompted once with every frame; its recall is set apart because rephrasing the prompt changes
-the answer. A dash marks an evaluator nobody has run under this protocol.}}
+the answer. A dash marks an evaluator not evaluated under this protocol.}}
 \label{{tab:external}}
 \end{{table}}
 """

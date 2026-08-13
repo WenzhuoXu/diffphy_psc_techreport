@@ -1,0 +1,52 @@
+% Numbers recomputed from per-clip rows by video_agentic_critic/analysis/physion_section5_numbers.py
+% (this work) and transcribed from Physion-Eval's Figure 4 (the benchmark's critics).
+
+\begin{table}[t]
+\centering\small
+\setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.18}
+
+\begin{tabular}{@{}p{6.2cm} c c@{}}
+\multicolumn{3}{@{}l}{\textbf{Panel A: this work, on the interim stream ($601$ release clips)}} \\
+\toprule
+\textbf{Measure} & \textbf{All clips ($n=601$)} & \textbf{Reported-glitch clips ($n=543$)} \\
+\midrule
+Evidence-conditioned flag rate & $26.8\%$ & $27.8\%$ \\
+Anomaly-phrased finding rate & $15.5\%$ & $15.3\%$ \\
+Matched-report clip rate & --- & $18.4\%$ \\
+\bottomrule
+\end{tabular}
+
+\vspace{1.2em}
+
+\begin{tabular}{@{}p{6.2cm} c c c@{}}
+\multicolumn{4}{@{}l}{\textbf{Panel B: benchmark-reported results, on the benchmark's own evaluation set}} \\
+\toprule
+\textbf{Evaluator} & \textbf{$J$ exo} & \textbf{$J$ ego} & \textbf{Flag rate} \\
+\midrule
+Untrained humans (reference) & $30.7\%$ & $56.0\%$ & $52.7\%$ \\
+Gemini 3.0 Pro & $11.3\%$ & $5.5\%$ & $16.9\%$ \\
+Qwen3-VL-32B & $3.2\%$ & $1.0\%$ & $14.4\%$ \\
+Qwen3-VL-8B & $2.7\%$ & $0.8\%$ & $12.7\%$ \\
+Claude 4.5 Opus & $5.7\%$ & $2.3\%$ & $10.7\%$ \\
+GPT-5.2 & $4.0\%$ & $3.7\%$ & $10.5\%$ \\
+Gemini 2.5 Pro & $7.1\%$ & $1.1\%$ & $10.4\%$ \\
+Gemini 2.5 Flash & $4.4\%$ & $1.7\%$ & $8.2\%$ \\
+Gemini 2.5 Flash Lite & $2.0\%$ & $0.4\%$ & $4.5\%$ \\
+Cosmos Reason 1 & $0.1\%$ & $0.5\%$ & $2.8\%$ \\
+Cosmos Reason 2 & $0.9\%$ & $0.5\%$ & $1.2\%$ \\
+\bottomrule
+\end{tabular}
+
+\caption{Interim Physion-Eval~\cite{physioneval2026} results. Panel~A reports three rates on the first $601$ release clips of a fixed randomized stream
+($543$ with a reported glitch, $58$ without): the evidence-conditioned flag rate, the
+anomaly-phrased finding rate, and, for reported-glitch clips only, the matched-report clip
+rate; these measures are defined in the preceding text. Panel~B transcribes the benchmark's published critic and human
+results from its Figure~4: $J$ is its Youden statistic averaged over the five generators,
+and the flag rate is the share of generated clips called physically unrealistic, pooled
+over the release's two viewpoints. The two panels use different samples and system
+configurations and are juxtaposed descriptively, not compared under one protocol. A dash
+in the matched-report row marks a rate its protocol does not define on unreported clips; $J$
+values are absent from Panel~A because the required matched real-world reference videos
+are withheld from the public release.}
+\label{tab:physion}
+\end{table}
