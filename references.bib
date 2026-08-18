@@ -3,6 +3,8 @@
 % Titles / authors / arXiv IDs checked against arXiv/DBLP (2026-07-23;
 % Related Work additions and corrections checked against primary sources
 % on 2026-07-29).
+% 2025--2026 embodied-world-model, audiovisual, and physics-evaluation
+% additions checked against primary proceedings and arXiv on 2026-08-15.
 % A small number of venue strings and DOIs were compiled from established
 % knowledge (live lookup was blocked for those) and are owed one final
 % confirmation pass before camera-ready; see the report cover note.
@@ -44,11 +46,12 @@
   year   = {2024}
 }
 
-@article{videophy2_2025,
-  title  = {VideoPhy-2: A Challenging Action-Centric Physical Commonsense Evaluation in Video Generation},
-  author = {Bansal, Hritik and Peng, Clark and Bitton, Yonatan and Goldenberg, Roi and Grover, Aditya and Chang, Kai-Wei},
-  journal= {arXiv preprint arXiv:2503.06800},
-  year   = {2025}
+@inproceedings{videophy2_2025,
+  title     = {VideoPhy-2: A Challenging Action-Centric Physical Commonsense Evaluation in Video Generation},
+  author    = {Bansal, Hritik and Peng, Clark and Bitton, Yonatan and Goldenberg, Roman and Grover, Aditya and Chang, Kai-Wei},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2026},
+  note      = {Conference version; arXiv:2503.06800.}
 }
 
 @inproceedings{videoscore2024,
@@ -66,12 +69,13 @@
   year   = {2025}
 }
 
-@article{physicsiq2025,
+@inproceedings{physicsiq2025,
   title  = {Do Generative Video Models Understand Physical Principles?},
   author = {Motamed, Saman and Culp, Laura and Swersky, Kevin and Jaini, Priyank and Geirhos, Robert},
-  journal= {arXiv preprint arXiv:2501.09038},
-  year   = {2025},
-  note   = {The Physics-IQ benchmark; visual realism does not imply physical understanding.}
+  booktitle = {IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)},
+  pages  = {948--958},
+  year   = {2026},
+  note   = {Physics-IQ; arXiv:2501.09038.}
 }
 
 @article{vjepa_physics2025,
@@ -200,6 +204,135 @@
             Du, Yilun and Zou, James and Wu, Jiajun and Shuai, Bing},
   journal= {arXiv preprint arXiv:2603.19607},
   year   = {2026}
+}
+
+% ---------- A.1. Recent embodied video world models (2025--2026) ----------
+
+@inproceedings{jang2025dreamgen,
+  title     = {{DreamGen}: Unlocking Generalization in Robot Learning through Video World Models},
+  author    = {Jang, Joel and Ye, Seonghyeon and Lin, Zongyu and Xiang, Jiannan and Bjorck, Johan and others},
+  booktitle = {Conference on Robot Learning (CoRL)},
+  pages     = {5170--5194},
+  year      = {2025}
+}
+
+@inproceedings{huang2025enerverse,
+  title     = {{EnerVerse}: Envisioning Embodied Future Space for Robotics Manipulation},
+  author    = {Huang, Siyuan and Chen, Liliang and Zhou, Pengfei and Chen, Shengcong and Jiang, Zhengkai and Hu, Yue and Liao, Yue and Gao, Peng and Li, Hongsheng and Yao, Maoqing and Ren, Guanghui},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {38},
+  year      = {2025}
+}
+
+@inproceedings{shang2025roboscape,
+  title     = {{RoboScape}: Physics-Informed Embodied World Model},
+  author    = {Shang, Yu and Zhang, Xin and Tang, Yinzhou and Jin, Lei and Gao, Chen and Wu, Wei and Li, Yong},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {38},
+  year      = {2025}
+}
+
+@inproceedings{li2025worldmodelbench,
+  title     = {{WorldModelBench}: Judging Video Generation Models as World Models},
+  author    = {Li, Dacheng and Fang, Yunhao and Chen, Yukang and Yang, Shuo and Cao, Shiyi and Wong, Justin and Luo, Michael and Wang, Xiaolong and Yin, Hongxu and Gonzalez, Joseph E. and Stoica, Ion and Han, Song and Lu, Yao},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS), Datasets and Benchmarks Track},
+  volume    = {38},
+  year      = {2025}
+}
+
+@inproceedings{deng2026rethinking,
+  title     = {Rethinking Video Generation Model for the Embodied World},
+  author    = {Deng, Yufan and Pan, Zilin and Zhang, Hongyu and Li, Xiaojie and Hu, Ruoqing and Ding, Yufei and Zou, Yiming and Zeng, Yan and Zhou, Daquan},
+  booktitle = {International Conference on Machine Learning (ICML)},
+  year      = {2026}
+}
+
+% ---------- A.2. Fine-grained and audiovisual physics evaluation ----------
+
+@inproceedings{chinchure2026spotlight,
+  title     = {Spotlight: Identifying and Localizing Video Generation Errors Using {VLMs}},
+  author    = {Chinchure, Aditya and Ravi, Sahithya and Shukla, Pushkar and Shwartz, Vered and Sigal, Leonid},
+  booktitle = {European Conference on Computer Vision (ECCV)},
+  year      = {2026},
+  note      = {arXiv:2511.18102.}
+}
+
+@article{lin2026phyground,
+  title   = {{PhyGround}: Benchmarking Physical Reasoning in Generative World Models},
+  author  = {Lin, Juyi and Akbari, Arash and He, Yumei and Zhao, Lin and Zhang, Haichao and others},
+  journal = {arXiv preprint arXiv:2605.10806},
+  year    = {2026}
+}
+
+@inproceedings{luo2026lovif,
+  title     = {{LoViF} 2026: The First Challenge on Holistic Quality Assessment for 4D World Model ({PhyScore}): Methods and Results},
+  author    = {Luo, Wei and others},
+  booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition Workshops (CVPRW)},
+  pages     = {5008--5017},
+  year      = {2026}
+}
+
+@article{xie2025phyavbench,
+  title   = {{PhyAVBench}: A Challenging Audio Physics-Sensitivity Benchmark for Physically Grounded Text-to-Audio-Video Generation},
+  author  = {Xie, Tianxin and Lei, Wentao and Jiang, Kai and Huang, Guanjie and Zhang, Pengfei and others},
+  journal = {arXiv preprint arXiv:2512.23994},
+  year    = {2025}
+}
+
+@inproceedings{hua2026vabench,
+  title     = {{VABench}: A Comprehensive Benchmark for Audio-Video Generation},
+  author    = {Hua, Daili and Wang, Xizhi and Zeng, Bohan and Huang, Xinyi and Liang, Hao and Niu, Junbo and Chen, Xinlong and Xu, Quanqing and Zhang, Wentao},
+  booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  pages     = {23345--23355},
+  year      = {2026}
+}
+
+@inproceedings{li2026flatsounds,
+  title     = {Benchmarking Single-Factor Physical Video-to-Audio Generation},
+  author    = {Li, Tingle and Gururani, Siddharth and Shih, Kevin J. and Bhatt, Gantavya and Lee, Sang-gil and Kong, Zhifeng and Goel, Arushi and Anumanchipalli, Gopala and Liu, Ming-Yu},
+  booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  pages     = {1939--1949},
+  year      = {2026},
+  note      = {Introduces the FlatSounds benchmark.}
+}
+
+@inproceedings{oh2026pavas,
+  title     = {{PAVAS}: Physics-Aware Video-to-Audio Synthesis},
+  author    = {Oh, Hyun-Bin and Takida, Yuhta and Uesaka, Toshimitsu and Oh, Tae-Hyun and Mitsufuji, Yuki},
+  booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  pages     = {14481--14491},
+  year      = {2026}
+}
+
+@article{zhou2026avgenbench,
+  title   = {{AVGen-Bench}: A Task-Driven Benchmark for Multi-Granular Evaluation of Text-to-Audio-Video Generation},
+  author  = {Zhou, Ziwei and Lai, Zeyuan and Wang, Rui and Yang, Yifan and Xing, Zhen and Yang, Yuqing and Dai, Qi and Qiu, Lili and Luo, Chong},
+  journal = {arXiv preprint arXiv:2604.08540},
+  year    = {2026}
+}
+
+@article{cui2026avphys,
+  title   = {Do Joint Audio-Video Generation Models Understand Physics?},
+  author  = {Cui, Zijun and Liu, Xiulong and Fang, Hao and Xu, Mingwei and Liu, Jiageng and Xu, Zexin and Pian, Weiguo and Deng, Shijian and Du, Feiyu and Ge, Chenming and Tian, Yapeng},
+  journal = {arXiv preprint arXiv:2605.07061},
+  year    = {2026},
+  note    = {Introduces AV-Phys Bench and AV-Phys Agent.}
+}
+
+@article{li2026acoustitrace,
+  title   = {{AcoustiTrace}: When Plausible Sound Violates Physics},
+  author  = {Li, Shiyang and Cao, Yuewen and Liu, Yihao and Pu, Yuandong and Zhang, Baochang and Li, Xiaofei and Zou, Changqing},
+  journal = {arXiv preprint arXiv:2608.02035},
+  year    = {2026},
+  note    = {Posted 3 August 2026; use only in revisions dated August 2026 or later.}
+}
+
+@article{wang2026gauge,
+  title   = {{GAUGE}: A Measurement-Grounded Benchmark for Physical Fidelity in Simulation Engines and Video World Models},
+  author  = {Wang, Shuai and Feng, Yaxin and Jiang, Xuekun and Tian, Shihan and Yan, Ningyu and others},
+  journal = {arXiv preprint arXiv:2608.05948},
+  year    = {2026},
+  note    = {Posted 6 August 2026; use only in revisions dated August 2026 or later.}
 }
 
 % ---------- B. LLM tool-use, visual programs, plan-execute DAGs ----------
@@ -885,12 +1018,13 @@
   note      = {arXiv:1907.03950.}
 }
 
-@article{phygenbench2024,
-  title  = {Towards World Simulator: Crafting Physical Commonsense-Based Benchmark for Video Generation},
-  author = {Meng, Fanqing and Liao, Jiaqi and Tan, Xinyu and Shao, Wenqi and Lu, Quanfeng and Zhang, Kaipeng and Cheng, Yu and Li, Dianqi and Qiao, Yu and Luo, Ping},
-  journal= {arXiv preprint arXiv:2410.05363},
-  year   = {2024},
-  note   = {The PhyGenBench physical-commonsense generation benchmark.}
+@inproceedings{phygenbench2024,
+  title     = {Towards World Simulator: Crafting Physical Commonsense-Based Benchmark for Video Generation},
+  author    = {Meng, Fanqing and Liao, Jiaqi and Tan, Xinyu and Lu, Quanfeng and Shao, Wenqi and Zhang, Kaipeng and Cheng, Yu and Li, Dianqi and Luo, Ping},
+  booktitle = {International Conference on Machine Learning (ICML)},
+  pages     = {43781--43806},
+  year      = {2025},
+  note      = {Introduces the PhyGenBench benchmark; arXiv:2410.05363.}
 }
 
 @article{conformal2021,
@@ -908,6 +1042,55 @@
   booktitle={IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
   year={2012}
 }
+
+% --- Embodied learning, generative simulators, and sim-to-real --------
+@inproceedings{tobin2017domain,
+  title     = {Domain Randomization for Transferring Deep Neural Networks from Simulation to the Real World},
+  author    = {Tobin, Josh and Fong, Rachel and Ray, Alex and Schneider, Jonas and Zaremba, Wojciech and Abbeel, Pieter},
+  booktitle = {IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+  pages     = {23--30},
+  year      = {2017}
+}
+
+@inproceedings{peng2018sim2real,
+  title     = {Sim-to-Real Transfer of Robotic Control with Dynamics Randomization},
+  author    = {Peng, Xue Bin and Andrychowicz, Marcin and Zaremba, Wojciech and Abbeel, Pieter},
+  booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
+  pages     = {3803--3810},
+  year      = {2018}
+}
+
+@inproceedings{yang2024unisim,
+  title     = {Learning Interactive Real-World Simulators},
+  author    = {Yang, Sherry and Du, Yilun and Ghasemipour, Seyed Kamyar Seyed and Tompson, Jonathan and Kaelbling, Leslie Pack and Schuurmans, Dale and Abbeel, Pieter},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2024}
+}
+
+@inproceedings{bruce2024genie,
+  title     = {Genie: Generative Interactive Environments},
+  author    = {Bruce, Jake and Dennis, Michael D. and Edwards, Ashley and Parker-Holder, Jack and Shi, Yuge and Hughes, Edward and others},
+  booktitle = {International Conference on Machine Learning (ICML)},
+  pages     = {4603--4623},
+  year      = {2024}
+}
+
+@inproceedings{wen2024vidman,
+  title     = {{VidMan}: Exploiting Implicit Dynamics from Video Diffusion Model for Effective Robot Manipulation},
+  author    = {Wen, Youpeng and Lin, Junfan and Zhu, Yi and Han, Jianhua and Xu, Hang and Zhao, Shen and Liang, Xiaodan},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {37},
+  year      = {2024}
+}
+
+@inproceedings{chen2020soundspaces,
+  title     = {{SoundSpaces}: Audio-Visual Navigation in 3D Environments},
+  author    = {Chen, Changan and Jain, Unnat and Schissler, Carl and Amengual Gari, Sebastia Vicenc and Al-Halah, Ziad and Ithapu, Vamsi Krishna and Robinson, Philip and Grauman, Kristen},
+  booktitle = {European Conference on Computer Vision (ECCV)},
+  pages     = {17--36},
+  year      = {2020}
+}
+
 @inproceedings{zhang2023controlnet,
   title={Adding conditional control to text-to-image diffusion models},
   author={Zhang, Lvmin and Rao, Anyi and Agrawala, Maneesh},
@@ -1087,4 +1270,32 @@
 
 @article{wan22dual2026,
   title={Collaborative Few-Step Distillation and Low-Bit Quantization for {Wan2.2} Dual-Expert Video Diffusion Models},
-  author={Du, and others}, journal={arXiv preprint arXiv:2606.00658}, year={2026}}
+  author={Du and others}, journal={arXiv preprint arXiv:2606.00658}, year={2026}}
+
+@inproceedings{han2025videobench,
+  title     = {Video-Bench: Human-Aligned Video Generation Benchmark},
+  author    = {Han, Hui and Li, Siyuan and Chen, Jiaqi and Yuan, Yiwen and Wu, Yuling and Deng, Yufan and Leong, Chak Tou and Du, Hanwen and Fu, Junchen and Li, Youhua and Zhang, Jie and Zhang, Chi and Li, Li-jia and Ni, Yongxin},
+  booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  pages     = {18858--18868},
+  year      = {2025},
+  note      = {arXiv:2504.04907}
+}
+
+@inproceedings{findeis2025external,
+  title     = {Can External Validation Tools Improve Annotation Quality for {LLM}-as-a-Judge?},
+  author    = {Findeis, Arduin and Weers, Floris and Yin, Guoli and Ye, Ke and Pang, Ruoming and Gunter, Tom},
+  booktitle = {Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+  pages     = {15997--16020},
+  year      = {2025},
+  publisher = {Association for Computational Linguistics},
+  doi       = {10.18653/v1/2025.acl-long.779},
+  url       = {https://aclanthology.org/2025.acl-long.779/}
+}
+
+@inproceedings{kapoor2026hal,
+  title     = {Holistic Agent Leaderboard: The Missing Infrastructure for {AI} Agent Evaluation},
+  author    = {Kapoor, Sayash and Stroebl, Benedikt and Kirgis, Peter and Nadgir, Nitya and Siegel, Zachary S. and Wei, Boyi and Xue, Tianci and Chen, Ziru and Chen, Felix and others},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2026},
+  url       = {https://openreview.net/forum?id=vUaY1t64ZZ}
+}

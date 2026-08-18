@@ -1,25 +1,13 @@
 % =====================================================================
-% fig_teaser.tex -- Figure 1 teaser: an opaque learned scalar judge versus
-% PhyReAct's auditable, per-claim, timeline-grounded verdict.
+% fig_teaser.tex -- Figure 1 graphical abstract.
+% The figure contrasts the evaluated question-decomposition baseline with the
+% actual PhyReAct contract: prompt-only planning declares what and how to
+% check before pixels; runtime observations gate only declared actions; and
+% fixed composition produces three-valued claim states from evidence records.
 %
-% \input-able into main.tex, which loads adobe_research.cls + diffphy-support
-% (hence the adobered / adobeink / adobegray colours and the sans family).
-%
-% REQUIRED IN THE MAIN PREAMBLE:
-%     \usepackage{tikz}
-%     \usetikzlibrary{arrows.meta,positioning,calc}
-%
-% Every style is declared inside the tikzpicture's own option list, so all
-% definitions are local to this picture and cannot clash with the sibling
-% schematics (fig_critic_pipeline.tex, fig_plan_graph.tex).
-%
-% CONTENT is illustrative of the method's output contract only -- the clip,
-% the counts, and the windows are a worked schematic, not a measured run, in
-% the same spirit as fig:plangraph. No accuracy or comparison number appears.
+% Regenerate the aligned audio layer with:
+%   python figs/generate_impact_spectrogram.py
 % =====================================================================
-% The three TikZ libraries must be loaded in the PREAMBLE, not here: a figure
-% environment forms a group, and TikZ defines a library's macros locally, so a
-% \usetikzlibrary issued inside a figure does not survive to the next one.
 \makeatletter
 \@ifundefined{tikz@library@calc@loaded}{%
   \PackageError{fig_teaser}{%
@@ -30,172 +18,430 @@
 
 \begingroup
 \providecommand{\PhyReAct}{PhyReAct}
-\providecommand{\cfsub}[1]{{\scriptsize\color{adobegray}#1}}
-\providecommand{\cfop}[1]{{\ttfamily\scriptsize\color{adobeink}#1}}
+\definecolor{figteal}{HTML}{23867D}
+% Use the document's body typeface everywhere in the figure.  All visible
+% labels share one optical size; hierarchy comes only from weight and colour.
+\newcommand{\figbodyfont}{\normalfont\rmfamily\fontsize{6.2}{7.1}\selectfont}
+\newcommand{\figboldfont}{\normalfont\rmfamily\bfseries\fontsize{6.2}{7.1}\selectfont}
+% Keep the plan/contract panel and sample prompt at the same compact figure
+% size as every other label, visibly below the document's 10 pt body text.
+\newcommand{\figdetailfont}{\figbodyfont}
+\newcommand{\figdetailboldfont}{\figboldfont}
 
 \begin{tikzpicture}[
-    x=1cm, y=1cm,
-    % --- shared box shape -------------------------------------------------
-    cfbox/.style   = {rounded corners=2pt, line width=0.7pt, align=center,
-                      inner sep=5pt, font=\sffamily\footnotesize,
-                      text=adobeink},
-    % --- LEARNED component: light gray fill --------------------------------
-    cflearn/.style = {cfbox, draw=adobeink, fill=adobegray!12},
-    % --- DETERMINISTIC component: white with an ink outline ----------------
-    cfdet/.style   = {cfbox, draw=adobeink, fill=white},
-    % --- what enters each evaluator ----------------------------------------
-    cfdata/.style  = {cfbox, draw=adobegray, fill=white, inner sep=4pt,
-                      dash pattern=on 2pt off 1.6pt, font=\sffamily\scriptsize},
-    cfline/.style  = {draw=adobeink, line width=0.8pt},
-    cfarr/.style   = {cfline, -{Straight Barb[length=4.6pt,width=5.2pt]}},
-    cfnote/.style  = {font=\sffamily\scriptsize, text=adobegray,
-                      inner sep=0pt, align=left},
-    cfhead/.style  = {font=\sffamily\bfseries\footnotesize, text=adobegray,
-                      inner sep=0pt, anchor=south west},
-    % column-role captions over the three-stage grid
-    cfcol/.style   = {font=\sffamily\scriptsize\bfseries, text=adobegray,
-                      inner sep=0pt, anchor=south},
-    % a filled dot where feed lines branch, so a bus reads as intentional
-    cfdot/.style   = {circle, fill=adobeink, inner sep=0pt, minimum size=2.8pt},
-    % --- claim-state badges (three-valued) ---------------------------------
-    badge/.style   = {rounded corners=2pt, line width=0.7pt,
-                      font=\sffamily\bfseries\scriptsize, inner sep=3pt,
-                      align=center},
-    bcon/.style    = {badge, draw=adobered, fill=adobered, text=adobeink},
-    bsup/.style    = {badge, draw=adobeink, fill=adobeink, text=white},
-    bunk/.style    = {badge, draw=adobegray, fill=white, text=adobegray},
+    x=1cm,y=1cm,
+    every node/.style={font=\figbodyfont,text=adobeink},
+    stage/.style={font=\figboldfont,text=adobeink,
+                  inner sep=0pt,anchor=west},
+    meta/.style={font=\figbodyfont,text=adobegray,
+                 inner sep=0pt,align=left},
+    micro/.style={font=\figbodyfont,text=adobegray,
+                  inner sep=0pt,align=left},
+    claim/.style={rounded corners=5pt,draw=none,fill=white,
+                  font=\figbodyfont,text=adobeink,
+                  inner xsep=7pt,inner ysep=3pt},
+    con/.style={rounded corners=5pt,draw=adobered,fill=adobered,
+                font=\figboldfont,text=adobeink,
+                inner xsep=6pt,inner ysep=2.7pt},
+    sup/.style={rounded corners=5pt,draw=figteal,fill=figteal,
+                font=\figboldfont,text=white,
+                inner xsep=6pt,inner ysep=2.7pt},
+    evidencepin/.style={circle,draw=adobeink,fill=adobebg,
+                       line width=.55pt,font=\figboldfont,
+                       text=adobeink,inner sep=0pt,minimum size=13pt},
+    ledgerpin/.style={circle,draw=adobeink,fill=adobebg,
+                     line width=.5pt,font=\figboldfont,
+                     text=adobeink,inner sep=0pt,minimum size=10pt},
+    methodstep/.style={rounded corners=3pt,draw=adobeink!28,fill=white,
+                      line width=.45pt,font=\figbodyfont,text=adobeink,
+                      align=center,inner xsep=3pt,inner ysep=3pt,
+                      minimum height=.52cm},
+    methodarrow/.style={-{Stealth[length=3.2pt,width=2.8pt]},
+                       draw=adobeink!58,line width=.5pt},
   ]
+  \path[use as bounding box] (0,0.16) rectangle (16,-9.25);
 
-  % =================================================================
-  %  TOP BAND -- prior art: one learned scalar
-  % =================================================================
-  \node[cfhead] at (0,0.35) {PRIOR\ \ a learned scalar judge};
+  % -------------------------------------------------------------------
+  % 1. Same task, two evaluation contracts.
+  % -------------------------------------------------------------------
+  % The baseline is the published question-decomposition evaluator used in the
+  % controlled comparison, not a claim about all prior physical evaluators.
+  \begin{scope}[yshift=.84cm]
+  \path[fill=adobegray!6,draw=adobeink!20,line width=.5pt,rounded corners=5pt]
+    (0.18,-0.78) rectangle (4.12,-2.90);
+  \node[font=\figboldfont,anchor=west,inner sep=0pt]
+    at (0.40,-1.01)
+    {Prior \textcolor{adobegray}{\textbullet}\quad baseline};
+  \node[methodstep,minimum width=.72cm] (bclaim) at (.67,-1.92)
+    {Claim};
+  \node[methodstep,minimum width=1.28cm] (bquestion) at (2.02,-1.92)
+    {Closed\\question};
+  \node[methodstep,minimum width=.96cm] (banswer) at (3.48,-1.92)
+    {VLM\\yes / no};
+  \draw[methodarrow] (bclaim.east) -- (bquestion.west);
+  \draw[methodarrow] (bquestion.east) -- (banswer.west);
+  \node[micro,anchor=center,text=adobegray] at (2.15,-2.65)
+    {No measurement trace};
 
-  \node[cfdata, text width=1.45cm, anchor=west]
-    (in1) at (0,-0.85) {\textbf{Prompt}\\$+$ video};
-  \node[cflearn, text width=3.5cm, anchor=west]
-    (scorer) at (2.4,-0.85)
-    {\textbf{Learned video--text scorer}\\[1pt]\cfsub{one forward pass}};
-  \node[cfbox, draw=adobeink, fill=adobeink, text=white, minimum width=1.9cm,
-        minimum height=0.95cm, font=\sffamily\bfseries\Large, anchor=west]
-    (score) at (7.0,-0.85) {score};
-  \node[cfnote, text width=5.2cm, anchor=west] (op1) at (9.1,-0.85)
-    {one opaque score: it cannot say \emph{which} obligation failed,
-     \emph{where} in the clip, or on \emph{what} evidence};
+  % PhyReAct separates prompt-only planning from video-aware execution.
+  \path[fill=figteal!5,draw=figteal!34,line width=.55pt,rounded corners=5pt]
+    (4.32,-0.78) rectangle (15.82,-2.90);
+  \node[stage] at (4.54,-1.01)
+    {\PhyReAct{} \textcolor{figteal}{\textbullet}\quad auditable execution};
+  \node[micro,anchor=center,align=center,text=adobegray] at (5.45,-1.32)
+    {Text-only planner\\before frames};
+  \node[micro,anchor=center,text=figteal!80!adobeink] at (9.35,-1.34)
+    {Generated A/V runtime};
 
-  \draw[cfarr] (in1.east)    -- (scorer.west);
-  \draw[cfarr] (scorer.east) -- (score.west);
+  % Planning answers both what and how to check before any frame is read.
+  % Runtime observations may only gate or scope actions declared in that plan.
+  \node[methodstep,minimum width=1.85cm,minimum height=.78cm]
+    (plan) at (5.45,-1.94)
+    {{\figboldfont Plan}\\what to check\\how to check};
+  \node[methodstep,minimum width=1.12cm,minimum height=.66cm,
+        draw=figteal!55]
+    (act) at (7.18,-1.94)
+    {{\figboldfont Action}};
+  \node[methodstep,minimum width=1.38cm,minimum height=.66cm,
+        draw=figteal!55]
+    (observe) at (8.75,-1.94)
+    {{\figboldfont Observation}};
+  \node[methodstep,minimum width=1.45cm,minimum height=.66cm]
+    (record) at (10.55,-1.94)
+    {{\figboldfont Evidence}\\{\figboldfont record}};
+  \node[methodstep,minimum width=1.55cm,minimum height=.66cm]
+    (rules) at (12.38,-1.94)
+    {{\figboldfont Fixed}\\{\figboldfont composition}};
+  \node[methodstep,minimum width=2.00cm,minimum height=.78cm,
+        draw=adobered!70]
+    (fixed) at (14.43,-1.94)
+    {{\figboldfont Claim state}};
+  \draw[methodarrow] (plan.east) -- (act.west);
+  \draw[methodarrow] (act.east) -- (observe.west);
+  \draw[methodarrow] (observe.east) -- (record.west);
+  \draw[methodarrow] (record.east) -- (rules.west);
+  \draw[methodarrow] (rules.east) -- (fixed.west);
+  \draw[-{Stealth[length=3pt,width=2.6pt]},draw=figteal!80!adobeink,
+        line width=.65pt,rounded corners=2pt]
+    (observe.south) -- ++(0,-.20) -| (act.south);
+  \node[micro,anchor=center,text=figteal!80!adobeink]
+    at (7.97,-2.70)
+    {{\figboldfont PhyReAct loop} \textbullet\ gate / scope};
+  \end{scope}
 
-  % =================================================================
-  %  DIVIDER
-  % =================================================================
-  \draw[cfline, dash pattern=on 2pt off 1.6pt, draw=adobegray]
-    (0,-1.85) -- (14.1,-1.85);
-  \node[fill=white, inner sep=2pt, text=adobegray,
-        font=\sffamily\itshape\footnotesize] at (7.0,-1.85) {vs.};
+  % -------------------------------------------------------------------
+  % 2. One physically coherent audiovisual evidence surface.
+  % -------------------------------------------------------------------
+  \begin{scope}[yshift=-.96cm]
+  \path[fill=adobebg!18,rounded corners=5pt]
+    (0.18,-1.30) rectangle (10.82,-7.77);
+  \begin{scope}
+    \clip[rounded corners=5pt] (0.18,-1.30) rectangle (10.82,-7.77);
+    \node[anchor=north west,inner sep=0pt] at (0.18,-1.30)
+      {\includegraphics[width=10.64cm,height=4.43cm]
+       {figs/assets/ball_wall_studio_bg_v4.png}};
+  \end{scope}
+  \draw[rounded corners=5pt,draw=adobeink!20,line width=.55pt]
+    (0.18,-1.30) rectangle (10.82,-7.77);
 
-  % =================================================================
-  %  BOTTOM BAND -- ours: plan, then measure on the timeline
-  % =================================================================
-  \node[cfhead] at (0,-2.55)
-    {\textbf{\PhyReAct{} (ours)}\ \ plan, then measure on the timeline};
+  \node[stage,text=adobeink] at (0.45,-1.58)
+    {Evidence trace \textcolor{adobegray}{\textbullet}\quad one shared A/V clock};
 
-  \node[cfdata, text width=1.45cm, anchor=west]
-    (in2) at (0,-3.35) {\textbf{Prompt}\\$+$ video};
-  \node[cflearn, text width=5.0cm, anchor=west]
-    (planner) at (2.4,-3.35)
-    {\textbf{Planner}\\[1pt]
-     \cfsub{compiles the prompt into typed claims and an executable plan
-     --- before any frame is read}};
-  \draw[cfarr] (in2.east) -- (planner.west);
+  % One analytic ball-center trajectory drives both the curve and every
+  % temporal sample.  The wall-contact event is the tangent ball center;
+  % xWallPlane is the projected near surface at the impact height.
+  \def\xGroundEvent{4.06}
+  \def\yGroundEvent{-4.43}
+  \def\xWallEvent{7.575}
+  \def\yWallEvent{-3.194}
+  \def\xWallPlane{7.79}
+  \def\eGround{.70}
+  \def\eWall{.72}
 
-  % --- three claim rows on a fixed grid ----------------------------------
-  % Uniform row pitch and a fixed minimum height on every box, so each box's
-  % vertical centre sits exactly on its row baseline and every horizontal
-  % arrow between columns is dead level. Column x-positions are shared.
-  \def\rya{-5.15}\def\ryb{-6.30}\def\ryc{-7.45}
-  \def\xC{0}\def\xS{4.7}\def\xB{9.5}
-  \tikzset{gridbox/.style={minimum height=1.02cm, text depth=0pt}}
+  % Analytic centerlines.  Before the floor event the ball follows a fitted
+  % ballistic arc.  After the bounce, the generated path is the *same*
+  % parabola on both sides of the wall: y=-3.03-.205(x-6.68)^2.  Thus the
+  % illustrated error is penetration, not a hidden velocity discontinuity.
+  \draw[adobeink!72,line width=.95pt,line cap=round]
+    plot[domain=.92:4.060,samples=80]
+      (\x,{-.05227692*\x*\x-.52765152*\x-1.42754687});
+  \draw[adobeink!72,line width=.95pt,line cap=round]
+    plot[domain=4.060:7.575,samples=90]
+      (\x,{-3.03-.205*(\x-6.68)*(\x-6.68)});
 
-  % claim column (deterministic: white, ink outline)
-  \node[cfdet, gridbox, text width=3.7cm, anchor=west] (c1) at (\xC,\rya)
-    {\textbf{``two balls''}\\[1pt]\cfop{eq(count("ball"),\,2)}};
-  \node[cfdet, gridbox, text width=3.7cm, anchor=west] (c2) at (\xC,\ryb)
-    {\textbf{``bounces off the floor''}\\[1pt]\cfop{traj("ball",\,bounce)}};
-  \node[cfdet, gridbox, text width=3.7cm, anchor=west] (c3) at (\xC,\ryc)
-    {\textbf{``GO'' on the scoreboard}\\[1pt]\cfop{text("GO",\,scoreboard)}};
+  % The physically required wall response shares the contact state and uses
+  % v_n^+=-e_w v_n^-.  Its curvature scales by 1/e_w^2.
+  \draw[figteal,line width=1.22pt,line cap=round,
+        -{Stealth[length=4.5pt,width=4pt]}]
+    plot[domain=7.575:6.30,samples=70]
+      (\x,{-3.194226+.509653*(\x-7.575)
+                  -.395448*(\x-7.575)*(\x-7.575)});
 
-  % executor column (one frozen tool per row)
-  \node[cflearn, gridbox, text width=3.4cm, anchor=west] (s1) at (\xS,\rya)
-    {\textbf{Counting instrument}\\[1pt]\cfsub{returns count $=3$}};
-  \node[cflearn, gridbox, text width=3.4cm, anchor=west] (s2) at (\xS,\ryb)
-    {\textbf{Point tracker}\\[1pt]\cfsub{rebound after contact}};
-  \node[cflearn, gridbox, text width=3.4cm, anchor=west] (s3) at (\xS,\ryc)
-    {\textbf{OCR on localized frames}\\[1pt]\cfsub{glyphs illegible}};
+  % Generated penetration is a continuous ballistic extension.  It is drawn
+  % once here; the opaque wall is composited back on top below, so the segment
+  % inside the solid wall is correctly occluded rather than painted on it.
+  \draw[adobered,line width=1.22pt,line cap=round,
+        -{Stealth[length=4.5pt,width=4pt]}]
+    plot[domain=7.575:9.20,samples=70]
+      (\x,{-3.03-.205*(\x-6.68)*(\x-6.68)});
 
-  % three-valued claim state
-  \node[bcon, gridbox, text width=2.9cm, anchor=west] (b1) at (\xB,\rya)
-    {$\times$\, contradicted\\[1pt]\mdseries\scriptsize $1.2$--$2.4$\,s};
-  \node[bsup, gridbox, text width=2.9cm, anchor=west] (b2) at (\xB,\ryb)
-    {$\checkmark$\, supported};
-  \node[bunk, gridbox, text width=2.9cm, anchor=west] (b3) at (\xB,\ryc)
-    {\textbf{?}\, unknown\\[1pt]\mdseries\scriptsize $\to$ abstain};
+  % Dense temporal samples are placed directly on the analytic curves.
+  % Rotation changes at each sample, while opacity distinguishes history from
+  % the event frames and the generated post-wall states.
+  \path[fill=adobeink,opacity=.16] (4.06,-4.655) ellipse (.27 and .050);
+  \node[inner sep=0pt,rotate=18] at (.92,-1.958)
+    {\includegraphics[width=.43cm]{figs/assets/rigid_basketball_v5.png}};
+  \foreach \xx/\ang in {1.31/42,1.70/66,2.10/90,2.49/114,
+                           2.88/138,3.28/162,3.67/186}{
+    \node[inner sep=0pt,opacity=.18,rotate=\ang] at
+      (\xx,{-.05227692*\xx*\xx-.52765152*\xx-1.42754687})
+      {\includegraphics[width=.43cm]{figs/assets/rigid_basketball_v5.png}};
+  }
+  \node[inner sep=0pt,rotate=210] at (4.06,-4.432)
+    {\includegraphics[width=.43cm]{figs/assets/rigid_basketball_v5.png}};
 
-  % column-role captions: name each stage (the middle column IS the executor)
-  \node[cfcol] at ([yshift=3pt]c1.north) {claim $+$ typed check};
-  \node[cfcol] at ([yshift=3pt]s1.north) {executor (one tool call)};
-  \node[cfcol] at ([yshift=3pt]b1.north) {claim state};
+  \foreach \xx/\ang in {4.45/234,4.84/258,5.23/282,5.62/306,
+                           6.01/330,6.40/354,6.79/18,7.18/42}{
+    \node[inner sep=0pt,opacity=.18,rotate=\ang] at
+      (\xx,{-3.03-.205*(\xx-6.68)*(\xx-6.68)})
+      {\includegraphics[width=.43cm]{figs/assets/rigid_basketball_v5.png}};
+  }
+  % Tangent contact: the ball's rightmost point meets the projected near face.
+  \node[inner sep=0pt,rotate=66] at (7.575,-3.194)
+    {\includegraphics[width=.43cm]{figs/assets/rigid_basketball_v5.png}};
 
-  % per-row arrows: claim -> executor -> state, all level by construction
-  \foreach \c/\s/\b in {c1/s1/b1, c2/s2/b2, c3/s3/b3}{
-    \draw[cfarr] (\c.east) -- (\s.west);
-    \draw[cfarr] (\s.east) -- (\b.west);
+  % Counterfactual rebound samples remain translucent and teal-ringed.
+  \foreach \xx/\ang in {7.32/50,7.07/34,6.82/18,6.57/2,6.32/-14}{
+    \node[inner sep=0pt,opacity=.12,rotate=\ang] at
+      (\xx,{-3.194226+.509653*(\xx-7.575)
+                    -.395448*(\xx-7.575)*(\xx-7.575)})
+      {\includegraphics[width=.43cm]{figs/assets/rigid_basketball_v5.png}};
+    \draw[figteal,opacity=.62,line width=.55pt]
+      (\xx,{-3.194226+.509653*(\xx-7.575)
+                    -.395448*(\xx-7.575)*(\xx-7.575)}) circle (.218);
   }
 
-  % --- planner fans out to the three claims -------------------------------
-  % One stub drops from the planner into a manifold that runs in the clear gap
-  % above the column captions, down a left-margin bus, and taps each claim on
-  % its own row. The manifold sits ABOVE the caption row, so it never crosses
-  % a claim box. Dots mark the taps.
-  \def\xbus{-0.9}
-  \coordinate (mani) at (\xbus,-4.15);            % manifold height: clear gap
-  \draw[cfline] (planner.south) |- (mani);        % drop, then left onto the bus
-  \draw[cfline] (mani) -- (\xbus,\ryc);           % vertical bus down the margin
-  \foreach \y in {\rya,\ryb,\ryc}{
-    \node[cfdot] at (\xbus,\y) {};
-    \draw[cfarr] (\xbus,\y) -- (\xC,\y);          % level tap into each claim
+  % The generated ball remains fully opaque while entering and emerging from
+  % the wall; only geometric occlusion hides the fraction inside solid matter.
+  % At x=7.79 the center lies on the projected near wall face, so exactly the
+  % left half remains visible after the wall is restored on top.
+  \foreach \xx/\ang in {8.36/318,8.80/344}{
+    \node[inner sep=0pt,opacity=.26,rotate=\ang] at
+      (\xx,{-3.03-.205*(\xx-6.68)*(\xx-6.68)})
+      {\includegraphics[width=.43cm]{figs/assets/rigid_basketball_v5.png}};
+    \draw[adobered,opacity=.48,line width=.5pt]
+      (\xx,{-3.03-.205*(\xx-6.68)*(\xx-6.68)}) circle (.218);
   }
+  \node[inner sep=0pt,rotate=291] at
+    (7.79,{-3.03-.205*(7.79-6.68)*(7.79-6.68)})
+    {\includegraphics[width=.43cm]{figs/assets/rigid_basketball_v5.png}};
+  \draw[adobered,opacity=.82,line width=.65pt]
+    (7.79,{-3.03-.205*(7.79-6.68)*(7.79-6.68)}) circle (.218);
+  \node[inner sep=0pt,rotate=304] at
+    (8.17,{-3.03-.205*(8.17-6.68)*(8.17-6.68)})
+    {\includegraphics[width=.43cm]{figs/assets/rigid_basketball_v5.png}};
+  \node[inner sep=0pt,rotate=330] at
+    (8.55,{-3.03-.205*(8.55-6.68)*(8.55-6.68)})
+    {\includegraphics[width=.43cm]{figs/assets/rigid_basketball_v5.png}};
+  \node[inner sep=0pt,rotate=358] at
+    (9.05,{-3.03-.205*(9.05-6.68)*(9.05-6.68)})
+    {\includegraphics[width=.43cm]{figs/assets/rigid_basketball_v5.png}};
+  \draw[adobered,opacity=.82,line width=.65pt]
+    (8.55,{-3.03-.205*(8.55-6.68)*(8.55-6.68)}) circle (.218);
+  \draw[adobered,opacity=.82,line width=.65pt]
+    (9.05,{-3.03-.205*(9.05-6.68)*(9.05-6.68)}) circle (.218);
 
-  % =================================================================
-  %  DETERMINISTIC ROLL-UP + localized outputs
-  % =================================================================
-  \def\ryd{-9.05}
-  \node[cfdet, text width=3.0cm, anchor=west] (roll) at (\xC,\ryd)
-    {\textbf{Deterministic roll-up}\\[1pt]
-     \cfsub{any one contradiction $\Rightarrow$ clip implausible}};
-  \node[bcon, text width=2.6cm, anchor=west, font=\sffamily\bfseries\small,
-        minimum height=0.9cm] (clip) at (4.4,\ryd)
-    {clip:\\ IMPLAUSIBLE};
-  \node[cfdet, text width=5.6cm, anchor=west] (pkt) at (8.4,\ryd)
-    {\textbf{Localized evidence packet} $\mathcal{F}$\\[1pt]
-     \cfsub{what failed $\cdot$ the supporting evidence $\cdot$
-     where in the clip}};
+  % Restore the photographed wall over the trajectory and balls.  This
+  % perspective-matched polygon is the projected solid wall volume.
+  \begin{scope}
+    \clip (7.91,-1.30) -- (8.25,-1.30) --
+          (8.25,-4.64) -- (7.70,-4.64) -- cycle;
+    \node[anchor=north west,inner sep=0pt] at (0.18,-1.30)
+      {\includegraphics[width=10.64cm,height=4.43cm]
+       {figs/assets/ball_wall_studio_bg_v4.png}};
+  \end{scope}
 
-  \draw[cfarr] (roll.east) -- (clip.west);
-  \draw[cfarr] (clip.east) -- (pkt.west);
+  % Legend is an analysis overlay, so it is drawn after restoring the opaque
+  % wall rather than being accidentally occluded as part of the scene.
+  \node[micro,anchor=west,text=adobeink] at (6.00,-1.58) {Observed};
+  \draw[adobeink!72,line width=.75pt] (6.76,-1.58) -- (7.03,-1.58);
+  \node[micro,anchor=west,text=figteal!85!adobeink] at (7.14,-1.58)
+    {Expected};
+  \draw[figteal,line width=.9pt] (8.01,-1.58) -- (8.28,-1.58);
+  \node[micro,anchor=west,text=adobered!85!adobeink] at (8.39,-1.58)
+    {Generated error};
+  \draw[adobered,line width=.9pt] (9.89,-1.58) -- (10.16,-1.58);
 
-  % the three states feed the roll-up: level exits onto a right-margin bus,
-  % one drop into a clear channel between the grid and the roll-up row, and a
-  % single arrow up into the roll-up. No feed line crosses a box.
-  \def\xret{13.45}\def\yret{-8.30}
-  \foreach \b/\y in {b1/\rya, b2/\ryb, b3/\ryc}{
-    \draw[cfline] (\b.east) -- (\xret,\y);
-    \node[cfdot] at (\xret,\y) {};
-  }
-  \draw[cfline] (\xret,\rya) -- (\xret,\ryc);      % vertical return bus
-  \coordinate (chan) at (\xret,\yret);             % channel, right end
-  \draw[cfline] (\xret,\ryc) -- (chan) -- (roll.north |- chan);
-  \draw[cfarr]  (roll.north |- chan) -- (roll.north);
+  % The event windows continue through scene and audio, making both modalities
+  % readings of one clock rather than two juxtaposed illustrations.
+  \path[fill=adobebg,opacity=.16]
+    (3.96,-1.63) rectangle (4.16,-7.71);
+  \draw[adobeink!52,line width=.5pt,dash pattern=on 2pt off 1.5pt]
+    (3.96,-1.63) -- (3.96,-7.73) (4.16,-1.63) -- (4.16,-7.73);
+  \path[fill=figteal,opacity=.075]
+    (7.475,-1.63) rectangle (7.675,-7.71);
+  \draw[figteal!74!adobeink,line width=.5pt,dash pattern=on 2pt off 1.5pt]
+    (7.475,-1.63) -- (7.475,-7.73) (7.675,-1.63) -- (7.675,-7.73);
+  \node[micro,anchor=east,text=adobeink] at (3.86,-4.74)
+    {floor contact};
+  \node[micro,anchor=east,text=figteal!80!adobeink] at (6.92,-2.58)
+    {wall contact};
+  \node[font=\figboldfont,text=figteal,anchor=east,inner sep=0pt]
+    at (6.70,-3.92) {Expected rebound};
+  \node[font=\figboldfont,text=adobered,anchor=west,inner sep=0pt]
+    at (8.34,-3.13) {Penetration};
+
+  % Numbered anchors link the overview to the purely visual close-ups at right.
+  \node[evidencepin] at (.62,-2.30) {0};
+  \node[evidencepin] at (4.32,-4.25) {1};
+  \node[evidencepin] at (7.58,-2.78) {2};
+
+  % Transparent time-domain audio evidence.  Its event fractions are calibrated so the
+  % observed concrete impact (27.4%) and counterfactual wall template (66.6%)
+  % land at the corresponding visual contact x-coordinates above.
+  \path[fill=white,opacity=.38,rounded corners=4pt]
+    (0.18,-5.34) rectangle (10.82,-7.70);
+  \begin{scope}
+    \clip[rounded corners=4pt] (0.18,-5.34) rectangle (10.82,-7.70);
+    \node[anchor=north west,inner sep=0pt] at (0.18,-5.53)
+      {\includegraphics[width=10.64cm,height=2.02cm]
+       {figs/assets/impact_audio_waveform_v4.png}};
+  \end{scope}
+  \node[micro,anchor=west,text=adobeink] at (.76,-5.50) {Audio waveform};
+  \node[micro,anchor=south,text=adobeink] at (\xGroundEvent,-5.38)
+    {observed floor impact};
+  \node[micro,anchor=south,text=figteal] at (\xWallEvent,-5.38)
+    {expected wall impact};
+  % Place the audio pin above the waveform baseline and draw it last so the
+  % raster trace cannot run through the numeral.
+  \node[evidencepin] at (.50,-5.72) {3};
+
+  \end{scope}
+
+  % -------------------------------------------------------------------
+  % 3. Purely visual close-ups.  Matching numbers connect these views to the
+  % evidence surface without a prose ledger.
+  % -------------------------------------------------------------------
+  \begin{scope}[yshift=-.96cm]
+    % 0: equal-time spin samples, with an explicit tilted axis and rotation
+    % arrow.  The ball size is fixed; only texture orientation changes.
+    % Use the same photographed studio surface behind every close-up.  The
+    % crop keeps the wall obstacle just outside this rotation view.
+    \begin{scope}
+      \clip[rounded corners=3pt] (11.02,-1.30) rectangle (15.82,-3.37);
+      \node[anchor=north west,inner sep=0pt] at (11.02,-1.30)
+        {\includegraphics[width=6.72cm]{figs/assets/ball_wall_studio_bg_v4.png}};
+    \end{scope}
+    \draw[draw=adobeink!20,line width=.5pt,rounded corners=3pt]
+      (11.02,-1.30) rectangle (15.82,-3.37);
+    \node[evidencepin] at (11.34,-1.58) {0};
+    \foreach \xx/\ang/\opa in {11.94/0/.30,12.84/38/.46,13.74/76/.68,14.76/114/1.0}{
+      \node[inner sep=0pt,opacity=\opa,rotate=\ang] at (\xx,-2.35)
+        {\includegraphics[width=.72cm]{figs/assets/rigid_basketball_v5.png}};
+    }
+    \draw[figteal!78!adobeink,line width=.65pt]
+      (14.48,-2.69) -- (15.05,-2.00);
+    \draw[figteal!88!adobeink,line width=.8pt,
+          -{Stealth[length=4pt,width=3.5pt]}]
+      (14.43,-2.12) .. controls (14.72,-1.87) and (15.17,-1.99) ..
+      (15.18,-2.32);
+
+    % 1: a photographic close-up of local floor-contact deformation.  The
+    % image is cropped rather than stretched, preserving the contact geometry.
+    \begin{scope}
+      \clip[rounded corners=3pt] (11.02,-3.49) rectangle (15.82,-5.56);
+      \node[anchor=north west,inner sep=0pt] at (11.02,-2.97)
+        {\includegraphics[width=4.80cm]
+         {figs/assets/basketball_ground_impact_closeup_v1.png}};
+    \end{scope}
+    \draw[draw=adobeink!20,line width=.5pt,rounded corners=3pt]
+      (11.02,-3.49) rectangle (15.82,-5.56);
+    \node[evidencepin] at (11.34,-3.77) {1};
+
+    % 2a: generated penetration.  The ball remains solid; a translucent
+    % cutaway of the rigid wall reveals the half occupying the solid region.
+    \begin{scope}
+      \clip[rounded corners=3pt] (11.02,-5.68) rectangle (13.36,-7.75);
+      \node[anchor=north west,inner sep=0pt] at (11.02,-5.68)
+        {\includegraphics[width=6.72cm]{figs/assets/ball_wall_studio_bg_v4.png}};
+    \end{scope}
+    \draw[draw=adobeink!20,line width=.5pt,rounded corners=3pt]
+      (11.02,-5.68) rectangle (13.36,-7.75);
+    \draw[adobered,line width=1.0pt]
+      (11.04,-5.69) -- (13.34,-5.69);
+    \node[evidencepin] at (11.31,-5.96) {2};
+    \draw[adobered,line width=1.05pt,line cap=round,
+          -{Stealth[length=4pt,width=3.4pt]}]
+      (11.34,-6.70) -- (13.20,-6.70);
+    % Equal-size, equal-height samples isolate the penetration error: the
+    % apparent event salience comes from opacity and wall occlusion, not scale.
+    \node[inner sep=0pt,opacity=.20,rotate=218] at (11.55,-6.70)
+      {\includegraphics[width=.84cm]{figs/assets/rigid_basketball_v5.png}};
+    \node[inner sep=0pt,rotate=258] at (12.28,-6.70)
+      {\includegraphics[width=.84cm]{figs/assets/rigid_basketball_v5.png}};
+    \node[inner sep=0pt,rotate=300] at (12.93,-6.70)
+      {\includegraphics[width=.84cm]{figs/assets/rigid_basketball_v5.png}};
+    % Reuse the photographed wall crop from the overview scene.  Opacity makes
+    % this a cutaway while preserving the exact material and illumination.
+    % Match the overview wall's visible page width (about .58 cm) without
+    % changing the source aspect ratio.  The naturally scaled wall is taller
+    % than this inset, so the panel clips it vertically instead of squashing it.
+    % Its near collision plane remains fixed at x=12.28.
+    \begin{scope}
+      \clip[rounded corners=3pt] (11.02,-5.68) rectangle (13.36,-7.75);
+      \node[anchor=center,inner sep=0pt,opacity=.76] at (12.57,-6.715)
+        {\includegraphics[width=.58cm]
+         {figs/assets/concrete_wall_closeup_from_scene_v1.png}};
+    \end{scope}
+    \draw[adobeink!40,line width=.55pt] (12.28,-5.72) -- (12.28,-7.71);
+    \draw[adobered,opacity=.85,line width=.7pt] (12.28,-6.70) circle (.42);
+
+    % 2b: the counterfactual rigid-wall rebound.  It shares the same contact
+    % geometry but stays outside the wall; all outgoing states are translucent
+    % and teal-ringed because they were expected, not observed.
+    \begin{scope}
+      \clip[rounded corners=3pt] (13.48,-5.68) rectangle (15.82,-7.75);
+      \node[anchor=north west,inner sep=0pt] at (11.02,-5.68)
+        {\includegraphics[width=6.72cm]{figs/assets/ball_wall_studio_bg_v4.png}};
+    \end{scope}
+    \draw[draw=adobeink!20,line width=.5pt,rounded corners=3pt]
+      (13.48,-5.68) rectangle (15.82,-7.75);
+    \draw[figteal,line width=1.0pt]
+      (13.50,-5.69) -- (15.80,-5.69);
+    % Use the same undistorted scale and let the wall finish at the panel's
+    % right edge.  The inner collision plane is therefore x=15.24.
+    \begin{scope}
+      \clip[rounded corners=3pt] (13.48,-5.68) rectangle (15.82,-7.75);
+      \node[anchor=center,inner sep=0pt] at (15.53,-6.715)
+        {\includegraphics[width=.58cm]
+         {figs/assets/concrete_wall_closeup_from_scene_v1.png}};
+    \end{scope}
+    \draw[adobeink!40,line width=.55pt] (15.24,-5.72) -- (15.24,-7.71);
+    \draw[adobeink!55,line width=.8pt,line cap=round]
+      (13.72,-6.82) .. controls (14.25,-6.74) and (14.57,-6.67) ..
+      (14.88,-6.67);
+    \draw[figteal,line width=1.1pt,line cap=round,
+          -{Stealth[length=4.2pt,width=3.6pt]}]
+      (14.88,-6.67) .. controls (14.51,-6.82) and (14.03,-7.14) ..
+      (13.70,-7.46);
+    \node[inner sep=0pt,opacity=.18,rotate=232] at (14.25,-6.76)
+      {\includegraphics[width=.72cm]{figs/assets/rigid_basketball_v5.png}};
+    % Every sample represents the same basketball.  With a .36 cm radius,
+    % the contact center at x=14.88 is tangent to the wall plane at x=15.24.
+    \node[inner sep=0pt,opacity=.28,rotate=258] at (14.88,-6.67)
+      {\includegraphics[width=.72cm]{figs/assets/rigid_basketball_v5.png}};
+    \draw[figteal,opacity=.85,line width=.7pt] (14.88,-6.67) circle (.36);
+    \foreach \xx/\yy/\ang in {14.47/-6.92/278,14.09/-7.16/298,13.71/-7.38/318}{
+      \node[inner sep=0pt,opacity=.18,rotate=\ang] at (\xx,\yy)
+        {\includegraphics[width=.72cm]{figs/assets/rigid_basketball_v5.png}};
+      \draw[figteal,opacity=.70,line width=.55pt] (\xx,\yy) circle (.36);
+    }
+  \end{scope}
+
+  % The example is a plain caption-like line, not a framed stage of the method.
+  \node[font=\figdetailfont,anchor=west,inner sep=0pt,text=adobeink]
+    at (0.24,-9.01)
+    {{\figdetailboldfont Sample prompt:} ``A spinning basketball bounces on the floor and rebounds from a rigid wall; impact sounds align with contact.''};
 
 \end{tikzpicture}
 \endgroup

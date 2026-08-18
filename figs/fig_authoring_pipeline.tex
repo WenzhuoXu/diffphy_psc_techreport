@@ -67,9 +67,14 @@
 % The figure is descriptive of the method only: no accuracy, no comparison
 % between configurations, and no quantity of any kind appears in it.
 %
-% Full-width boxes are 13.1cm, matching fig_graph_construction.tex, so the whole
-% picture stays inside the report's text width unscaled -- do not add scale= or
-% \resizebox.
+% The picture is a horizontal left-to-right pipeline about 12.9cm wide, so it
+% stays inside the report's text width unscaled -- do not add scale= or
+% \resizebox. Box labels are intentionally terse: the operational detail lives in
+% the prose of \ref{sec:gen-authoring}, \ref{sec:gen-control} and
+% \ref{sec:gen-mechanism}, so the figure carries only the dataflow -- the main
+% spine (author -> simulate -> validate -> render -> generate), the bounded
+% re-author loop dropping below the simulate/validate span, and the separate
+% appearance track feeding the hand-off from below.
 % =====================================================================
 % The TikZ libraries must be loaded in the PREAMBLE, not here: a figure
 % environment forms a group, and TikZ defines a library's macros locally, so a
@@ -102,146 +107,98 @@
 
 \begin{tikzpicture}[
     x=1cm, y=1cm,
-    % --- shared box shape -------------------------------------------------
+    % --- shared box shape: terse title only; detail lives in the prose ----
     apbox/.style   = {rounded corners=2pt, line width=0.7pt, align=center,
-                      inner sep=3.6pt, font=\sffamily\footnotesize,
-                      text=adobeink},
+                      inner xsep=6pt, inner ysep=4.2pt,
+                      font=\sffamily\footnotesize, text=adobeink,
+                      minimum height=8.5mm},
     % --- LEARNED component: light gray fill --------------------------------
     aplearn/.style = {apbox, draw=adobeink, fill=adobegray!12},
     % --- DETERMINISTIC component: white with an ink outline ----------------
     apdet/.style   = {apbox, draw=adobeink, fill=white},
-    % --- accent: the check a specification must pass before it is rendered --
-    apgate/.style  = {apbox, draw=adobered, fill=white},
-    % --- what is handed to the system --------------------------------------
-    apdata/.style  = {apbox, draw=adobegray, fill=white, inner sep=3pt,
+    % --- accent: the check a trajectory must pass before it is rendered -----
+    apgate/.style  = {apbox, draw=adobered, line width=0.9pt, fill=white,
+                      text=adobered},
+    % --- what is handed to the system (input) ------------------------------
+    apdata/.style  = {apbox, draw=adobegray, fill=white,
                       dash pattern=on 2pt off 1.6pt},
     apline/.style  = {draw=adobeink, line width=0.7pt},
     aparr/.style   = {apline, -{Straight Barb[length=3.6pt,width=3.8pt]}},
+    % the re-author loop, drawn in the accent colour so the cycle reads at a glance
+    aploop/.style  = {draw=adobered, line width=0.7pt,
+                      -{Straight Barb[length=3.6pt,width=3.8pt]}},
     apnote/.style  = {font=\sffamily\scriptsize, text=adobegray,
                       inner sep=0pt, align=left},
     aptag/.style   = {font=\sffamily\scriptsize, text=adobegray, fill=white,
                       inner xsep=3pt, inner ysep=1pt, align=center},
+    aptagr/.style  = {aptag, text=adobered},
     apsw/.style    = {rounded corners=1.2pt, line width=0.7pt, inner sep=0pt,
                       minimum width=11pt, minimum height=7.5pt},
   ]
 
-  % Full-width rows are centred on x=0 and 13.1cm wide, so their left edge sits
-  % at x=-6.55; the return lane sits just outside that, and the tag to its left
-  % is what sets the picture's left extent.
+  % Layout: a horizontal main spine along y=0, left to right, sized to the text
+  % width (five boxes: author -> simulate -> validate -> render -> generate).
+  % The hand-off is folded into the render->generate arrow. The bounded
+  % re-author loop drops below the simulate/validate span; the appearance track
+  % sits below the render->generate span and joins the hand-off arrow from below.
+  \def\bw{1.8cm}          % spine-box width
+  \def\hg{0.46}           % horizontal gap between spine boxes
+  \tikzset{spine/.style={apbox, text width=\bw, minimum height=13mm,
+                         anchor=west}}
 
-  % ---------------- the scene specification (learned) ----------------------
-  \node[aplearn, text width=13.1cm, anchor=north] (author) at (0,0)
-    {\textbf{A language model writes the scene specification}\\[1.5pt]
-     \apsub{the bodies, their initial positions and velocities, the static
-     surfaces they interact with,\\ and a camera. A body on a ballistic segment
-     carries an initial velocity and its colliders;\\ prescribed waypoints are
-     reserved for motion the simulator would otherwise override, such as\\ a
-     rising balloon. A reply missing a required field, or naming a control strength
-     outside\\ the allowed range, is re-asked once}};
+  % ---------------- main spine (left -> right) -----------------------------
+  \node[spine, apdata] (spec)   at (0,0) {\textbf{Physics request}\\[1pt]\apsub{text}};
+  \node[spine, aplearn] (author) at ($(spec.east)+(\hg,0)$)
+    {\textbf{LM writes scene spec}};
+  \node[spine, apdet] (sim) at ($(author.east)+(\hg,0)$)
+    {\textbf{Simulate}\\[1pt]\apsub{renderer's engine}};
+  \node[spine, apgate] (gate) at ($(sim.east)+(\hg,0)$)
+    {\textbf{Validate trajectory}};
+  \node[spine, apdet] (render) at ($(gate.east)+(\hg,0)$)
+    {\textbf{Camera + render control}};
+  \node[spine, aplearn] (gen) at ($(render.east)+(1.35,0)$)
+    {\textbf{Diffusion backbone}};
 
-  \node[apdata, text width=6.8cm, anchor=south]
-    (spec) at ($(author.north)+(0,0.40)$)
-    {\textbf{Physics description, in text}\\[1.5pt]
-     \apsub{the physical event the clip is\\ required to show}};
+  % ---------------- re-author loop (accent), below sim/validate ------------
+  \node[aplearn, text width=3.4cm, anchor=north, minimum height=8.5mm]
+    (repair) at ($(sim.south)!0.5!(gate.south)+(0,-0.92)$)
+    {\textbf{Re-author}\ \ \apsub{$\leq 3$ rounds}};
 
-  % ---------------- simulation (deterministic) -----------------------------
-  \node[apdet, text width=13.1cm, anchor=north]
-    (sim) at ($(author.south)+(0,-0.34)$)
-    {\textbf{The specification is simulated by the same engine the renderer runs}\\[1.5pt]
-     \apsub{the rigid-body simulator integrates the scene, producing the arc, the
-     contact and the settling.\\ The trajectory checked below is the one the control
-     video will show}};
+  % ---------------- appearance track (learned), below render->gen ----------
+  \node[aplearn, text width=3.7cm, anchor=north, minimum height=8.5mm]
+    (texture) at ($(render.south east)!0.5!(gen.south west)+(0,-0.92)$)
+    {\textbf{Appearance written separately}\\[1pt]\apsub{no access to the control}};
 
-  % ---------------- validation on the realized trajectory (accented) -------
-  \node[apgate, text width=13.1cm, anchor=north]
-    (gate) at ($(sim.south)+(0,-0.34)$)
-    {{\color{adobered}\textbf{Validation is applied to the simulated trajectory}}\\[1.5pt]
-     \apsub{a ballistic segment must trace an arc that reaches its target, or
-     cleanly misses it where the\\ corrected outcome requires, and come to rest on
-     a surface or on another body; a rising\\ segment must gain height; no body may
-     leave the frame; a segment declared ballistic must be\\ simulated}};
+  % ---------------- edges: main spine --------------------------------------
+  \draw[aparr] (spec)    -- (author);
+  \draw[aparr] (author)  -- (sim);
+  \draw[aparr] (sim)     -- (gate);
+  \draw[aparr] (gate)    -- (render)
+        node[aptagr, midway, above=0pt] {validated};
+  % render -> generate carries the hand-off (control + appearance + seed + strength)
+  \draw[aparr] (render)  -- (gen)
+        node[aptag, midway, above=0pt] {hand off};
 
-  % ---------------- the two ways out of validation -------------------------
-  \coordinate (fan) at ($(gate.south)+(0,-0.32)$);
+  % ---------------- re-author loop: validate -> re-author -> re-simulate ----
+  \draw[aploop] (gate.south) |- (repair.east)
+        node[aptagr, pos=0.28, right=1pt] {violated};
+  \draw[aploop] (repair.west) -| (sim.south)
+        node[aptagr, pos=0.72, left=1pt] {re-simulate};
 
-  \node[aplearn, text width=6.2cm, anchor=north west]
-    (repair) at ($(gate.south west)+(0,-0.82)$)
-    {\textbf{Returned to the model and re-authored}\\[1.5pt]
-     \apsub{the violated condition is attached, together\\ with what the engine
-     actually produced ---\\ where each body started, where it ended,\\ how high
-     it went --- and the model returns a\\ corrected specification; three rounds
-     at most}};
+  % ---------------- appearance joins the hand-off arrow from below ---------
+  \draw[aparr] (texture.north) -- ($(render.east)!0.5!(gen.west)$);
 
-  \node[aplearn, text width=6.2cm, anchor=north east]
-    (texture) at ($(gate.south east)+(0,-0.82)$)
-    {\textbf{Appearance is written separately}\\[1.5pt]
-     \apsub{a second request, given no access to the\\ control, describes the scene
-     as filmed;\\ replies naming the control's own\\ appearance are rewritten}};
-
-  % ---------------- camera, render, and what the generator receives --------
-  \node[apdet, text width=13.1cm, anchor=north]
-    (camera) at ($(0,0 |- repair.south)+(0,-0.46)$)
-    {\textbf{The camera is applied to the accepted specification}\\[1.5pt]
-     \apsub{a panning camera becomes a slow uniform drift of the whole scene; an
-     orbit or a push-in is left\\ to the generator; bodies serving as graphics are
-     dropped here}};
-
-  \node[apdet, text width=13.1cm, anchor=north]
-    (render) at ($(camera.south)+(0,-0.34)$)
-    {\textbf{The accepted specification is rendered into the control video}\\[1.5pt]
-     \apsub{the scene is expanded into its full geometry and every frame is drawn
-     from the simulated\\ state over the clip's fixed frame budget, with a contact
-     sheet saved alongside}};
-
-  \node[apdet, text width=13.1cm, anchor=north]
-    (planrow) at ($(render.south)+(0,-0.34)$)
-    {\textbf{What is handed to the generator}\\[1.5pt]
-     \apsub{the control video, the appearance description, the excluded terms, a
-     fixed seed, and the\\ strength at which the control is applied, which is
-     lowered when the control covers little\\ of the frame}};
-
-  \node[aplearn, text width=13.1cm, anchor=north]
-    (gen) at ($(planrow.south)+(0,-0.34)$)
-    {\textbf{The diffusion backbone follows the control video}\\[1.5pt]
-     \apsub{motion comes from the control video; identity, materials, lighting
-     and environment from\\ the appearance description}};
-
-  % ---------------- edges ------------------------------------------------
-  \draw[aparr] (spec.south)    -- (author.north);
-  \draw[aparr] (author.south)  -- (sim.north);
-  \draw[aparr] (sim.south)     -- (gate.north);
-
-  % validation splits: re-author on the left, carry on down on the right
-  \draw[apline] (gate.south) -- (fan);
-  \draw[apline] (repair.north |- fan) -- (texture.north |- fan);
-  \draw[aparr]  (repair.north  |- fan) -- (repair.north);
-  \draw[aparr]  (texture.north |- fan) -- (texture.north);
-
-  % the re-authored specification goes back through the simulator, up the
-  % left-hand lane -- it is never accepted on the model's word
-  \draw[aparr] (repair.west) -- ($(repair.west)+(-0.47,0)$) |- (sim.west);
-
-  \draw[aparr] (texture.south) -- (texture.south |- camera.north);
-  \draw[aparr] (camera.south)  -- (render.north);
-  \draw[aparr] (render.south)  -- (planrow.north);
-  \draw[aparr] (planrow.south) -- (gen.north);
-
-  % labels drawn last, so the lines they sit on do not strike through them
-  \node[aptag, anchor=south] at ($(repair.north)+(0,0.06)$)
-    {a condition was violated};
-  \node[aptag, anchor=south] at ($(texture.north)+(0,0.06)$) {accepted};
-  \node[aptag, anchor=east]  at ($(sim.west)+(-0.47,0.42)$) {re-simulated};
-
-  % ---------------- inline legend ----------------------------------------
+  % ---------------- inline legend (below everything) -----------------------
+  \coordinate (leg) at ($(spec.west |- repair.south)+(0,-0.62)$);
   \node[apsw, draw=adobeink, fill=adobegray!12, anchor=north west]
-    (swA) at ($(gen.south west)+(0,-0.44)$) {};
+    (swA) at (leg) {};
   \node[apnote, right=3pt of swA] (lbA) {learned};
 
   \node[apsw, draw=adobeink, fill=white, right=9pt of lbA] (swB) {};
   \node[apnote, right=3pt of swB] (lbB) {deterministic};
 
   \node[apsw, draw=adobered, fill=white, right=9pt of lbB] (swC) {};
-  \node[apnote, right=3pt of swC] (lbC) {checked on the simulated trajectory};
+  \node[apnote, right=3pt of swC] (lbC) {trajectory check and re-author loop};
 
   \node[apsw, draw=adobegray, fill=white, dash pattern=on 2pt off 1.6pt,
         right=9pt of lbC] (swD) {};

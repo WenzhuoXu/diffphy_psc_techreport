@@ -61,7 +61,7 @@
 % Section and caption format %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \RequirePackage{titlesec}
-\titleformat*{\paragraph}{\itshape}
+\titleformat*{\paragraph}{\bfseries}
 \titleformat*{\section}{\Large\sffamily\bfseries}
 \titleformat*{\subsection}{\large\sffamily\bfseries}
 \titleformat*{\subsubsection}{\normalsize\sffamily\bfseries}
@@ -140,11 +140,6 @@
   \tcbset{before skip=0pt}
   \tcbset{grow to left by=1.5pt}
   \tcbset{grow to right by=1.5pt}
-  \tcbset{overlay={\node[
-    anchor=south east,
-    at= (frame.south east),
-    xshift=-0.5cm,
-    yshift=0.5cm] {\includegraphics[width=3cm]{assets/adobe_logo.png}};}}
   %
   \begin{tcolorbox}
     \setlength{\parindent}{0cm}
