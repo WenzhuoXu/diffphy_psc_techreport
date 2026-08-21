@@ -3,8 +3,8 @@
 
 \begin{table}[t]
 \centering\small
-\setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.18}
-\begin{tabular}{@{}p{6.1cm} c c c@{}}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}L c c c@{}}
 \toprule
 \textbf{Evaluator} & \textbf{$J$ exo} & \textbf{$J$ ego} & \textbf{Flag rate} \\
 \midrule
@@ -27,7 +27,7 @@ Untrained humans (reference) & $30.7\%$ & $56.0\%$ & $52.7\%$ \\
 \quad Cosmos Reason 1 & $0.1\%$ & $0.5\%$ & $2.8\%$ \\
 \quad Cosmos Reason 2 & $0.9\%$ & $0.5\%$ & $1.2\%$ \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{Physion-Eval~\cite{physioneval2026} benchmark table. This work's rows are
 measured on the first $601$ release clips of a fixed randomized stream ($543$ with a
 reported glitch, $58$ without): the evidence-conditioned and anomaly-phrased rows report

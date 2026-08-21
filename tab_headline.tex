@@ -3,8 +3,8 @@
 
 \begin{table}[t]
 \centering\small
-\setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.15}
-\begin{tabular}{@{}p{4.4cm} c c c c c@{}}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}L c c c c c@{}}
 \toprule
 \textbf{Annotated flaw category} & \textbf{Annotated} & \textbf{Whole}
  & \textbf{Partial} & \textbf{Found} & \textbf{Recall} \\
@@ -22,7 +22,7 @@ physical motion & 7 & 4 & 0 & 4 & 57\% \\
 \midrule
 \textbf{All} & \textbf{304} & 191 & 37 & \textbf{228} & \textbf{75.0\%} \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{Flaw recall on the evaluation core, by annotated flaw category: $228$ of $304$
 human-annotated flaws over $149$ clips. Whole and partial are the match outcomes defined in
 \cref{sec:matching}; Found is their sum. Categories are the annotators' labels, assigned

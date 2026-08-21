@@ -1,0 +1,52 @@
+% Merged specialist manifest, three columns. The capability and the frozen model that runs
+% it are folded into one "Capability (model)" column, so each capability is a single
+% independent row (no \multirow) and the two description columns get the width to stay on
+% one line. License column dropped; the one non-commercial license (depth ordering,
+% CC-BY-NC-4.0) is stated in the caption. Hand-maintained.
+% Tracks come from TAPNext++ (per Sec. 5); SAM 3 does grounding/masks/count.
+
+\begin{table}[t]
+\centering\small
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\textwidth}{@{}p{6.35cm} X X@{}}
+\toprule
+\textbf{Capability (model)} & \textbf{Running backend} & \textbf{Returned object} \\
+\midrule
+Planner (Qwen3-VL-30B-A3B, 31\,B)~\cite{qwen3vl2025}
+  & prompt compiled pre-frame & claims and a typed plan \\
+Semantic predicate (Qwen3-VL)
+  & dense timestamped pass & learned base state, rationale \\
+Event timing (Qwen3-VL)
+  & over timestamped frames & interval, absence, or refusal \\
+Fallback verify (gpt-5.6-sol)
+  & on a claim the dense pass passed & three-valued state, both kept \\
+Grounding, masks (SAM~3, 0.9\,B)~\cite{sam3_2025}
+  & SAM~3 Video, persistent IDs & per-frame masks, tracked IDs \\
+Object count (SAM~3)
+  & cardinality of SAM~3 IDs & count, per-frame series \\
+Physical measurement (TAPNext++)~\cite{tapnext2025}
+  & 11 typed operations over tracks & typed measurement, evidence \\
+Depth ordering (SenseNova-7B-MoT)
+  & depth model on localized evidence & behind / in-front ordering \\
+Camera cancellation (from tracks)
+  & dense optical flow subtracted & subject-relative displacement \\
+Rendered text (PaddleOCR PP-OCRv5)
+  & OCR head + EasyOCR fallback & literal glyph transcription \\
+Audio (FlexSED)~\cite{flexsed2025}
+  & sound-event detection & sound intervals on the track \\
+\bottomrule
+\end{tabularx}
+\caption{Execution backends and the frozen specialist behind each capability, for the
+evaluated run: each row names a capability with the model or checkpoint that runs it (with
+its parameter count where published), the backend it runs, and the object it returns.
+SAM~3 supplies grounding, masks, and counting, while TAPNext++ supplies the tracks the
+eleven typed operations (\cref{sec:physics}) are taken over; the two learned components
+(semantic predicate and depth ordering) and the fallback verifier are the only backends
+that may resolve a claim, and no holistic video-quality model produces the clip decision.
+Every component is frozen at the listed revision for all reported results, and
+\texttt{gpt-5.6-sol} is a closed model (SenseNova SOL) served through an internal proxy.
+All released components are under permissive licenses (Apache-2.0, MIT, or Meta's SAM
+license) except the depth-ordering model, which is CC-BY-NC-4.0 (non-commercial).}
+\label{tab:specialists}
+\end{table}

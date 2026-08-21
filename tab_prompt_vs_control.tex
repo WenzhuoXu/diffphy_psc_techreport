@@ -3,8 +3,8 @@
 
 \begin{table}[t]
 \centering\small
-\setlength{\tabcolsep}{7pt}\renewcommand{\arraystretch}{1.2}
-\begin{tabular}{@{}p{5.2cm} c c@{}}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}L c c@{}}
 \toprule
 \textbf{Control applied for} & \textbf{Spread across clauses} & \textbf{Spread across seeds} \\
 \midrule
@@ -12,7 +12,7 @@ no steps & 0.875 & 0.252 \\
 the first $10$ of $50$ steps & 0.060 & 0.427 \\
 all $50$ steps & 0.001 & one seed \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{Sideways travel varies with the prompt's motion clause when the geometric control is absent, and with the seed when it is present. Each entry is a range (largest minus smallest) of travel in frame widths: the first column holds the seed fixed and varies the clause, the second holds the clause fixed and varies the seed. The control video is identical throughout. As the control acts over more of sampling the clause-attributable range falls to $0.001$, while the seed-attributable range does not fall with it.}
 \label{tab:promptcontrol}
 \end{table}

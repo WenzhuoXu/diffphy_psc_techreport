@@ -18,6 +18,11 @@ from matplotlib import font_manager  # noqa: E402
 R = Path.home() / "diffphy_exp013"
 ART = R / "artifacts/runs/exp013/exp029"
 GOLD = R / "artifacts/runs/exp013/gold_v1/gold_full_v1.json"
+# fall back to the exported data bundle when the original run tree is absent
+_BUNDLE = Path("/Users/jigu/work/reports/techreport_figure_data/fig17_icl_aggregate")
+if not (ART / "coverage_curve_k0.json").exists() and _BUNDLE.exists():
+    ART = _BUNDLE
+    GOLD = _BUNDLE / "gold_full_v1.json"
 OUT = Path(__file__).resolve().parent
 
 INK, GRAY, LIGHT = "#1A1A1A", "#6E6E6E", "#D8D8D8"
@@ -44,19 +49,31 @@ def paired_ci(gained: int, lost: int, z: float = 1.96) -> tuple[float, float]:
     return (2 * lo - 1) * d, (2 * hi - 1) * d
 
 
-def use_source_sans() -> None:
-    for p in ("/System/Library/Fonts/Supplemental/", "/Library/Fonts/"):
-        for n in ("SourceSans3-Regular.otf", "SourceSansPro-Regular.otf"):
-            if (Path(p) / n).exists():
-                font_manager.fontManager.addfont(str(Path(p) / n))
-                plt.rcParams["font.family"] = font_manager.FontProperties(
-                    fname=str(Path(p) / n)).get_name()
-                return
-    plt.rcParams["font.family"] = "DejaVu Sans"
+def use_source_serif() -> None:
+    """Match the report body face (serif), like the other data figures."""
+    import glob
+    roots = [
+        "/usr/local/texlive/2024/texmf-dist/fonts/opentype/adobe/sourceserifpro",
+        str(Path.home() / "Library/Caches/Tectonic/bundles/data/*"),
+        str(Path.home() / "Library/Fonts"), "/Library/Fonts",
+        "/System/Library/Fonts/Supplemental",
+    ]
+    for root in roots:
+        for base in glob.glob(root):
+            for f in glob.glob(str(Path(base) / "SourceSerif*.otf")) + \
+                     glob.glob(str(Path(base) / "SourceSerif*.ttf")):
+                try:
+                    font_manager.fontManager.addfont(f)
+                except Exception:
+                    pass
+    plt.rcParams.update({
+        "font.family": "serif",
+        "font.serif": ["Source Serif 4", "Source Serif Pro", "DejaVu Serif"],
+    })
 
 
 def main() -> int:
-    use_source_sans()
+    use_source_serif()
     B, IND = {}, {}
     for L, (_, cf, rf) in DOSE.items():
         B[L] = json.load(open(ART / cf))["framework"]["_buckets"]
@@ -85,45 +102,65 @@ def main() -> int:
         lo, hi = paired_ci(gd, ls) if L else (0.0, 0.0)
         pts.append((x, L, c, base + lo, base + hi, gd, ls))
 
-    fig, ax = plt.subplots(figsize=(6.6, 3.4))
-    xs = [p[0] for p in pts]
+    # Half-column, near-square. Even categorical x-spacing so the one thing this
+    # figure has to show---the jump from untaught to taught, then a dead-flat
+    # plateau across dose---is not squeezed into the leftmost fifth of a wide
+    # axis. The teaching gain gets a full step and its own arrow; the four taught
+    # doses collapse into a thin band whose height is the whole "dose effect".
+    RED = "#D64525"  # a legible ink-red for the headline gain (adobered is too pale at this weight)
+    fig, ax = plt.subplots(figsize=(3.4, 3.15))
+    xc = list(range(len(pts)))                     # 0..4, evenly spaced conditions
     ys = [p[2] for p in pts]
-    cap = max(p[4] for p in pts)  # highest whisker top: the taught labels sit in a row above it
+    taught = pts[1:]
+    plo, phi = min(p[2] for p in taught), max(p[2] for p in taught)  # 374..377
+    gain = ys[1] - base                            # +35 at the first taught dose
 
-    ax.plot([xs[0], xs[-1]], [base, base], color=GRAY, lw=HAIRLINE, ls=(0, (1.4, 2.2)), zorder=1)
-    for x, L, y, lo, hi, gd, ls in pts[1:]:
-        ax.plot([x, x], [lo, hi], color=GRAY, lw=1.1, zorder=2, solid_capstyle="round")
+    # plateau band across the taught doses: its (tiny) height is the dose effect
+    ax.fill_between([xc[1] - 0.34, xc[-1] + 0.34], plo, phi, color=LIGHT, zorder=0)
+    ax.plot([xc[0], xc[-1]], [base, base], color=GRAY, lw=HAIRLINE, ls=(0, (1.4, 2.2)), zorder=1)
+
+    # whiskers: light and thin so they read as context, not as the subject
+    for i, (x, L, y, lo, hi, gd, ls) in enumerate(pts[1:], start=1):
+        ax.plot([xc[i], xc[i]], [lo, hi], color=GRAY, lw=0.9, alpha=0.55, zorder=2,
+                solid_capstyle="round")
         for e in (lo, hi):
-            ax.plot([x - 1.8, x + 1.8], [e, e], color=GRAY, lw=1.1, zorder=2)
-    ax.plot(xs[1:], ys[1:], color=INK, lw=1.5, zorder=3)
-    ax.plot(xs[:2], ys[:2], color=INK, lw=1.5, zorder=3)
-    ax.plot(xs, ys, "o", ms=6.2, mfc="white", mec=INK, mew=1.5, zorder=5)
+            ax.plot([xc[i] - 0.08, xc[i] + 0.08], [e, e], color=GRAY, lw=0.9, alpha=0.55, zorder=2)
 
-    for x, L, y, lo, hi, gd, ls in pts:
-        txt = f"{'untaught' if L == 0 else f'{L} lessons'}\n{y}  ({100 * y / n:.1f}%)"
-        if L:
-            ax.annotate(txt, (x, cap), textcoords="offset points", xytext=(0, 7),
-                        fontsize=8.3, color=INK, ha="center", va="bottom", linespacing=1.35)
-        else:
-            ax.annotate(txt, (x, base), textcoords="offset points", xytext=(9, -7),
-                        fontsize=8.3, color=INK, ha="left", va="top", linespacing=1.35)
+    ax.plot(xc, ys, color=INK, lw=1.5, zorder=3)
+    ax.plot(xc, ys, "o", ms=5.6, mfc="white", mec=INK, mew=1.5, zorder=5)
 
-    ax.set_xlim(-7, 130)
-    ax.set_ylim(base - 13, cap + 13)
-    yt = list(range(int(base), int(cap) + 1, 10))
-    ax.set_xticks(xs)
+    # headline: the teaching gain, drawn as an arrow from baseline up to the plateau
+    xa = 0.5
+    ax.annotate("", xy=(xa, plo - 0.8), xytext=(xa, base + 0.8),
+                arrowprops=dict(arrowstyle="-|>", color=RED, lw=1.9,
+                                shrinkA=0, shrinkB=0, mutation_scale=13), zorder=6)
+    ax.text(xa + 0.14, base + 8.5, f"+{gain} flaws\n(+{100 * gain / n:.1f} pts)",
+            color=RED, fontsize=8.6, ha="left", va="center", fontweight="bold", linespacing=1.15)
+
+    ax.annotate("untaught\n%d  (%.1f%%)" % (base, 100 * base / n), (xc[0], base),
+                textcoords="offset points", xytext=(2, -6), fontsize=8.2, color=INK,
+                ha="left", va="top", linespacing=1.3)
+    ax.text(xc[2] + 0.5, phi + 1.5, "taught: %d–%d flaws (≈%.1f%%)\nflat across dose (p ≥ 0.8)"
+            % (plo, phi, 100 * ys[-1] / n), fontsize=8.2, color=INK, ha="center", va="bottom",
+            linespacing=1.3)
+
+    ax.set_xlim(-0.42, 4.42)
+    ax.set_ylim(326, 398)
+    yt = list(range(330, 391, 10))
+    ax.set_xticks(xc)
+    ax.set_xticklabels([str(p[0]) for p in pts])
     ax.set_yticks(yt)
-    ax.set_xlabel("experience clips the lessons were distilled from", fontsize=8.6, color=GRAY)
-    ax.set_ylabel(f"flaws found (of {n})", fontsize=8.6, color=GRAY)
+    ax.set_xlabel("experience clips the lessons were distilled from", fontsize=8.4, color=GRAY)
+    ax.set_ylabel(f"flaws found (of {n})", fontsize=8.4, color=GRAY)
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
     for s in ("left", "bottom"):
         ax.spines[s].set_linewidth(HAIRLINE)
         ax.spines[s].set_color(GRAY)
     ax.spines["left"].set_bounds(yt[0], yt[-1])
-    ax.spines["bottom"].set_bounds(xs[0], xs[-1])
-    ax.tick_params(labelsize=8.1, colors=GRAY, width=HAIRLINE, length=2.5)
-    fig.tight_layout()
+    ax.spines["bottom"].set_bounds(xc[0], xc[-1])
+    ax.tick_params(labelsize=8.0, colors=GRAY, width=HAIRLINE, length=2.5)
+    fig.tight_layout(pad=0.4)
     for ext in ("pdf", "png"):
         fig.savefig(OUT / f"fig_icl_aggregate.{ext}", dpi=220)
         print(f"[write] {OUT / f'fig_icl_aggregate.{ext}'}")

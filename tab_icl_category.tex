@@ -3,8 +3,8 @@
 
 \begin{table}[t]
 \centering\small
-\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.15}
-\begin{tabular}{@{}>{\raggedright\arraybackslash}p{3.75cm} c c c c c c c c c@{}}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}L c c c c c c c c c@{}}
 \toprule
  & & \multicolumn{5}{c}{\textbf{Flaws found, with $\ell$ lessons}} & & & \\
 \cmidrule(lr){3-7}
@@ -22,7 +22,7 @@ physical motion & 15 & 9 & 8 & 12 & 9 & 9 & +0 (+0) & $[-11, +11]$ & 0 \\
 \midrule
 \textbf{All flaws} & \textbf{502} & \textbf{340} & \textbf{375} & \textbf{377} & \textbf{374} & \textbf{375} & \textbf{+35 (+7)} & \textbf{$[+3, +10]$} & \textbf{33} \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{Effect of the distilled lessons on each flaw category, over the same $502$ held-out flaws in every condition. A flaw is \emph{found} when the critic's findings cover it wholly or in part, as in \cref{tab:headline}. The five middle columns count that category's flaws found with no lessons and with $8$, $13$, $19$ and $33$ lessons, distilled from $25$, $50$, $75$ and $117$ experience clips; \textbf{Change} is the untaught-to-$33$ difference in flaws, with percentage points in brackets, since several categories carry few enough flaws that a rate alone would overstate the movement. Because the conditions score the same flaws the comparison is paired: the interval on the change is computed from the flaws whose found status switched, and is given in percentage points of that category's flaws. \textbf{Bold} marks the rows whose interval excludes zero. \textbf{Families} counts, over all $33$ lessons, those whose family name refers to that category, matching on the words in the name. The other category, containing $5$ flaws in all, is omitted from the category rows; the \emph{All flaws} row includes those flaws.}
 \label{tab:iclcategory}
 \end{table}

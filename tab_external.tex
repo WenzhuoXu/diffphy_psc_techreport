@@ -3,8 +3,8 @@
 
 \begin{table}[t]
 \centering\small
-\setlength{\tabcolsep}{5pt}\renewcommand{\arraystretch}{1.18}
-\begin{tabular}{@{}p{4.5cm} p{3.3cm} c c c@{}}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}L L c c c@{}}
 \toprule
 \textbf{Evaluator} & \textbf{Output it produces} & \textbf{Found} & \textbf{Recall}
  & \textbf{Mean model/tool calls per clip} \\
@@ -19,7 +19,7 @@
 \multicolumn{5}{@{}l}{\textit{Free-text localized output}} \\
 \quad Single-pass VLM, same model~\cite{qwen3vl2025} & free-text flaw list & 222 & 73.0\% & 1.0 \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{Localized flaw recall over the same $149$ clips and the same $304$ flaws, judged by
 the protocol of \cref{sec:matching}. The calls column reports the mean number of model and tool calls per clip and excludes
 calls made by the matching protocol, which scores outputs rather than generating

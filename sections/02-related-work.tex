@@ -1,0 +1,83 @@
+% =====================================================================
+\section{Related Work}\label{sec:related}
+% =====================================================================
+
+\paragraph{Physics-aware generation and refinement.}
+Controllable video generation separates appearance synthesis from structural
+guidance by conditioning diffusion models on depth, segmentation, reference
+frames, masks, motion fields, and compositional spatiotemporal signals
+~\cite{zhang2023controlnet,wang2023videocomposer,wan2025,vace2025}. Such
+interfaces determine how geometric information enters a generator, but do not
+by themselves establish that either the condition or the synthesized pixels
+obey physical laws. A complementary line derives control from physical
+reasoning or simulation: scene properties can be inferred and reconstructed for
+simulation, simulated trajectories or flow can guide synthesis, textual
+physical context can refine a prompt, and language can be compiled into a
+coarse motion plan. More recent research introduces continuous controls over
+physical properties or couples simulation and rendering directly with generation
+~\cite{motioncraft2024,physgen2024,diffphy2025,phyt2v2025,vlipp2025,
+phyco2026,psivg2026,moregen2026}. Evaluation feedback has also been used for
+preference optimization, verifier-guided candidate search, and localized
+regeneration~\cite{aifeedback2024,videot1_2025,videorepair2026}. These studies
+pursue both pre-synthesis physical conditioning and evaluation-guided
+refinement. The present work decouples these two stages: simulator-derived
+metric depth or silhouette controls condition a frozen video generator, while
+\PhyReAct{} independently evaluates the resulting clip. This design distinguishes
+adherence to the control signal from physical validity in the synthesized
+output; feeding diagnoses back into regeneration remains future work.
+
+\paragraph{Model judgments, decomposition, and physical evaluation.}
+Automated video evaluation has progressed from aggregate metrics toward
+increasingly structured model judgments. General protocols factor perceptual
+quality, temporal consistency, and prompt alignment, while learned VLM or MLLM
+judges map a prompt and clip to multidimensional ratings, discrete states, or
+natural-language explanations
+~\cite{vbench2024,t2vcompbench2024,fetv2023,evalcrafter2024,
+videoscore2024,videoscore2_2025}. Prompt-decomposition methods instead translate
+a prompt into propositions, questions, or query chains and revisit the visual
+input through smaller checks~\cite{tifa2023,dsg2024,vqascore2024,
+han2025videobench}; the checks are explicit, although their supporting evidence
+is generally still produced by the judging model. Physics-oriented benchmarks
+further introduce
+phenomenon-, rule-, trajectory-, and prompt-specific criteria, criterion-level
+reasoning, failure localization, controlled measurements, and audiovisual
+consistency~\cite{videophy2024,videophy2_2025,phygenbench2024,physicsiq2025,
+phycobench2025,phyworldbench2026,lin2026phyground,physioneval2026,
+chinchure2026spotlight,luo2026lovif,wang2026gauge,xie2025phyavbench,
+zhou2026avgenbench,cui2026avphys}. Prior physical evaluation is therefore not
+uniformly scalar, unlocalized, visual-only, or unmeasured; rather, these
+capabilities remain distributed across evaluators with different scopes, output
+contracts, and evidence representations.
+
+\paragraph{Execution harnesses, context engineering, and persistent state.}
+Execution harnesses separate orchestration from model judgment by making
+planning, dependencies, specialist routing, observation scope, validation,
+termination, and trace logging explicit
+~\cite{toolformer2023,gpt4tools2023,hugginggpt2023,rewoo2023,llmcompiler2024}.
+Modular visual and video methods extend this organization with specialized
+perception, selective observation, and adaptive temporal sampling
+~\cite{visprog2023,vipergpt2023,codevqa2023,proviq2023,morevqa2024,
+videoagent_wang2024,videoagent_fan2024,videotree2025,caviar2025,lenswalk2026},
+while video-evaluation pipelines already combine prompt structuring with
+temporal tools, formal specifications and model checking, localized repair,
+deterministic acoustic measurements, or prompt-specific rubrics
+~\cite{videogeneval2025,neusv2025,neuse2025,cui2026avphys}. Across episodes, a
+harness also constructs the context for each model call by storing, retrieving,
+filtering, and formatting persistent state; prior work distills trajectories
+into reflective lessons, reusable strategies, or structured knowledge without
+weight updates, and separates recorded evidence from derived beliefs to reduce
+context pollution~\cite{explicitmem2026,contexttraining2026,reasoningbank2026,
+reflexion2023,plugmem2026,hindsight2026}. These components predate our work, and
+controlled studies show that additional tools or scaffolding may increase cost
+without improving accuracy~\cite{findeis2025external,kapoor2026hal}. Relative
+to this literature, \PhyReAct{} contributes their integration under a common
+verification contract: open prompts are compiled into typed obligations and a
+validated plan, observations only gate or scope declared calls, measurements
+remain distinct from learned states, and fixed rules produce initial
+three-valued claims with any review override preserved separately in the trace.
+Across episodes, it uses offline lessons from a disjoint experience pool and
+separately evaluates an evolving in-context lesson state
+(\cref{sec:selfevolve:measured,sec:physion}). The reported results therefore
+establish experience-conditioned harness execution, not autonomous
+self-improvement or open-ended replanning; automatic changes to tools,
+workflows, admission policies, and external knowledge remain future work.

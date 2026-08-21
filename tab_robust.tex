@@ -3,8 +3,8 @@
 
 \begin{table}[t]
 \centering\small
-\setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.12}
-\begin{tabular}{@{}p{5.0cm} c c c@{}}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}L c c c@{}}
 \toprule
 \textbf{Group} & \textbf{Annotated} & \textbf{Found} & \textbf{Recall} \\
 \midrule
@@ -30,7 +30,7 @@
 \quad hard & 83 & 60 & 72\% \\
 \quad not hard & 221 & 168 & 76\% \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{Recall grouped by annotator severity, clip duration, number of annotated flaws in
 the clip, and difficulty stratum, on the run of \cref{tab:headline}. Severity is the
 annotator's own $1$--$5$ judgement of how badly the clip fails.}

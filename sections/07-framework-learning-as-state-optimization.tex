@@ -1,0 +1,393 @@
+% =====================================================================
+\section{Framework: Learning as State Optimization}\label{sec:framework}
+% =====================================================================
+
+The preceding sections described three artifacts: a
+physics-guided generator (\Cref{sec:generation}), a $1{,}500$-clip human-authored
+defect benchmark (\Cref{sec:dataset}), and a physically grounded, tool-using
+critic whose plan-based adjudication we measure in \Cref{sec:eval}. This section states the
+abstraction that ties them together and the form the framework is built toward. Our thesis is that a physical-reasoning
+agent should keep everything it has learned in one
+\emph{human-readable, typed, provenance-carrying state}, and should improve by
+\emph{optimizing that state}. Every improvement
+is then an edit to an object a person can read, version, and veto, and the arc of
+the framework culminates in a system that evolves itself without ever touching a
+weight.
+
+\Cref{sec:experiments} reports experiments; the remainder of this section
+sets out the framework and the roadmap. Because all learning is state optimization on a readable
+$S$, that boundary falls inside the formalism itself, and \Cref{tab:builtvsroadmap} marks it.
+
+\subsection{From ReAct and agent memory to a physical agent with typed state}
+\label{sec:framework:genealogy}
+
+Agentic reasoning in the ReAct lineage interleaves \emph{reason}, \emph{act}, and
+\emph{observe} steps, letting a model call external tools and condition on their
+returns~\cite{react2023,reflexion2023,critic2024}. Program-of-thought variants
+push this further: the chain of thought is emitted \emph{as a program} that
+composes tool calls~\cite{rewoo2023,llmcompiler2024,vipergpt2023,visprog2023,%
+toolformer2023,hugginggpt2023}. Orthogonally, a fast-growing agent-memory
+literature asks where an agent's accumulated experience should live---episodic
+transcripts, distilled semantic priors, or reusable
+procedures~\cite{contexttraining2026,reasoningbank2026,explicitmem2026,%
+plugmem2026,vilomem2026,amem2025,agentmemsurvey2024,m3agent2025,hindsight2026,%
+aimeetsbrain2026}. \PhyReAct{} combines these two lines and changes the \emph{carrier} of memory: where these
+agents store free-text notes or latent vectors, it stores structured physical-verification traces
+with full provenance. Auditability follows from that choice, and it is the throughline of the
+framework below.
+
+\subsection{The unifying abstraction}
+\label{sec:framework:abstraction}
+
+\PhyReAct{} maintains a single, human-readable \emph{agent state}
+\begin{equation}
+  S \;=\; (\mathcal{O},\; M,\; K),
+  \label{eq:state}
+\end{equation}
+and it improves by optimizing $S$. The reasoning model and the low-level physical
+experts are frozen, so what the system accumulates is held in $S$, which is inspectable,
+diffable, versionable, and revertible. ``Training'' and
+``inference'' are one readable procedure applied in two directions: one
+map reads $S$ to act, and channels write to $S$ (or to the generator) to improve.
+
+\begin{description}
+  \item[$\mathcal{O}$ --- operator library (procedural memory).] A set of reusable,
+    already-compiled measurement operators. Each operator $o\in\mathcal{O}$ is a closure
+    mapping a video and typed arguments to a physical measurement, and it carries
+    an explicit \emph{cost node} $c(o)$ recording its spending (compute, expert
+    calls, latency). $\mathcal{O}$ grows monotonically as recurring reasoning
+    sub-procedures are packaged into named operators.
+  \item[$M$ --- experience library (episodic + semantic memory).] Versioned,
+    human-readable priors distilled from past traces: nearest-neighbor
+    \emph{plans} for similar prompts and \emph{physics-failure priors} over
+    common defect modes. $M$ keeps \emph{evidence} (what was measured) separate
+    from \emph{belief} (what we now expect): evidence is retained as
+    recorded, while belief is defeasible and is overridden by fresh measurement.
+  \item[$K$ --- external knowledge channel.] Retrieved external or social
+    knowledge (physical facts, domain conventions, human corrections) admitted
+    only through a candidate-and-pruning discipline. $K$ is the deliberate
+    \emph{open} port that keeps the internal improvement loop from closing on
+    itself (\Cref{sec:selfevolve}).
+\end{description}
+
+The rest of the framework consists of two kinds of maps over this state: a
+single-episode \emph{read} operator that consumes $S$ and emits an auditable
+trace (\Cref{sec:framework:episode}), and \emph{write} channels that update the
+generator and $S$ from that trace. The six design pillars of the paper are
+recovered as special cases of read-vs-write over $S$: P1/P2 and the read side of
+P4 are ``read $S$ to produce a trace''; P3 and P6 are ``write $S$''; P5 is
+``write the generator''; and the supervisory side of P4 wraps the writes.
+
+\subsection{The single-episode operator (read path): physicalized ReAct as a program over \texorpdfstring{$\mathcal{O}$}{O}}
+\label{sec:framework:episode}
+
+Given a prompt--video pair $(p, V)$, one episode is a deterministic pipeline that
+only \emph{reads} $S$:
+\begin{align}
+  \text{retrieve:}    &\quad (\pi_p, m_p, k_p) = r(S, p), \label{eq:retrieve}\\
+  \text{compile:}     &\quad (\mathcal{C}, G) = \operatorname{Reason}(p, V \mid \pi_p, m_p, k_p), \label{eq:compile}\\
+  \text{act--observe:}&\quad R = \operatorname{Exec}_{\mathcal{O}}(G, V), \label{eq:exec}\\
+  \text{adjudicate:}  &\quad (Y, \mathcal{F}) = \Phi(\mathcal{C}, R), \label{eq:adjudicate}\\
+  \text{emit:}        &\quad T = (\mathcal{C}, G, R, Y, \mathcal{F}). \label{eq:trace}
+\end{align}
+where the retrieval $r$ reads from $S$ the nearest-neighbour plan $\pi_p$, the experience prior
+$m_p$, and the external knowledge $k_p$ relevant to prompt $p$. These maps are the abstract form of
+the critic of \cref{sec:critic}: \eqref{eq:compile}
+is the claim-and-plan synthesis of \cref{eq:claims-and-plan}, \eqref{eq:exec} the scoped
+execution of \cref{eq:scoped-execution}, and \eqref{eq:adjudicate} the roll-up and
+packet of \cref{eq:claim-clip-rollup,eq:refinement-packet}.
+Here $\mathcal{C}$ is a set of \emph{typed physical obligations}---explicit,
+machine-checkable statements of what the video must satisfy to honor the prompt
+(object presence and count, contact and support, trajectory continuity, depth
+ordering, on-screen text, audio events). $G$ is a \emph{program over $\mathcal{O}$}:
+reasoning takes the form of a composition of operator calls
+that the model writes and the runtime executes, in the tradition of
+program-of-thought and modular visual
+reasoning~\cite{visprog2023,vipergpt2023,rewoo2023,llmcompiler2024}. Executing $G$
+drives the classic reason$\rightarrow$act$\rightarrow$observe loop of ReAct-style
+agents~\cite{react2023}, but every \texttt{act} is a call into a \emph{frozen}
+physical expert operator---promptable segmentation and tracking~\cite{sam3_2025},
+counting over its instance identities, the typed physical measurements taken over those
+tracks, monocular depth, OCR, and audio event
+detection~\cite{flexsed2025}---registered in $\mathcal{O}$. This is the sense in which
+\PhyReAct{} specializes ReAct to physical measurement: it inherits the control-flow harness from
+mainstream tool-using agents~\cite{toolformer2023,hugginggpt2023} and specializes
+it with explicit physical obligations and physical-measurement operators
+\textbf{(P1)}. This general form is instantiated concretely by the critic of
+\Cref{sec:critic}, which produces the same three-valued verdict used there.
+
+Each operator returns a measurement together with a \emph{gate} on its own scope:
+when an operator's preconditions are not met (out-of-scope object, untrackable
+occlusion, no audio track), it emits \abstain{}.
+The adjudicator $\Phi$ in \eqref{eq:adjudicate} is a \emph{deterministic} roll-up
+from evidence $R$ to a per-obligation verdict $Y\in\mathbb{V}^{|\mathcal{C}|}$ in the three-valued
+codomain $\mathbb{V}=\{\mathsf{S},\mathsf{C},\mathsf{U}\}$ of \cref{sec:critic}---one entry per
+obligation (\supported{}, \contradicted{}, or \unknownv{})---%
+plus a \emph{contradiction packet} $\mathcal{F}$ that localizes, for each unmet obligation,
+which measurement contradicts it and where. \unknownv{}, and \abstain{} for out-of-scope
+obligations, are first-class outcomes of the codomain, so declining to certify is available to
+the critic as a verdict in its own right. The
+emitted trace $T=(\mathcal{C},G,R,Y,\mathcal{F})$ carries full provenance---every element of $Y$ is
+back-traceable to the operator calls in $G$ and the measurements in $R$.
+
+\paragraph{CoT-as-program and cost nodes \textnormal{(P2)}.} Because $G$ is a
+program, recurring sub-procedures (e.g.\ ``verify a bounce $=$ track the object,
+detect the contact frame, check the pre/post vertical-velocity sign flip'') can
+be packaged, named, and re-registered as new operators in $\mathcal{O}$. Each operator
+carries its cost node $c(o)$, so a program has a well-defined budget
+$c(G)=\sum_{o\in G} c(o)$ and the reasoner can trade breadth of measurement
+against spending. Over many episodes $\mathcal{O}$ scales up into a growing procedural
+memory, and reasoning increasingly becomes \emph{composition of trusted
+operators} rather than re-derivation from scratch. What is instantiated today is
+a fixed operator set $\mathcal{O}_0$ and a fixed compiler; the \emph{scaling-up} of $\mathcal{O}$
+via distillation is roadmap (\Cref{sec:framework:builtvsroadmap}).
+
+\subsection{The outward channel: verification-guided refinement \textnormal{(P5)}}
+\label{sec:framework:control}
+
+The read path produces, for a failed clip, a localized contradiction packet $\mathcal{F}$
+(defined in \Cref{sec:loop}). The outward
+\emph{control channel} maps $\mathcal{F}$ into a \emph{local edit $\Delta_{\mathrm{ctrl}}$ of the
+generator's control signal} and regenerates:
+\begin{equation}
+  V' \;=\; \operatorname{Gen}\!\big(p,\; \delta(\mathcal{F})\big),
+  \qquad \delta:\ \mathcal{F} \;\longmapsto\; \Delta_{\mathrm{ctrl}},
+  \label{eq:control}
+\end{equation}
+where $\operatorname{Gen}$ is the physics-guided pipeline of \Cref{sec:generation}
+(MuJoCo simulation~\cite{todorov2012mujoco} driving a Wan~2.2 video
+model~\cite{wan2025} through VACE control conditioning~\cite{vace2025}), and
+$\delta(\mathcal{F})$ is an edit to the simulation and control inputs addressing the violated obligation.
+Since the control signal is a rendered field over space and time, a contradiction localized in
+both maps onto a local edit of the conditioning stream. The critic here is independent and
+frozen, so the grading signal does not originate in the generator being graded, unlike
+self-evaluating refinement loops~\cite{mavis2025} and verification-guided
+repair~\cite{neuse2025}. Both endpoints of \eqref{eq:control} are built
+(\Cref{sec:generation,sec:eval}); the map $\delta$ and the closed loop are roadmap.
+
+\subsection{Auditability of the state and the trace}
+\label{sec:framework:audit}
+
+Auditability follows from the formalism. The learned object is the readable state $S$ and every
+conclusion is a deterministic roll-up $\Phi$ over provenance-carrying measurements, so any verdict
+$Y$ replays back to the operator calls in $G$ and the measurements in $R$, and any state change
+$S\!\rightarrow\!S'$ is a human-readable diff of $\mathcal{O}$, $M$, or $K$. Weight-free self-evolution and
+its human supervision both rest on that property: the reviewer inspects readable objects rather
+than gradients.
+
+Auditability determines what a verdict can be taken to mean. A \supported{} verdict is a critic judgment, where the
+ground truth in this paper is human annotation. Determinism in the roll-up leaves evaluator drift
+in the underlying operators and the compiler untouched. A prompt surviving the checks is
+\emph{plausible} with respect to the obligations tested, and a static critic improving says
+nothing about the generator.
+
+\subsection{Weight-free context-training self-evolution}
+\label{sec:selfevolve}
+
+The framework's inward channel provides: a critic that improves itself without
+updating a weight. Everything above---a readable state, a program over
+operators, provenance traces, an independent verdict---exists so that the
+system's own experience can be written into $S$ under a guard. This inward \emph{context-training} channel
+\textbf{(P3)} is the last of the framework's components to be instantiated.
+
+Given a trace $T$ and feedback $\phi$ (human labels, downstream outcomes, or a
+later, more complete measurement), we distill a \emph{candidate} state edit
+\begin{equation}
+  (\Delta\mathcal{O}, \Delta M, \Delta K) = \operatorname{Distill}(T, \phi), \label{eq:distill}
+\end{equation}
+and accept it under a strict guard, the map $\operatorname{Accept}$ defined by \eqref{eq:elitism}
+below. Both successful and failed episodes are distilled (hindsight over
+traces~\cite{hindsight2026,reasoningbank2026}): a success may add a plan to $M$ or
+an operator to $\mathcal{O}$; a failure may add a physics-failure prior or a scope restriction.
+This form of self-evolution leaves weights unchanged, in the spirit of
+context-distillation and experience-memory
+agents~\cite{contexttraining2026,reasoningbank2026,reflexion2023,explicitmem2026,%
+amem2025,agentmemsurvey2024,vilomem2026}, and it treats deployment-time adaptation
+as \emph{learning as state optimization}. Acceptance is governed by
+\begin{equation}
+  S' =
+  \begin{cases}
+    S \oplus \Delta, & \text{if } U_{\mathrm{val}}(S\oplus\Delta) > U_{\mathrm{val}}(S),\\[2pt]
+    S, & \text{otherwise (do-nothing elitism),}
+  \end{cases}
+  \label{eq:elitism}
+\end{equation}
+where $U_{\mathrm{val}}$ is a \emph{held-out proxy} score, $\Delta=(\Delta\mathcal{O},\Delta M,\Delta K)$
+is a distilled candidate edit from \eqref{eq:distill}, and $S\oplus\Delta$ applies that edit
+component-wise to the state, appending the operator, plan and knowledge deltas to
+$\mathcal{O}$, $M$ and $K$ respectively. Candidates that do not strictly improve the proxy are
+pruned, and when none improves it the state is left unchanged. That default makes the proxy
+monotone across updates, bounding how far a distilled candidate can degrade $S$.
+
+\paragraph{Admitting external knowledge \textnormal{(P6)}.}
+A system whose only inputs are its own traces---CoT $\rightarrow$ feedback
+$\rightarrow$ context $\rightarrow$ CoT---is a \emph{closed} loop that can amplify
+its own biases: distilled priors condition future reasoning, whose traces distill
+into more priors. The external knowledge channel $K$ is the opening provided for this.
+\PhyReAct{} may issue retrieval or ask for external or social knowledge (physical
+facts, human corrections, domain conventions) and admit it into $K$ under the same
+candidate-and-pruning discipline as \eqref{eq:elitism}: a retrieved candidate is admitted only when it improves the held-out proxy, and $K$-sourced facts carry a provenance tag distinct from
+distilled beliefs, so an admission can be reverted. External knowledge therefore enters under the
+same elitism that governs $S$.
+
+Every prior distilled into $M$ is \emph{critic-derived}: a summary of what \PhyReAct{}'s own
+verification loop concluded rather than verified truth. The external channel $K$ is roadmap. The
+inward channel is instantiated, and \cref{sec:icl-exp} measures it.
+
+\subsection{Distilling lessons from recorded misses}
+\label{sec:selfevolve:measured}
+We instantiate \eqref{eq:distill} by distilling lessons from episodes in which a plan missed a
+human-recorded flaw and appending them to the planner's rubric, leaving the operator library
+$\mathcal{O}$ and external channel $K$ untouched so that $S'=(\mathcal{O},M',K)$. The measured
+effect on flaw recall---lessons distilled from recorded misses raise held-out recall to
+$375$ of $502$ against $340$ untaught, a gain already present from the smallest experience
+pool---is reported with the other experiments in \cref{sec:icl-exp}.
+
+\subsection{Human oversight}
+\label{sec:framework:human}
+
+A human is kept in the loop at a few specific gates: a
+reviewer may audit a trace $T$, veto or edit a proposed state update in
+\eqref{eq:elitism}, and approve whether a refined generation \eqref{eq:control} or
+a new state $S'$ is deployed. Human feedback also enters $\operatorname{Distill}$ as a
+first-class signal $\phi$. Because updates are readable diffs of $S$, oversight consists of
+reading and approving them. The reviewing tooling and deployment protocol are roadmap; the
+artifacts they act on --- traces, three-valued state, provenance --- exist today.
+
+\subsection{Built and roadmap components}
+\label{sec:framework:builtvsroadmap}
+
+Because all learning is state optimization on a readable $S$, we can mark
+built-vs-roadmap directly on the formalism, and each pillar is one component of the
+same loop (\Cref{tab:builtvsroadmap}). \textbf{Instantiated
+today (Phase~0):} the frozen generator pipeline $\operatorname{Gen}$
+(\Cref{sec:generation}); the $1{,}500$-clip defect benchmark that exercises the
+read path (\Cref{sec:dataset}); the episode read operator
+\eqref{eq:retrieve}--\eqref{eq:trace} with a fixed operator set $\mathcal{O}_0$, typed
+obligations $\mathcal{C}$, three-valued deterministic adjudication $\Phi$, and provenance
+traces $T$; the flaw-level measurement in \Cref{sec:eval} against human labels
+($228$ of $304$ for \PhyReAct{}, $164$ for question decomposition, recall-only, on the development core, which is
+not held out); and the inward distillation of
+$M$ via \eqref{eq:distill}, measured on a held-out split in
+\cref{sec:icl-exp} ($375$ of $502$ against $340$ untaught).
+\textbf{Roadmap (Phase~1+):} the
+outward control map $\delta$ and the closed critic$\rightarrow$generator loop
+\eqref{eq:control}; the scaling-up of $\mathcal{O}$; the acceptance gate \eqref{eq:elitism}
+that admits distilled candidates on a measured proxy improvement; the external
+knowledge channel $K$; and human-in-the-loop deployment at scale. Every roadmap item is a \emph{write}
+path in the same formalism whose \emph{read} counterpart is already exercised. The executable
+plan follows in \Cref{sec:roadmap}.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}p{0.29\linewidth} p{0.38\linewidth} p{0.25\linewidth}@{}}
+\toprule
+\textbf{Pillar} & \textbf{Where it lives in the loop} & \textbf{Status} \\
+\midrule
+P1 Physical verification + operators & compile / act--observe over frozen experts~\cite{sam3_2025,flexsed2025} & Phase 0 (built) \\
+P2 CoT-as-program + cost nodes & program $G$ over $\mathcal{O}$, budget $c(G)$ & Phase 0 partial \\
+P4 Auditable trace + three-valued~$Y$ & trace $T=(C,G,R,Y,F)$, provenance & Phase 0 (artifacts) \\
+P5 Verification-guided refinement & outward control channel $\delta,\,\operatorname{Gen}$ & roadmap \\
+P2$^{+}$ Operator-library scale-up & procedural-memory growth in $\mathcal{O}$ & roadmap \\
+P6 Breaking the loop & external channel $K$, candidate$+$prune & roadmap \\
+P3 Context-training self-evolution & inward channel $\operatorname{Distill}$~\eqref{eq:distill} & Phase 0 (measured, gate not applied) \\
+P3$^{+}$ Acceptance gate & elitism~\eqref{eq:elitism} over distilled candidates & roadmap \\
+P4$^{+}$ Human oversight & supervision $+$ deployment gate & roadmap \\
+\bottomrule
+\end{tabular}
+\caption{Each pillar is one component of the same loop. Only
+Phase~0 rows denote implemented artifacts or measured analyses; solid arrows in \Cref{fig:phyreact}
+correspond to them, dashed arrows to the roadmap rows, which are unmeasured.}
+\label{tab:builtvsroadmap}
+\end{table}
+
+% Requires: \usepackage{tikz}\usetikzlibrary{arrows.meta,positioning,calc}
+% Solid = Built (Phase 0); Dashed = Roadmap (Phase 1+).
+\begin{figure*}[t]
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  built/.style={draw, thick, rounded corners, align=center, inner sep=3pt},
+  road/.style ={draw, thick, dashed, rounded corners, align=center, inner sep=3pt},
+  barrow/.style={-{Latex}, thick},
+  rarrow/.style={-{Latex}, thick, dashed}]
+
+  % ---- human-in-the-loop wrapper (drawn first, absolute coords) ----
+  \draw[road, fill=black!2] (-7.5,-4.3) rectangle (8.7,3.3);
+  \node[anchor=north] at (0.6,3.2)
+    {\scriptsize \textbf{P4} human-in-the-loop: audit $T$ $\cdot$ veto $\Delta S$ $\cdot$ gate deployment};
+
+  % ---- learned state S ----
+  \node[built, fill=blue!5] (S) at (-5.0,0.1)
+    {$S=(\mathcal{O},M,K)$\\[2pt]
+     \scriptsize $\mathcal{O}$ operators (procedural)\\
+     \scriptsize $M$ experience\; $K$ external\\
+     \scriptsize human-readable, versionable};
+
+  % ---- read pipeline (top) ----
+  \node[built] (in)   at (-4.9,2.2) {$(p,V)$};
+  \node[built] (comp) at (-2.4,2.2) {compile\\$(C,G)$};
+  \node[built] (exec) at (0.6,2.2)  {act--observe\\$\operatorname{Exec}_{\mathcal{O}}$};
+  \node[built] (adj)  at (3.5,2.2)  {adjudicate\\$\Phi\!\to\!(Y,F)$};
+  \node[built] (T)    at (6.7,2.2)  {trace\\$T{=}(C,G,R,Y,F)$};
+  \draw[barrow] (in)--(comp);
+  \draw[barrow] (comp)--(exec);
+  \draw[barrow] (exec)--(adj);
+  \draw[barrow] (adj)--(T);
+  \draw[barrow] (S) to[out=90,in=180] node[left,pos=0.65]{\scriptsize retrieve} (comp);
+
+  % ---- frozen operators ----
+  \node[built] (ops) at (0.6,0.5)
+    {\scriptsize frozen operators\\
+     \scriptsize SAM3 grounding + tracks\\
+     \scriptsize 11 typed measures\,/\,Depth\\
+     \scriptsize OCR\,/\,FlexSED};
+  \draw[barrow] (ops)--(exec);
+
+  % ---- generator (built endpoint) ----
+  \node[built, fill=green!8] (gen) at (6.8,-1.9)
+    {$\operatorname{Gen}$\\ \scriptsize MuJoCo$\to$Wan2.2-VACE};
+
+  % ---- outward control channel (roadmap) ----
+  \draw[rarrow] (T) to[out=-90,in=60]
+    node[right,pos=0.5]{\scriptsize $\delta(\mathcal{F})$ control edit \textbf{(P5)}} (gen);
+  \draw[rarrow] (gen) to[out=180,in=-90]
+    node[below,pos=0.72]{\scriptsize $V'$ regenerate} (in);
+
+  % ---- inward context-training channel (roadmap) ----
+  \node[road] (dist) at (0.6,-2.8)
+    {Distill $\to (\Delta\mathcal{O},\Delta M,\Delta K)$\\
+     \scriptsize held-out proxy prune $+$ do-nothing elitism \textbf{(P3)}};
+  \draw[rarrow] (T) to[out=-120,in=0] node[above,pos=0.4]{\scriptsize $(T,\phi)$} (dist);
+  \draw[rarrow] (dist) to[out=180,in=-90] node[below,pos=0.5]{\scriptsize $S'$} (S);
+
+  % ---- external knowledge (roadmap) ----
+  \node[road] (ext) at (-5.0,-2.9)
+    {external / social knowledge\\ $\cdot$ retrieval\\
+     \scriptsize candidate$+$prune gate \textbf{(P6)}};
+  \draw[rarrow] (ext)--(S);
+
+  % ---- legend ----
+  \draw[thick] (-7.1,-4.05)--(-6.5,-4.05);
+  \node[anchor=west] at (-6.4,-4.05) {\scriptsize Built (Phase 0)};
+  \draw[thick,dashed] (-3.4,-4.05)--(-2.8,-4.05);
+  \node[anchor=west] at (-2.7,-4.05) {\scriptsize Roadmap (Phase 1+)};
+\end{tikzpicture}
+}
+\caption{State-optimization view of \PhyReAct{}. Everything the system learns
+lives in one human-readable state $S=(\mathcal{O},M,K)$. A single \emph{read} operator
+(top, solid = built) conditions on $S$, compiles $(p,V)$ into typed obligations
+$\mathcal{C}$ and a program $G$ over $\mathcal{O}$, runs frozen physical operators, and emits a
+provenance-carrying three-valued trace $T$. Two structurally dual \emph{write}
+channels (dashed = roadmap), both driven by the same independent frozen critic,
+close the loop: the outward control channel edits the generator's control signal
+via $\delta(\mathcal{F})$ and regenerates (P5); the inward context-training channel
+distills $T$ into candidate state edits accepted only under held-out proxy
+pruning with do-nothing elitism (P3). The external channel $K$ breaks the
+internal loop (P6). A human-in-the-loop layer wraps both channels (P4). Solid
+arrows are instantiated in \Cref{sec:generation,sec:dataset,sec:eval};
+dashed arrows are the roadmap of \Cref{sec:roadmap}.}
+\label{fig:phyreact}
+\end{figure*}

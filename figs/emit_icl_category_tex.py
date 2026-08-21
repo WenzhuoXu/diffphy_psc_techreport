@@ -136,8 +136,8 @@ def main() -> int:
            "",
            r"\begin{table}[t]",
            r"\centering\small",
-           r"\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.15}",
-           r"\begin{tabular}{@{}>{\raggedright\arraybackslash}p{3.75cm} c c c c c c c c c@{}}",
+           r"\renewcommand{\arraystretch}{1.2}",
+           r"\begin{tabularx}{\textwidth}{@{}L c c c c c c c c c@{}}",
            r"\toprule",
            r" & & \multicolumn{5}{c}{\textbf{Flaws found, with $\ell$ lessons}} & & & \\",
            r"\cmidrule(lr){3-7}",
@@ -164,7 +164,7 @@ def main() -> int:
     out.append(r"\midrule")
     out.append(row("All flaws", {L: tot[L] for L in DOSE}, n, G, Ls, len(fams), bold=True))
     out += [r"\bottomrule",
-            r"\end{tabular}",
+            r"\end{tabularx}",
             r"\caption{Effect of the distilled lessons on each flaw category, over the same "
             f"${n}$ held-out flaws in every condition. A flaw is \\emph{{found}} when the critic's "
             r"findings cover it wholly or in part, as in \cref{tab:headline}. The five middle "

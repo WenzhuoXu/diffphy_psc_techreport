@@ -49,7 +49,7 @@
   {\textbf{c0}\\ the dolphin leaps};
 \node[pgcheck, anchor=west] (p0) at ($(c0.east)+(1.05,0)$) {event occurs};
 \node[pggen, anchor=west]  (m0) at ($(p0.east)+(1.05,0)$)
-  {\textbf{general verifier}\\ does the dolphin leap?};
+  {general verifier};
 \draw[pgedge] (c0) -- (p0);
 \draw[pgedge] (p0) -- (m0);
 
@@ -58,9 +58,9 @@
   {\textbf{c1}\\ it dives back \emph{after} the leap};
 \node[pgcheck, anchor=west] (p1) at ($(c1.east)+(1.05,0)$) {order in time\\ (before, with slack)};
 \node[pgmeas, anchor=south west] (m1a) at ($(p1.east)+(1.05,0.06)$)
-  {\textbf{event timing}\\ when does it leap?};
+  {event timing (leap)};
 \node[pgmeas, anchor=north west] (m1b) at ($(p1.east)+(1.05,-0.06)$)
-  {\textbf{event timing}\\ when does it dive back?};
+  {event timing (dive)};
 \draw[pgedge] (c1) -- (p1);
 \draw[pgedge] (p1.east) to[out=25,in=180] (m1a.west);
 \draw[pgedge] (p1.east) to[out=-25,in=180] (m1b.west);
@@ -71,9 +71,9 @@
 \node[pgcheck, anchor=south west] (p2a) at ($(c2.east)+(1.05,0.42)$) {event occurs};
 \node[pgcheck, anchor=north west] (p2b) at ($(c2.east)+(1.05,-0.42)$) {count is 2};
 \node[pggen, anchor=west] (m2a) at ($(p2a.east)+(1.05,0)$)
-  {\textbf{general verifier}\\ do two emerge together?};
+  {general verifier};
 \node[pgmeas, anchor=west] (m2b) at ($(p2b.east)+(1.05,0)$)
-  {\textbf{counter}\\ how many salmon?};
+  {counter};
 \draw[pgedge] (c2.east) to[out=25,in=180] node[pglab,pos=0.55,above]{and} (p2a.west);
 \draw[pgedge] (c2.east) to[out=-25,in=180] node[pglab,pos=0.55,below]{and} (p2b.west);
 \draw[pgedge] (p2a) -- (m2a);
@@ -85,9 +85,9 @@
 \node[pgcheck, anchor=south west] (p3a) at ($(c3.east)+(1.05,0.42)$) {event occurs};
 \node[pgcheck, anchor=north west] (p3b) at ($(c3.east)+(1.05,-0.42)$) {behind\\ (depth order)};
 \node[pggen, anchor=west] (m3a) at ($(p3a.east)+(1.05,0)$)
-  {\textbf{general verifier}\\ are they behind it?};
+  {general verifier};
 \node[pgmeas, anchor=west] (m3b) at ($(p3b.east)+(1.05,0)$)
-  {\textbf{outlines and depth}\\ salmon against boat};
+  {outlines and depth};
 \draw[pgedge] (c3.east) to[out=25,in=180] node[pglab,pos=0.55,above]{and} (p3a.west);
 \draw[pgedge] (c3.east) to[out=-25,in=180] node[pglab,pos=0.55,below]{and} (p3b.west);
 \draw[pgedge] (p3a) -- (m3a);

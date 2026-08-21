@@ -1,0 +1,152 @@
+\section{An Executable Roadmap}
+\label{sec:roadmap}
+
+The framework of \Cref{sec:framework} defines one learned object, the state
+$S=(\mathcal{O},M,K)$, and three maps over it: a read operator (built) and two write
+channels (roadmap). We phase the work accordingly. Phase~0 is the read path and
+the two frozen endpoints already instantiated in this paper; Phase~1 moves the
+evaluation onto a held-out split scored for precision as well as recall;
+Phases~2--6 exercise
+the write paths, each with a measurable success metric and each a strict
+superset of what precedes it. No number below the Phase~0 line is a result;
+Phases~1+ state \emph{targets and protocols}, not outcomes.
+
+\paragraph{Phase~0 --- Built: the read path and frozen endpoints (\emph{done}).}
+\begin{itemize}
+  \item \textbf{Delivered.} The physics-guided generator $\operatorname{Gen}$
+    (MuJoCo\,$\rightarrow$\,Wan2.2-VACE, \Cref{sec:generation}); the $1500$-clip
+    human-authored defect benchmark (\Cref{sec:dataset}); the episode read
+    operator with fixed $\mathcal{O}_0$, typed obligations $\mathcal{C}$, three-valued
+    deterministic adjudication $\Phi$, and provenance traces $T$
+    (\Cref{sec:critic}); and the flaw-level measurement against human labels
+    ($228$ of $304$ for \PhyReAct{} against $164$ for question decomposition, on
+    the development core, non-held-out, \Cref{sec:eval}).
+  \item \textbf{Covers.} P1 (physical-verification read path), and the read side of
+    P2 (programs over $\mathcal{O}_0$) and P4 (provenance traces).
+  \item \textbf{Honest limits.} Recall-only, single non-held-out split; critic
+    verdicts are judgments scored against human labels, not ground truth; a
+    static evaluator result is not evidence any generator improved; the two
+    write channels are not yet exercised.
+\end{itemize}
+
+\paragraph{Phase~1 --- Held-out, precision+recall evaluation with provenance completeness.}
+\begin{itemize}
+  \item \textbf{Goal.} Promote the critic result from dev-core / recall-only to a
+    held-out, precision+recall protocol, and guarantee every verdict carries a
+    complete provenance trace $T$.
+  \item \textbf{Needs.} A frozen held-out split of the benchmark disjoint from
+    dev-core; a provenance schema for $(C,G,R,Y,F)$.
+  \item \textbf{Experiments.} Plan-based vs.\ per-claim adjudication on held-out
+    clips with full confusion matrices; audit that every \contradicted{} verdict
+    localizes to frame-level evidence via $F$.
+  \item \textbf{Success metric.} Held-out plan-based accuracy $\geq$ per-claim
+    with non-degrading precision; complete provenance coverage.
+  \item \textbf{Risk.} Held-out gap reveals dev-core overfitting; the
+    three-valued codomain inflates \unknownv{} to dodge hard cases --- mitigate
+    by reporting the \unknownv{} rate alongside accuracy.
+\end{itemize}
+
+\paragraph{Phase~2 --- Operator library with cost accounting (P2).}
+\begin{itemize}
+  \item \textbf{Goal.} Turn fixed $\mathcal{O}_0$ into a growing, versioned $\mathcal{O}$ whose
+    operators carry cost nodes $c(o)$ and whose programs have measurable budgets
+    $c(G)$.
+  \item \textbf{Needs.} An operator registry with provenance and versioning; a
+    compiler that detects recurring $G$-sub-programs and promotes them into named
+    operators; per-operator cost instrumentation wired into $\Phi$.
+  \item \textbf{Experiments.} Track the coverage/cost frontier as $|\mathcal{O}|$ grows;
+    ablate frozen $\mathcal{O}_0$ vs.\ promoted $\mathcal{O}$ at matched budget.
+  \item \textbf{Success metric.} A Pareto improvement in obligation coverage
+    per unit cost over the Phase~0 fixed pipeline at equal or lower $c(G)$.
+  \item \textbf{Risk.} Library bloat and stale operators; promoted operators
+    encode clip-specific shortcuts --- mitigate with usage-frequency thresholds
+    and held-out re-validation before promotion.
+\end{itemize}
+
+\paragraph{Phase~3 --- Context-training self-evolution of $M$ (P3).}
+\begin{itemize}
+  \item \textbf{Goal.} Distill traces (success and failure) into human-readable,
+    versionable priors in $M$ --- nearest-neighbor plans and physics-failure
+    priors --- accepted under held-out proxy pruning with do-nothing elitism
+    \eqref{eq:elitism}, keeping evidence separate from belief.
+  \item \textbf{Needs.} A distillation function $\operatorname{Distill}$; a held-out
+    validation split $U_{\mathrm{val}}$ (new data, disjoint from the Phase~0/1
+    core); a diffable memory store.
+  \item \textbf{Experiments.} Compare $\{$no memory, retrieval-only, distilled
+    $M$ with elitism, distilled $M$ without elitism$\}$ on the held-out split; a
+    pollution stress test injecting wrong priors and checking elitism rejects
+    them.
+  \item \textbf{Success metric.} Monotone non-decreasing held-out proxy across
+    accepted updates, a positive gap of ``$M$ with elitism'' over both baselines,
+    and zero acceptance of injected harmful priors.
+  \item \textbf{Risk.} Belief leaking into evidence, or proxy overfitting;
+    mitigate with the evidence/belief split and periodic held-out refresh.
+\end{itemize}
+
+\paragraph{Phase~4 --- Closing the control channel critic\,$\rightarrow$\,generator (P5).}
+\begin{itemize}
+  \item \textbf{Goal.} Implement $\delta:\mathcal{F}\mapsto\Delta_{\mathrm{ctrl}}$ of
+    \eqref{eq:control}, converting a contradiction packet into a \emph{targeted}
+    local edit of the MuJoCo/VACE control signal, and regenerate.
+  \item \textbf{Needs.} A parameterization of Wan2.2-VACE control inputs by
+    obligation type; a differentiable-or-heuristic edit policy $\delta$; a
+    re-adjudication harness.
+  \item \textbf{Experiments.} On clips with \contradicted{} verdicts, compare
+    $\{$blind resampling, prompt-only edit, targeted $\delta(\mathcal{F})$ edit$\}$; report
+    the fraction of previously violated obligations that flip to \supported{}
+    after regeneration, \emph{human-verified}, and re-run the full obligation set
+    $\mathcal{C}$ post-edit to report net defect change.
+  \item \textbf{Success metric.} Targeted $\delta(\mathcal{F})$ regeneration repairs a
+    significantly higher fraction of localized violations than blind resampling
+    at equal generation budget, confirmed by human annotation (not by the critic
+    alone), with no rise in unrelated-obligation contradictions.
+  \item \textbf{Risk.} Goodharting the critic or whack-a-mole edits that fix one
+    obligation while breaking another; mitigated by human verification and the
+    net-defect audit.
+\end{itemize}
+
+\paragraph{Phase~5 --- Breaking the loop with external knowledge $K$ (P6).}
+\begin{itemize}
+  \item \textbf{Goal.} Open the internal CoT$\rightarrow$feedback$\rightarrow$context
+    loop by admitting external/social knowledge and retrieval into $K$ under the
+    same candidate-and-pruning discipline, with a do-nothing fallback.
+  \item \textbf{Needs.} A retrieval/ingestion interface; a candidate gate scored
+    by $U_{\mathrm{val}}$; provenance tagging that marks $K$-sourced facts
+    distinctly from distilled beliefs.
+  \item \textbf{Experiments.} On a bias-probe subset (defect modes
+    under-represented in the internal traces), compare closed-loop
+    ($K=\emptyset$) vs.\ open-loop ($K$ admitted with gating); a noise-injection
+    test on retrieved sources.
+  \item \textbf{Success metric.} Reduced error on the bias-probe subset with no
+    regression on the general held-out split; zero admissions when no candidate
+    improves the proxy (fallback correctness).
+  \item \textbf{Risk.} Context pollution from noisy or off-distribution sources;
+    mitigated by the same elitism gate as $S$, plus source provenance so bad
+    admissions are revertible.
+\end{itemize}
+
+\paragraph{Phase~6 --- Human-in-the-loop deployment at scale (P4).}
+\begin{itemize}
+  \item \textbf{Goal.} Operate both channels under human supervision: reviewers
+    audit traces $T$, veto/edit candidate state updates, and gate deployment of
+    refined generations and new states $S'$.
+  \item \textbf{Needs.} Trace-replay and state-diff review tooling; an approval
+    workflow feeding $\operatorname{Distill}$ and $K$; audit logs over
+    $S\!\rightarrow\!S'$ with rollback.
+  \item \textbf{Experiments.} Held-out study measuring reviewer time per audited
+    trace, inter-annotator agreement on state-update acceptance and on
+    three-valued verdicts, and the catch-rate of injected bad updates that
+    elitism alone would have missed.
+  \item \textbf{Success metric.} Auditing cost per trace low enough to be
+    practical, with human review reliably catching a measurable residual of
+    harmful updates beyond the automatic gate.
+  \item \textbf{Risk.} Reviewer fatigue and rubber-stamping (which would
+    reintroduce an unaudited closed loop); mitigate by surfacing only
+    elitism-borderline updates for human attention.
+\end{itemize}
+
+\noindent\emph{Ordering rationale.} Phase~1 secures the evaluation;
+Phases~2--3 grow the two components of $S$ that the inward channel writes ($\mathcal{O}$,
+$M$); Phase~4 exercises the outward channel; Phase~5 opens $K$; Phase~6 wraps
+everything in human oversight. Each phase reuses the Phase~0 read path unchanged,
+so at every step the system remains weight-free and auditable by construction.

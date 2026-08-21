@@ -4,7 +4,18 @@
 
 \RequirePackage{amsmath,amssymb}
 \RequirePackage{array}
+\RequirePackage{tabularx}
 \RequirePackage{multirow}
+\RequirePackage{wrapfig}   % text-wrapped half-width figures
+
+% ---- unified table columns for full-width (\textwidth) experiment tables ----
+% L: left-aligned description column that stretches to fill the line.
+% C: centred description column that stretches to fill the line.
+% Y is tabularx's built-in stretchable centred column; we alias data columns to
+% a fixed centred type so numbers stay compact while the L/C columns absorb slack.
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcolumntype{C}{>{\centering\arraybackslash}X}
+\newcolumntype{P}{c}  % fixed centred data column
 \RequirePackage{enumitem}
 \setlist{itemsep=2pt,topsep=3pt,parsep=0pt}
 \RequirePackage{listings}

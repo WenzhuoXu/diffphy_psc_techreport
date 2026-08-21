@@ -95,14 +95,14 @@ def tab_robust(rob: dict, sev: dict) -> str:
     return rf"""
 \begin{{table}}[t]
 \centering\small
-\setlength{{\tabcolsep}}{{6pt}}\renewcommand{{\arraystretch}}{{1.12}}
-\begin{{tabular}}{{@{{}}p{{5.0cm}} c c c@{{}}}}
+\renewcommand{{\arraystretch}}{{1.2}}
+\begin{{tabularx}}{{\textwidth}}{{@{{}}L c c c@{{}}}}
 \toprule
  & \textbf{{Flaws}} & \textbf{{Found}} & \textbf{{Rate}} \\
 \midrule
 {body}
 \bottomrule
-\end{{tabular}}
+\end{{tabularx}}
 \caption{{Recall against four properties of the clip and the flaw, on the published run.
 The profile is close to flat: no band departs from the overall rate by more than about ten
 points, and every band's departure is of the order of the scorer's own measured noise, so
@@ -277,15 +277,15 @@ def tab_headline(rows) -> str:
     return rf"""
 \begin{{table}}[t]
 \centering\small
-\setlength{{\tabcolsep}}{{6pt}}\renewcommand{{\arraystretch}}{{1.15}}
-\begin{{tabular}}{{@{{}}p{{4.4cm}} c c c c c@{{}}}}
+\renewcommand{{\arraystretch}}{{1.2}}
+\begin{{tabularx}}{{\textwidth}}{{@{{}}L c c c c c@{{}}}}
 \toprule
 \textbf{{Annotated flaw category}} & \textbf{{Flaws}} & \textbf{{Whole}}
  & \textbf{{Part}} & \textbf{{Found}} & \textbf{{Rate}} \\
 \midrule
 {rows_tex}
 \bottomrule
-\end{{tabular}}
+\end{{tabularx}}
 \caption{{Flaw recall on the evaluation core, by the annotators' own category: {G} of {T}
 human-annotated flaws over $149$ clips. ``Whole'' counts flaws a single finding covers completely;
 ``Part'' counts flaws our findings address in aspect without any one being the whole defect; their
@@ -338,8 +338,8 @@ def tab_external(cost: dict | None) -> str:
     return rf"""
 \begin{{table}}[t]
 \centering\small
-\setlength{{\tabcolsep}}{{5pt}}\renewcommand{{\arraystretch}}{{1.18}}
-\begin{{tabular}}{{@{{}}p{{4.5cm}} p{{3.3cm}} c c c@{{}}}}
+\renewcommand{{\arraystretch}}{{1.2}}
+\begin{{tabularx}}{{\textwidth}}{{@{{}}L L c c c@{{}}}}
 \toprule
 \textbf{{Evaluator}} & \textbf{{Output it produces}} & \textbf{{Found}} & \textbf{{Recall}}
  & \textbf{{Calls}} \\
@@ -354,7 +354,7 @@ def tab_external(cost: dict | None) -> str:
 \multicolumn{{5}}{{@{{}}l}}{{\textit{{Free-text output}}}} \\
 {mono_row}
 \bottomrule
-\end{{tabular}}
+\end{{tabularx}}
 \caption{{Localized flaw recall over the same {c.get('clips', 149)} clips and the same $304$
 flaws, judged by the protocol of \cref{{sec:matching}}. Cost counts model and tool calls per clip and
 excludes the matching protocol, which is the scorer rather than the evaluator. Question

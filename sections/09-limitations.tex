@@ -1,0 +1,43 @@
+% =====================================================================
+\section{Limitations}\label{sec:limitations}
+% =====================================================================
+
+\paragraph{Generation.} The control signal comes from a simulator, so scene diversity is
+bounded by what is simulated, and the mapping from simulation to prompt appearance is not
+itself verified for physical consistency.
+
+\paragraph{Benchmark.} The corpus is recall-only (no clean clips), so precision is
+not directly measurable; flaws are single-annotator with no inter-annotator
+agreement; the scope/category tags are machine-derived; and the source generator
+of the clips is unrecorded. Repeatedly designing against one frozen set risks
+overfitting to it even without training on it.
+
+\paragraph{Critic.} The spatial relation predicate and negative-event
+verification are limited; the typed-plan layer does not yet dispatch the full
+specialist registry; binding remains a central failure mode, since the compiler
+enforces symbolic identifier consistency but cannot guarantee that heterogeneous
+tools localized the same physical instance; and the reasoner-mediated sub-checks
+reduce but do not remove semantic opacity.
+
+\paragraph{Self-evolution.} Four limits bound what
+\cref{sec:selfevolve:measured} establishes. The acceptance gate
+\eqref{eq:elitism} is not exercised, so the measurement covers distillation
+without the admission discipline that is meant to keep a bad lesson out; a rule
+written from a fresh miss has no proxy history, and closing that gap needs a
+$U_{\mathrm{val}}$ defined on unrun rules. The taught planner reads $1.76$ times
+as many claims out of a prompt as the untaught one, and flaw recall rewards
+asking more, so the effect combines a better-targeted plan with a larger one; a
+run holding the taught arm to the untaught arm's question budget would separate
+them. The lessons are induced once from a fixed pool rather than accumulated online, so the curve of
+\cref{fig:iclaggregate} measures the effect of the amount of experience distilled, not of
+accumulating it during deployment; the shape beyond $117$
+experience clips is unmeasured. Finally, the
+$502$-flaw held-out set is a different population from the $304$-flaw evaluation
+core used everywhere else in this paper, and the two rates should not be compared
+directly. Every distilled prior is \emph{critic-derived} rather than ground truth,
+and retrieval quality, staleness, and the propagation of a wrong prior remain
+open. The operator set $\mathcal{O}$ and the external channel $K$ are untouched: growing
+the operator library through multimodal
+distillation~\cite{plugmem2026,vilomem2026,m3agent2025} and admitting external
+knowledge under a candidate-and-prune
+discipline~\cite{contexttraining2026} are future work.

@@ -1,0 +1,128 @@
+% =====================================================================
+\section{Introduction}\label{sec:intro}
+% =====================================================================
+
+Contemporary video generation systems can synthesize visually compelling,
+temporally coherent clips with synchronized audio. Perceptual plausibility,
+however, is not evidence of physical validity: a failure may arise not only in
+rendered appearance but in any observable consequence of a physical event.
+Within the visual stream, entities may be omitted, trajectories may be
+inconsistent with the forces implied by the scene, and interactions may violate
+contact or causal constraints. Within the acoustic stream, an expected sound
+may be absent, mistimed, or attributed to the wrong source; across modalities,
+visual and acoustic observations may encode incompatible event timing or
+causality. Thus an object may remain unsupported under gravity, a ball may pass
+through a rigid wall, a visible collision may be silent, or its impact sound may
+precede contact. These failures become especially consequential as generated
+video moves beyond media synthesis into the training and evaluation loops of
+embodied systems. Recent video world models have been used to synthesize
+robot-training trajectories, support policy learning and evaluation, and reduce
+the sim-to-real gap; stronger world models have also been associated with better
+downstream policy
+performance~\cite{jang2025dreamgen,huang2025enerverse,shang2025roboscape}.
+Recently, evaluation has expanded beyond generic video quality to embodied task
+correctness and rule-level physical
+diagnosis~\cite{li2025worldmodelbench,deng2026rethinking,videophy2_2025,lin2026phyground},
+while complementary work has introduced temporal localization and the evaluation
+of acoustic or cross-modal physical consistency~\cite{physioneval2026,chinchure2026spotlight,xie2025phyavbench,cui2026avphys}.
+
+\begin{figure}[t]
+  \centering
+  \input{figs/fig_teaser}
+  \caption{Overview of \PhyReAct{} relative to question decomposition. The
+  numbered views magnify rotation, floor-contact deformation, generated wall
+  penetration, and the counterfactual rigid-wall rebound; the waveform shares
+  the visual event clock. The scene is illustrative rather than a recorded
+  execution.}
+  \label{fig:teaser}
+\end{figure}
+\FloatBarrier
+
+Despite this progress, recent evaluators capture complementary components of
+physical diagnosis rather than a single auditable evidence chain. They provide
+rule-level judgments~\cite{videophy2_2025,lin2026phyground}, temporal
+localization~\cite{physioneval2026,chinchure2026spotlight}, measurement-grounded
+tests in controlled settings~\cite{wang2026gauge}, and audio-physical or
+cross-modal consistency checks~\cite{xie2025phyavbench,zhou2026avgenbench}.
+These capabilities are nevertheless typically organized as benchmark-specific
+protocols built around curated datasets, predefined phenomena, or manually
+authored rubrics. The recent AV-Phys Agent is a particularly close point of
+comparison: it combines a reasoning--action loop with deterministic acoustic
+tools, but its released protocol remains tied to prompt-specific human-authored
+rubrics and multimodal-model binary judgments~\cite{cui2026avphys}. The
+ball--wall schematic in \cref{fig:teaser}, which illustrates the interface
+rather than a recorded execution, makes the resulting integration gap concrete:
+a defensible verdict must establish that the ball and wall are present,
+localize floor- and wall-contact windows, measure trajectory and relative
+geometry, and determine whether any detected impact sound aligns with the
+wall-contact window. Although audio events can be detected in parallel,
+synchrony cannot be resolved until that visual window is available. Unusable
+evidence leaves the dependent claim unknown; if no claim is contradicted, any
+unknown makes the clip abstain, while a terminal infrastructure failure
+remains a separate outcome. The gap targeted here is therefore not the absence
+of any one component, but their integration within a single evaluator that
+compiles the prompt into typed physical obligations and a statically validated
+plan, lets observations gate and scope already-declared specialist calls, and
+uses fixed rules to compose usable evidence records---typed measurements or
+explicitly tagged learned states---into three-valued decisions with traceable
+time windows, tool outputs, values, rules, and provenance.
+
+\PhyReAct{} addresses these requirements as a single physical-verification
+system coupling a text-only planner, a video-aware semantic verifier, frozen
+specialist operators, and fixed composition. For open-ended prompts that provide
+no evaluation rubric, the planner operates before any frame is seen, compiling
+exact prompt spans into typed physical obligations and a statically validated
+execution plan. For evidence distributed across entities, events, time, and
+modalities, the verifier reads timestamped frames densely on a shared A/V clock;
+its observations activate, skip, or localize only calls already declared by the
+plan, and those scoped calls dispatch SAM~3 grounding and
+tracking~\cite{sam3_2025}, identity-based counting, eleven track-based physical
+measurements, monocular depth, optical character recognition, and audio-event
+detection~\cite{flexsed2025}. For heterogeneous or unusable outputs, each action
+emits a claim-bound record containing either a typed measurement or an explicitly
+tagged learned base state, together with its realized scope,
+measured/abstained/errored status, artifact hashes, cost, and provenance. Typed
+resolvers and fixed composition map usable records to supported, contradicted,
+or unknown claim states and then to plausible, implausible, or abstain at clip
+level; unavailable evidence remains unknown, while terminal infrastructure
+failures remain separate. For opaque verdicts, the system returns an auditable
+claim-level trace linking each decision to its prompt span, planned calls,
+localized evidence, and composition rule. Together, these components turn an
+open prompt and generated A/V clip into a dependency-aware evidence chain rather
+than an unordered set of model answers. \Cref{fig:teaser} contrasts this design
+with the evaluated question-decomposition baseline, which asks one closed
+yes/no question per claim without a measurement trace.
+
+To evaluate the critic at the granularity of its trace, we assemble a corpus of
+$1{,}500$ generated clips with $2{,}582$ human-written, prompt-grounded flaw
+records. Each record quotes the violated prompt span and provides a rationale,
+severity, confidence, and, when available, a temporal span and object track;
+these records are the only ground truth used here. A flaw-level protocol scores
+each system finding as whole, partial, or missed against the corresponding
+human record. On a $149$-clip recall analysis, \PhyReAct{} accounts for $228$ of
+$304$ annotated defects, compared with $164$ for a published
+question-decomposition evaluator given the same clips, claims, and served model.
+A monolithic prompt to that same backbone accounts for $222$, so recall alone
+does not isolate the value of the agentic organization; the principal
+distinction is that every \PhyReAct{} decision retains its supporting evidence
+and provenance. This analysis is recall-only, single-annotator, and not held
+out, and therefore characterizes the current system rather than its
+generalization (\cref{sec:eval}).
+
+\PhyReAct{} casts physically grounded generation of, and a verdict on, a clip $\mathcal{V}$ for its
+prompt $p$ as two maps we build and benchmark separately: a \emph{generation} map
+$\hat{\mathcal{V}}\sim\operatorname{Gen}(p,C)$, the control-conditioned video diffusion of
+\cref{sec:generation}, and an \emph{evaluation} map $Y=\operatorname{Crit}(\mathcal{V},p)$, the
+auditable critic of \cref{sec:critic}. Both maps and the clip-level verdict are made precise there.
+
+In summary, our contributions are threefold: (i) \PhyReAct{}, an integrated
+physical-verification system that compiles prompts into typed obligations,
+scopes specialist operators with observations, and returns three-valued
+decisions with localized evidence and provenance; (ii) the $1{,}500$-clip corpus
+and its flaw-level matching protocol; and (iii) a simulation-conditioned
+generation testbed in which known MuJoCo geometry is rendered as depth or
+silhouette control for a frozen Wan~2.2-VACE generator
+~\cite{todorov2012mujoco,wan2025,vace2025}. The current report evaluates the
+critic and generator separately. Together, these contributions provide an
+auditable evaluation stack and a concrete interface for future physical
+refinement.

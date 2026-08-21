@@ -1,0 +1,38 @@
+% =====================================================================
+\section{Conclusion}\label{sec:conclusion}
+% =====================================================================
+Physical faithfulness in generated video requires three things that are usually
+studied apart: a way to \emph{steer} what gets generated, a way to \emph{measure}
+whether physical obligations are met, and \emph{ground truth} against which
+measurements can be scored. This report contributes one artifact toward each. For
+steering, we build a simulation-driven controllable generator
+(MuJoCo\,$\rightarrow$\,Wan~2.2-VACE), a first step toward the control channel
+through which a critic might one day feed corrections back into generation. For
+ground truth, we assemble a benchmark of human-annotated, localized defects, so
+that a critic can be scored on whether it finds the specific fault rather than on
+aggregate preference. And for measurement, we present \PhyReAct{}, an auditable
+multi-tool critic that grounds the reason--act--observe loop in physical
+verification: reasoning compiles the prompt into typed physical checks, frozen
+expert operators are called only to return measurements over the scope those
+checks declare, and a deterministic roll-up folds the observations into a
+three-valued verdict (\supported{}/\contradicted{}/\unknownv{}, surfaced as
+\emph{plausible}, \emph{implausible}, or \abstain{}) with a human-traceable
+evidence chain.
+
+On a development core of $149$ clips carrying $304$ human-marked defects,
+\PhyReAct{} accounts for $228$, against $164$ for a published question-decomposition
+evaluator reading the same clips and checking the same claims with the same served
+model. Prompting the same backbone monolithically reaches $222$, so the count alone does not
+separate the two. Every one of \PhyReAct{}'s $228$ arrives with the number that forced it, and
+a reader can audit any single verdict instead of accepting an aggregate.
+
+That auditability is also what makes the evidence usable downstream. A contradicted
+claim names what failed, when it failed, and on what measurement, which is precisely
+the signal a generator needs to regenerate a clip locally rather than resample it
+whole. It is equally the substrate for an operator library that grows as new
+measurement procedures are distilled, and for improvement that edits a readable state
+rather than a weight. Closing the critic-to-generator loop over that signal is the
+next milestone. \Cref{sec:framework} casts these components as a single state-optimization
+framework, and \cref{sec:roadmap} lays out the phased plan that carries it there.
+
+% =====================================================================
