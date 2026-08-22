@@ -29,6 +29,7 @@ HERE = Path(__file__).resolve().parent
 ADOBE_RED = "#FA0F00"   # single accent: this work's row
 INK = "#1A1A1A"
 GRAY = "#6E6E6E"
+CRITIC = "#9AA0A6"      # the automated critics: recessive mid-gray, not solid black
 LIGHT = "#C9C9C9"       # the reference (human) bar
 GRID = "#E8E8E8"
 HAIR = 0.6
@@ -79,18 +80,27 @@ def main():
     rows = ref + rest
 
     n = len(rows)
-    FIG_W, FIG_H = 6.5, 0.30 * n + 0.55
+    FIG_W, FIG_H = 6.5, 0.235 * n + 0.45   # tighter row pitch, shorter overall
     fig = plt.figure(figsize=(FIG_W, FIG_H))
-    ax = fig.add_axes([0.30, 0.16, 0.66, 0.80])
+    ax = fig.add_axes([0.30, 0.15, 0.66, 0.82])
+
+    # best automated critic, to mark the gap this work opens over the field
+    best_critic = max(r[1] for r in rows if r[2] == "critic")
+    human = next(r[1] for r in rows if r[2] == "ref")
 
     ys = list(range(n))[::-1]           # first row at top
     for y, (label, val, kind) in zip(ys, rows):
-        color = {"ref": LIGHT, "ours": ADOBE_RED, "critic": INK}[kind]
-        ax.barh(y, val, height=0.62, color=color, edgecolor="none", zorder=3)
+        color = {"ref": LIGHT, "ours": ADOBE_RED, "critic": CRITIC}[kind]
+        ax.barh(y, val, height=0.66, color=color, edgecolor="none", zorder=3)
         # value label at the bar end
         ax.text(val + 1.0, y, f"{val:.1f}%",
                 va="center", ha="left", fontsize=7.4,
                 color=(ADOBE_RED if kind == "ours" else GRAY), zorder=4)
+
+    # faint guides: the human reference and the best automated critic, so the eye
+    # reads this work's row as sitting well above the field and toward the human line
+    for x in (human, best_critic):
+        ax.axvline(x, color=GRAY, lw=HAIR, ls=(0, (2, 2)), zorder=1, alpha=0.55)
 
     ax.set_yticks(ys)
     ax.set_yticklabels([r[0] for r in rows], fontsize=7.6)
@@ -108,6 +118,13 @@ def main():
                        color=GRAY)
     ax.set_xlabel("physical-implausibility flag rate", fontsize=8.0, color=GRAY,
                   labelpad=3.0)
+
+    # name the two guide lines just under the top edge, so the gap reads at a glance
+    ytop = n - 0.30
+    ax.text(human, ytop, "human reference", fontsize=6.6, color=GRAY,
+            ha="center", va="bottom", zorder=5)
+    ax.text(best_critic, ytop, "best automated critic", fontsize=6.6, color=GRAY,
+            ha="center", va="bottom", zorder=5)
 
     ax.set_axisbelow(True)
     ax.grid(True, axis="x", color=GRID, lw=HAIR, zorder=0)

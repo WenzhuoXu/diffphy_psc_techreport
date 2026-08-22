@@ -20,3 +20,8 @@ __pycache__/
 # emit_tex.py also writes a combined results_tables.tex; main.tex \inputs the individual
 # tab_*.tex files instead, so it is an unused byproduct and is not published.
 results_tables.tex
+
+# build artifacts (regenerated each compile) and local scratch
+main.fls
+main.fdb_latexmk
+tmp/

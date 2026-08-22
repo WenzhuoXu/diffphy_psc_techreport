@@ -1,4 +1,4 @@
-% PhyReAct's own physical metric (p_plausible / verdict) over the 589-clip loop.
+% VeriPhy's own physical metric (p_plausible / verdict) over the 589-clip loop.
 % These are the critic's SELF-assessed quantities: the same critic both triggers a
 % rewrite and scores the result, so this table is not an independent measurement.
 % Numbers supplied from critic_full.jsonl; not recomputed here.
@@ -8,9 +8,9 @@
 \renewcommand{\arraystretch}{1.2}
 \begin{tabular}{@{}p{9.6cm} r@{}}
 \toprule
-\textbf{Quantity (PhyReAct self-assessed)} & \textbf{Value} \\
+\textbf{Quantity (VeriPhy self-assessed)} & \textbf{Value} \\
 \midrule
-Clips PhyReAct judged flawed and rewrote (\emph{acted})   & $87/589$ \;($14.8\%$) \\
+Clips VeriPhy judged flawed and rewrote (\emph{acted})   & $87/589$ \;($14.8\%$) \\
 \quad of these, $p_{\text{plausible}}$ increased          & $63/87$ \;($72.4\%$) \\
 \quad verdict flipped \emph{implausible}$\to$\emph{plausible} & $49/65$ \;($75\%$) \\
 \quad mean $\Delta p_{\text{plausible}}$ (acted)          & $+0.524$ \\
@@ -25,7 +25,7 @@ $14.8\%$ of clips), effective on its targets ($72.4\%$ improve, $49$ flip from
 implausible to plausible), and low-collateral ($1.6\%$)---but they are not an
 independent confirmation. They should be read against \cref{tab:refine-autorater},
 where an independent rater registers no corresponding change, including on the
-physical dimension. The $65$ denominator is the acted clips PhyReAct had first judged
+physical dimension. The $65$ denominator is the acted clips VeriPhy had first judged
 implausible.}
 \label{tab:refine-selfmetric}
 \end{table}

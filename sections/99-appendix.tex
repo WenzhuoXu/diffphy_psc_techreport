@@ -2,9 +2,8 @@
 \section{Appendix}\label{sec:appendix}
 
 \subsection{Temporal predicates}\label{sec:app-temporal}
-The order and containment predicates of \cref{sec:chaining} compare interval endpoints under a
-boundary slack. For positive-duration windows $W_X=[s_X,e_X]$, the recorded executor uses a slack
-equal to one quarter of the shorter window,
+The order and containment predicates of \cref{sec:chaining} compare interval endpoints under a slack
+of one quarter of the shorter window; for windows $W_X=[s_X,e_X]$,
 \begin{equation}
 \begin{gathered}
 \delta(A,B)=\tfrac14
@@ -19,13 +18,13 @@ equal to one quarter of the shorter window,
 \end{gathered}
 \label{eq:temporal-before}
 \end{equation}
-The slack tolerates a boundary overlap no larger than $\delta$; with the quarter-window rule and
-positive durations the first two cases cannot both hold. Containment uses the same slack.
+The quarter-window rule keeps the first two cases mutually exclusive for positive durations;
+containment uses the same $\delta$.
 
 \subsection{Withdrawal noise-level schedule}\label{sec:app-schedule}
-The control-withdrawal probe of \cref{sec:gen-withdrawal} reports the withdrawal point by the noise
-level $\sigma_{\mathrm{rel}}$ rather than the step index $i^{*}$. For $S$ steps at flow shift
-$\kappa$ over $N$ training timesteps, the backbone's UniPC schedule assigns
+\Cref{sec:gen-withdrawal} reports the withdrawal point by noise level $\sigma_{\mathrm{rel}}$, not
+step index $i^{*}$. For $S$ steps at flow shift $\kappa$ over $N$ training timesteps, the UniPC
+schedule assigns
 \begin{equation}
 \tilde{s}_i = \frac{(S-i)\,(1 - 1/N)}{S},
 \qquad
@@ -34,53 +33,44 @@ $\kappa$ over $N$ training timesteps, the backbone's UniPC schedule assigns
 \sigma_{\mathrm{rel}} = \sigma_{i^{*}} ,
 \label{eq:flow-sigma}
 \end{equation}
-where $\tilde{s}_i$ is the normalized flow-matching timestep at step $i$ and $\sigma_i$ the noise
-level assigned to it. Two runs that withdraw at the same step index thus sit at different noise
-levels whenever $S$ or $\kappa$ differs.
+with $\tilde{s}_i$ the normalized flow-matching timestep at step $i$ and $\sigma_i$ its noise level.
 
 \subsection{Trajectory-agreement metrics}\label{sec:app-retention}
-The control-release analysis of \cref{sec:gen-release} scores how closely a generated clip's tracked
-path follows the simulation's. Both videos are tracked frame by frame; with
-$p^{\mathrm{gen}}_t,p^{\mathrm{ctrl}}_t$ the tracked positions ($t\in\{0,\ldots,T-1\}$, undefined
-where the tracker finds nothing) and $V$ the frames where both are defined, \emph{retention} over a
-window $W$ is the per-axis Pearson correlation over $W\cap V$: $R_x(W)$ and $R_y(W)$, reported only
-where $|W\cap V|$ meets a minimum count. Intersecting with $V$ drops a frame missed in either video
-from both series, and $R$ near $1$ means the object moved as simulated.
+\Cref{sec:gen-release} scores how closely a generated clip's tracked path follows the simulation's.
+With $p^{\mathrm{gen}}_t,p^{\mathrm{ctrl}}_t$ the per-frame tracked positions ($t\in\{0,\ldots,T-1\}$,
+undefined where the tracker finds nothing) and $V$ the frames where both are defined,
+\emph{retention} over a window $W$ is the per-axis Pearson correlation over $W\cap V$ ($R_x(W)$,
+$R_y(W)$), reported only where $|W\cap V|$ meets a minimum count; $R$ near $1$ means the object moved
+as simulated.
 
-The windows split at the first ground-contact frame, read off the control's own vertical path. With
-$y^{\mathrm{ctrl}}$ downward and $t_{\mathrm{apex}}=\arg\min_{t\in V} y^{\mathrm{ctrl}}_t$,
-\begin{equation}
-t_c \;=\; \min\Big\{\, t \geq t_{\mathrm{apex}} \;:\; y^{\mathrm{ctrl}}_t \geq
-   y_{\max} - \tfrac{1}{10}\big(y_{\max}-y_{\min}\big) \Big\},
-\label{eq:contact-frame}
-\end{equation}
-$y_{\min},y_{\max}$ over the control's located frames. The \emph{airborne} window is $\{t<t_c\}$ and
-\emph{after-contact} $\{t\geq t_c\}$. Two prefixed failure modes accompany retention: a
-\emph{whole-clip disagreement} (full-clip horizontal $<0.7$) and a \emph{late-window disagreement}
-(full-clip horizontal $<0.7$ while airborne horizontal $>0.9$, locating it after contact).
+The windows split at the first ground-contact frame, off the control's vertical path: with
+$y^{\mathrm{ctrl}}$ downward, $t_{\mathrm{apex}}=\arg\min_{t\in V} y^{\mathrm{ctrl}}_t$, and
+$y_{\min},y_{\max}$ over the located frames,
+$t_c=\min\{t\geq t_{\mathrm{apex}}: y^{\mathrm{ctrl}}_t \geq y_{\max}-\tfrac{1}{10}(y_{\max}-y_{\min})\}$,
+giving \emph{airborne} $\{t<t_c\}$ and \emph{after-contact} $\{t\geq t_c\}$. Two prefixed failure
+modes accompany retention: a \emph{whole-clip disagreement} (full-clip horizontal $<0.7$) and a
+\emph{late-window disagreement} (full-clip horizontal $<0.7$ while airborne horizontal $>0.9$).
 
 \subsection{Critic dataflow and procedure}\label{sec:app-critic-alg}
-\Cref{fig:criticpipe} shows the critic dataflow of \cref{sec:critic} as a block diagram;
-\cref{alg:critic} states the one-clip verdict procedure in full, annotating each step as learned or
-deterministic with the equation defining it, and \cref{alg:onepass} is a condensed view. All three
-summarise \cref{sec:critic} and add no new step.
+\Cref{fig:criticpipe} shows the dataflow of \cref{sec:critic} and \cref{alg:critic} the full one-clip
+procedure, each step tagged learned or deterministic with its defining equation; both summarise
+\cref{sec:critic} and add no new step.
 
 \begin{figure}[H]
   \centering
   \input{figs/fig_critic_pipeline}
-  \caption{\PhyReAct{} dataflow. The text-only planner receives the prompt and
-  writes claims and a surface plan; the compiler expands and validates it before
-  the video reaches execution. SAM~3 grounds the subject and supplies the tracks
-  the typed operations measure over, so the specialists return numbers while the
-  video-aware verifier returns explicitly tagged learned states. Composition is
-  deterministic, and the one learned step after it is the fallback verifier, which
-  may resolve a claim the dense pass had left supported. Shaded boxes are learned
-  components; outlined boxes are deterministic.}
+  \caption{\PhyReAct{} dataflow. The text-only planner writes claims and a surface
+  plan; the compiler expands and validates it before any video is read. SAM~3
+  grounds the subject and supplies the tracks the typed operations measure over, so
+  specialists return numbers while the video-aware verifier returns tagged learned
+  states. Composition is deterministic; the one learned step after it, the fallback
+  verifier, may resolve a claim the dense pass left supported. Shaded boxes are
+  learned, outlined boxes deterministic.}
   \label{fig:criticpipe}
 \end{figure}
 
 \begin{algorithm}[H]
-\caption{PhyReAct critic: bounded learned planning/verification embedded in deterministic compilation, scoping, and roll-up (executable summary of \cref{sec:critic}).}
+\caption{VeriPhy critic: bounded learned planning/verification embedded in deterministic compilation, scoping, and roll-up (executable summary of \cref{sec:critic}).}
 \label{alg:critic}
 \begin{algorithmic}[1]
 \Require clip $\mathcal{V}=\{(I_t,\tau_t)\}_{t\in\mathcal{T}_{\mathcal V}}$, prompt $p$
@@ -109,122 +99,83 @@ summarise \cref{sec:critic} and add no new step.
 \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}[H]
-\caption{\PhyReAct{}: one-clip verdict. All reasoning is compiled and validated
-before any frame is read; execution only scopes declared calls, and adjudication
-is deterministic.}
-\label{alg:onepass}
-\begin{algorithmic}[1]
-\Require prompt $p$, decoded clip $\mathcal V$ (\cref{eq:video-clock})
-\Ensure clip verdict $Y$, contradiction packet $\mathcal F$, provenance trace $T$
-\State $(\mathcal C,\widetilde\Pi)\gets \Pi_\theta(p)$ \Comment{typed claims + surface plan, \cref{eq:claims-and-plan}}
-\State $G_\Pi\gets \operatorname{Compile}(\widetilde\Pi)$ \Comment{typed graph, \cref{eq:plan-dag}}
-\If{$\neg\operatorname{Valid}(G_\Pi)$} route the offending line/term to the charged fallback \Comment{\cref{eq:plan-validity}}
-\EndIf
-\For{$a_j$ \textbf{in} $\operatorname{TopoOrder}(G_\Pi)$} \Comment{scoped execution, \cref{eq:scoped-execution}}
-  \State $\Omega_j\gets g_j(\{R_k:(a_k,a_j)\in\mathcal E\},\,\mathcal T_{\mathcal V})$ \Comment{full clip or declared local window}
-  \State $R_j\gets F_{o_j}(\mathcal V|_{\Omega_j},\alpha_j)$ \Comment{frozen backend; reuse by realized signature (\cref{sec:chaining})}
-  \State serialize $R_{j}$ with status and provenance \Comment{\cref{eq:evidence-record}}
-\EndFor
-\For{each check $q\in\mathcal Q$}
-  \State $z_q\gets \psi_q(\{\mu_j:a_j\in\operatorname{Pa}(q)\})\in\{\mathsf S,\mathsf C,\mathsf U\}$ \Comment{typed resolver, \cref{sec:semantics}}
-\EndFor
-\For{each claim $c_i$}
-  \State $y_i\gets \operatorname{compose}(\{z_q:b(q)=i\})$, negating via $\neg_3$ \Comment{\cref{eq:claim-clip-rollup}}
-\EndFor
-\State $Y\gets \operatorname{rollup}(\{y_i\})$; \quad $\mathcal F\gets\{(c_i,\{R_{j,i}\}_j,\Omega_i,B_i):y_i=\mathsf C\}$ \Comment{\cref{eq:claim-clip-rollup,eq:refinement-packet}}
-\State \Return $(Y,\mathcal F,T)$
-\end{algorithmic}
-\end{algorithm}
-
 \begin{figure}[tp]
   \centering
   \input{figs/fig_plan_graph}
-  \caption{A surface plan after compilation into claims, typed checks, and
-  evidence-producing actions (referenced from \cref{sec:plan-lang}). A numeral adds a count check
-  beside a semantic assertion; an ordering consumes two event windows after occurrence gating;
-  and a depth relation consumes localization, masks, and depth supplied by the
-  compiler's dependency closure. The graph is illustrative of the planner's
-  vocabulary rather than an additional learned verdict.}
+  \caption{A surface plan compiled into claims, typed checks, and evidence-producing
+  actions (from \cref{sec:plan-lang}): a numeral adds a count check beside a semantic
+  assertion; an ordering consumes two event windows after occurrence gating; a depth
+  relation consumes localization, masks, and depth from the compiler's dependency
+  closure. Illustrative of the planner's vocabulary, not an added learned verdict.}
   \label{fig:plangraph}
 \end{figure}
 
 % =====================================================================
 \subsection{Benchmark details}\label{sec:app-benchmark}
-Per-field coverage is in \cref{tab:flawfields}, one full record in \cref{fig:benchanatomy}, the
-set's derivation in \cref{fig:benchcomp}, and the core's distributions in \cref{fig:benchdist}; the
-record's fields and grouping tags are defined in \cref{sec:bench-spec}.
+Field coverage is in \cref{tab:flawfields}, a full record in \cref{fig:benchanatomy}, the set's
+derivation in \cref{fig:benchcomp}, and the core's distributions in \cref{fig:benchdist}.
 
-By machine-assigned type, the core's $306$ flaws (median two per clip) are actions that do not
-happen or happen wrongly $139$; wrong counts $36$; wrong or missing objects $30$; garbled on-screen
-text $25$; wrong spatial arrangement $19$; wrong ordering $17$; wrong attributes $16$; camera and
-style $10$; physical motion $7$; residual $7$---not a physics benchmark in the narrow sense, with
-counting, text, and arrangement together $80$.
-
-The $150$ clips run a median $8.0$\,s ($5.0$--$10.3$), mostly $24$\,fps ($118/150$), under prompts
-that are not one-line captions: median $42$ words, longest $188$, many specifying a shot list, a
-count, an ordering, an on-screen string, and a sound at once. Sixty-six clips carry more than one
-flaw kind, so one number per clip cannot say which a detector found. Of the $237$ time-spanned
-flaws the flagged window covers a median $62\%$ of the clip, bimodally: $57$ span a quarter or less
-and $95$ at least nine-tenths (\cref{fig:benchdist}), so a detector needs both a close look and a
-whole-clip judgment.
+By machine-assigned type, the core's $306$ flaws (median two per clip) split as actions absent or
+wrong $139$; wrong counts $36$; wrong or missing objects $30$; garbled text $25$; wrong spatial
+arrangement $19$; wrong ordering $17$; wrong attributes $16$; camera and style $10$; physical motion
+$7$; residual $7$---counting, text, and arrangement together $80$, so this is not a physics benchmark
+in the narrow sense. The $150$ clips run a median $8.0$\,s ($5.0$--$10.3$), mostly $24$\,fps
+($118/150$), under prompts of median $42$ words (longest $188$), many naming a shot list, count,
+ordering, on-screen string, and sound at once. Sixty-six carry more than one flaw kind. Of the $237$
+time-spanned flaws the flagged window is bimodal---$57$ span a quarter of the clip or less, $95$ at
+least nine-tenths (\cref{fig:benchdist})---so a detector needs both a localized and a whole-clip
+check.
 
 \begin{table}[t]
 \centering\small
 \setlength{\tabcolsep}{6pt}\renewcommand{\arraystretch}{1.18}
-\begin{tabular}{@{}p{3.5cm} p{6.1cm} c@{}}
+\begin{tabular}{@{}l l c@{}}
 \toprule
-\textbf{Field} & \textbf{What it holds} & \textbf{Coverage} \\
+\textbf{Field} & \textbf{Note} & \textbf{Coverage} \\
 \midrule
-violated fragment & the words of the prompt the video fails, quoted verbatim; median $8$ words & 306/306 \\
-rationale & free text saying what went wrong instead; median $25$ words & 306/306 \\
-severity & $1$--$5$; the distribution is centred at $3$ and $4$ & 306/306 \\
-confidence & $1$--$5$; $239$ of $306$ are marked $4$ or $5$ & 306/306 \\
-time span & first and last frame in which the failure is visible & 237/306 \\
-box track & boxes at the start, middle and end of that span, one per object involved, in normalized coordinates & 208/306 \\
+violated fragment & median $8$ words & 306/306 \\
+rationale & median $25$ words & 306/306 \\
+severity & $1$--$5$, centred at $3$--$4$ & 306/306 \\
+confidence & $1$--$5$, $239$ marked $4$--$5$ & 306/306 \\
+time span & & 237/306 \\
+box track & & 208/306 \\
 \bottomrule
 \end{tabular}
-\caption{The six fields of a flaw record and how often each is filled across the 150-clip
-core. The first four are always present; timing and boxes are not, and a flaw carrying
-neither is one whose complaint is about the clip as a whole or about something that never
-appears.}
+\caption{Coverage of a flaw record's six fields (defined in \cref{sec:bench-spec}) across the
+$150$-clip core: the first four always present, timing and boxes only when the annotator
+supplies them.}
 \label{tab:flawfields}
 \end{table}
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{fig_benchmark_anatomy.pdf}
-  \caption{One human flaw record, shown in full. The annotator quotes the prompt
-  fragment the video fails to satisfy, bounds the interval in which the failure is
-  visible, boxes the objects involved at the start, middle and end of that
-  interval, and writes a severity, a confidence and a rationale in their own
-  words. The flagged window is $1.62$\,s of an $8$\,s clip. Nothing about the
-  critic's output appears here.}
+  \caption{One human flaw record in full: the quoted prompt fragment, the interval
+  of visible failure ($1.62$\,s of an $8$\,s clip), boxes on the objects at the
+  interval's start/middle/end, and a severity, confidence, and rationale. No critic
+  output appears.}
   \label{fig:benchanatomy}
 \end{figure}
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{fig_benchmark_composition.pdf}
-  \caption{How the evaluation set is derived from the annotated corpus. Clips are
-  removed only at the first step; the second step removes flaw \emph{records}
-  whose complaint is audible but not visible, leaving the clip count unchanged.
-  The routine core is a fixed random sample balanced by severity, flaw count and
-  clip length. A further 711 annotated clips are kept aside for training and
-  share no clip with either frozen set.}
+  \caption{Deriving the evaluation set. Only the first step removes clips; the
+  second removes audible-but-not-visible flaw \emph{records}, leaving the clip
+  count unchanged. The core is a fixed random sample balanced by severity, flaw
+  count, and length; a further $711$ annotated clips, disjoint from both frozen
+  sets, are kept for training.}
   \label{fig:benchcomp}
 \end{figure}
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{fig_benchmark_distributions.pdf}
-  \caption{Two properties of the routine evaluation core that shape how a detector
-  must behave. \textbf{Left:} most clips are flagged in only one or two places, so
-  a detector that raises many complaints per clip will mostly be raising ones no
-  annotator marked. \textbf{Right:} flagged windows are bimodal --- many failures
-  are confined to a small part of the clip while a comparable group runs almost
-  its whole length --- so both a brief localized check and a whole-clip check are
-  needed.}
+  \caption{Two core properties that shape a detector. \textbf{Left:} most clips are
+  flagged in only one or two places, so many complaints per clip are mostly ones no
+  annotator marked. \textbf{Right:} flagged windows are bimodal---some failures
+  confined to a small part of the clip, a comparable group spanning nearly all of
+  it---so both a localized and a whole-clip check are needed.}
   \label{fig:benchdist}
 \end{figure}
 
@@ -242,18 +193,16 @@ reference videos, hence dashed for every evaluator on the release.
 \input{tab_physion}
 
 \subsection{Recall by clip property}\label{sec:app-robust}
-\Cref{tab:robust} groups the $304$ core flaws (on the run of \cref{tab:headline}) by severity,
-duration, flaw count, and difficulty stratum. Subgroup recall stays within about ten points of the
-overall rate everywhere---comparable to the matching judge's re-scoring variation---so neither
-severity nor stratum clearly predicts whether a defect is found.
+\Cref{tab:robust} groups the $304$ core flaws (run of \cref{tab:headline}) by severity, duration,
+flaw count, and difficulty stratum. Subgroup recall stays within about ten points of the overall
+rate everywhere, so neither severity nor stratum predicts whether a defect is found.
 
 \input{tab_robust}
 
 \subsection{Refinement figures recomputed from the raw run}\label{sec:app-refine-verify}
-Every figure of \cref{sec:refine} was recomputed from the per-clip records as a transcription check;
-\cref{tab:refine-verify} lists each quantity beside its recomputation (all reproduce exactly) and
-pins two definitions: the $8/502$ collateral figure and the differing baseline and rewrite
-denominators.
+\Cref{tab:refine-verify} recomputes every figure of \cref{sec:refine} from the per-clip records (all
+reproduce exactly) and pins two definitions: the $8/502$ collateral figure and the differing baseline
+and rewrite denominators.
 
 \input{tab_refine_verify}
 

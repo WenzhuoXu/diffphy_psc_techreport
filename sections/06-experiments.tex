@@ -22,42 +22,39 @@ This setup---models, benchmark, and matching protocol---is shared by both system
 \input{tab_specialists}
 
 \subsubsection{Benchmark}\label{sec:bench-spec}
-The benchmark is a corpus of $1{,}500$ AI-generated clips in which a person watched each clip against its prompt and recorded every place the video failed to deliver what the text asked for; the generating model is not recorded, no clip is attributed to a specific system, and the human-written fields are the ground truth throughout. Each flaw is a localized record with four fields always present---the \textbf{violated fragment}, a free-text \textbf{rationale}, a \textbf{severity}, and the annotator's \textbf{confidence}---and two present when the annotator can supply them, a \textbf{time span} and a \textbf{box track}. Two coarse grouping tags, a \emph{modality} tag (seen, heard, or both) and a ten-item \emph{type} tag, are machine-assigned by majority of three zero-temperature model votes and never treated as ground truth. Per-field coverage, the per-type breakdown, and the timing distributions are given in \cref{sec:app-benchmark}.
+The benchmark is a corpus of $1{,}500$ AI-generated clips: a person watched each against its prompt and recorded every place the video failed to deliver what the text asked. The generating model is not recorded, no clip is attributed to a specific system, and the human-written fields are ground truth throughout. Each flaw is a localized record with four always-present fields---the \textbf{violated fragment}, a free-text \textbf{rationale}, a \textbf{severity}, and the annotator's \textbf{confidence}---and two optional, a \textbf{time span} and a \textbf{box track}. Two grouping tags---a \emph{modality} tag (seen, heard, or both) and a ten-item \emph{type} tag---are machine-assigned by majority of three zero-temperature model votes and never treated as ground truth. \cref{sec:app-benchmark} gives per-field coverage, the per-type breakdown, and timing distributions.
 
-Three recorded stages (\cref{fig:benchcomp} in \cref{sec:app-benchmark}) narrow the $1{,}500$ clips and $2{,}582$ flaws to the evaluation set: \emph{clip selection} keeps retrievable, dynamic clips, and \emph{flaw selection} keeps only the ``seen''- or ``both''-tagged flaws a pixel-only critic could find, leaving $1{,}107$. From these a deterministic seeded procedure, stratified by severity, flaw count, and duration, draws \emph{the frozen core} of $150$ clips and $306$ flaws (a $29$-clip continuity stratum exempt from replacement); a separate pool of $711$ clips is held disjoint from both frozen sets for learning. The core is an optimization set, so results on it measure fit to that core. One clip produced no measurement, so recall is reported over $149$ clips and their $304$ flaw entries, never the full $306$---the two excluded rather than counted as missed, making the reported rate very slightly optimistic.
+Three recorded stages (\cref{fig:benchcomp} in \cref{sec:app-benchmark}) narrow the $1{,}500$ clips and $2{,}582$ flaws to the evaluation set: \emph{clip selection} keeps retrievable, dynamic clips; \emph{flaw selection} keeps only ``seen''- or ``both''-tagged flaws a pixel-only critic could find, leaving $1{,}107$. A deterministic seeded procedure, stratified by severity, flaw count, and duration, draws \emph{the frozen core}---$150$ clips and $306$ flaws (a $29$-clip continuity stratum exempt from replacement); a separate pool of $711$ clips is held disjoint from both frozen sets for learning. The core is an optimization set, so results on it measure fit to that core. One clip produced no measurement, so recall is reported over $149$ clips and their $304$ flaw entries, never the full $306$---the two excluded rather than counted as missed, making the reported rate very slightly optimistic.
 
-Unlike clip-level resources\label{sec:bench-vs}---Physion-Eval~\cite{physioneval2026}, VideoPhy-2~\cite{videophy2_2025}, and per-dimension suites such as VBench~\cite{vbench2024} and T2V-CompBench~\cite{t2vcompbench2024}---our corpus attaches each failure to the exact prompt words with an optional time span and box track, so an allegation can be matched to a particular annotated failure rather than only correlated with a clip-level score. This localization does not improve reliability: our corpus is single-annotator and contains only flawed clips, whereas VideoPhy-2 provides redundant judgments and majority resolution.
-
+Unlike clip-level resources\label{sec:bench-vs}---Physion-Eval~\cite{physioneval2026}, VideoPhy-2~\cite{videophy2_2025}, and per-dimension suites such as VBench~\cite{vbench2024} and T2V-CompBench~\cite{t2vcompbench2024}---our corpus ties each failure to the exact prompt words with an optional time span and box track, so an allegation can be matched to a particular annotated failure rather than only correlated with a clip-level score. This localization does not improve reliability: our corpus is single-annotator and contains only flawed clips, whereas VideoPhy-2 provides redundant judgments and majority resolution.
 \subsubsection{Reference standard and matching protocol}\label{sec:eval-protocol}
-The evaluation core is the reference standard: its $149$ clips carry $304$ annotated flaws, the denominator for all core recall analyses. Every clip carries at least one flaw, so with no clean clips recall is directly measurable and precision is not---a detector that flags everything scores perfectly on recall alone---and results are reported alongside the rate at which accusations land on a real flaw. Recall is counted over flaw entries rather than distinct spans, since the matching protocol claims each entry at most once. Matching\label{sec:matching} is performed after critic inference and cannot affect the critic's outputs. The unit of comparison is a pair of sentences---what the annotator wrote and what the critic reports---judged on meaning as a \emph{whole} match (the same defect), a \emph{partial} match (the critic identifies at least one aspect of a compound annotated defect), or a non-match. Whole and partial pairings are the candidate edges for maximum bipartite matching in which each finding and each flaw is used at most once, after which each flaw is reported as whole, partial, or missed. The matching judge is distinct from all evaluated components, voting at temperature zero with a retry-and-refallback rule, and aborts rather than reporting a number if more than $2\%$ of flaws yield no usable outcome.
-
+The evaluation core is the reference standard: its $149$ clips carry $304$ annotated flaws---the denominator for all core recall analyses. Because every clip carries at least one flaw, recall is directly measurable but precision is not (a detector flagging everything scores perfect recall), so we report recall alongside the rate at which accusations land on a real flaw. Recall counts flaw entries, not distinct spans, since matching claims each entry at most once. Matching\label{sec:matching}, run after critic inference, cannot affect the critic's outputs. The comparison unit is a sentence pair (annotator vs.\ critic), judged by meaning as a \emph{whole} match (same defect), a \emph{partial} match (critic identifies at least one aspect of a compound annotated defect), or a non-match. Whole and partial pairings are candidate edges for maximum bipartite matching, each finding and flaw used at most once; every flaw is then reported as whole, partial, or missed. The matching judge, distinct from all evaluated components, votes at temperature zero with a retry-and-refallback rule and aborts rather than reporting a number if more than $2\%$ of flaws yield no usable outcome.
 \subsection{The physics-guided generator}\label{sec:gen-experiments}
 
-Three questions organize the generator experiments, each separate from the method definition:
-whether the geometric control overrides prompt-implied motion (\cref{sec:gen-prompt}), when a
-conditioned trajectory becomes insensitive to control withdrawal (\cref{sec:gen-release}), and how
-the pipeline behaves beyond the single-body probes (\cref{sec:gen-breadth}). The first and third
-analyses use the deployed generator; the release analysis is an explicitly separate mechanism probe
-on the second backbone whose withdrawal operation is defined in \cref{sec:gen-withdrawal}.
+Three questions organize the generator experiments: whether the geometric control overrides
+prompt-implied motion (\cref{sec:gen-prompt}), when a conditioned trajectory becomes insensitive to
+control withdrawal (\cref{sec:gen-release}), and how the pipeline behaves beyond single-body probes
+(\cref{sec:gen-breadth}). The first and third use the deployed generator; the release analysis is a
+separate mechanism probe on the second backbone, its withdrawal operation defined in
+\cref{sec:gen-withdrawal}.
 
 \subsubsection{Setup: from simulation to a controllable clip}\label{sec:gen-setup}
 
-The deployed backbone is Wan~2.2-VACE-Fun-14B, run through the \code{WanVACEPipeline} interface with
-a fixed negative prompt, no appearance reference, and deterministic sampling given the recorded seed.
-Scenes are simulated in MuJoCo and rendered to $81$ frames at $16$\,fps; because the simulated
-duration varies by scene, this render clock stretches playback by $1.8\times$--$2.3\times$, so
-trajectory shape and event order come from the simulation but absolute video speed does not equal
-simulator time. Generation is staged: controls are rendered first, a 1.3B checkpoint screens each
-scene once, and visibly degenerate outputs are not queued for the 14B model---a screening rule that
-is part of the reported pipeline rather than a property of the generator. Surviving scenes are
-generated in bf16 at $848\times480$ with the UniPC sampler at $50$ steps and guidance scale $5.0$,
-conditioned on the control video (globally normalized MuJoCo depth, or a silhouette for predeclared
-flat-scene templates), an all-white mask, and the text prompt; the conditioning scale is $s=1.0$ in
-the deployed run and examined separately at $\{0.5,0.8,1.0\}$.
+The deployed backbone is Wan~2.2-VACE-Fun-14B (\code{WanVACEPipeline}, fixed negative prompt, no
+appearance reference, deterministic sampling from the recorded seed). Scenes are simulated in MuJoCo
+and rendered to $81$ frames at $16$\,fps; as the simulated duration varies, this render clock
+stretches playback by $1.8\times$--$2.3\times$, so trajectory shape and event order come from the
+simulation but absolute speed does not equal simulator time. Generation is staged---controls
+rendered first, a 1.3B checkpoint screening each scene once, visibly degenerate outputs not queued
+for the 14B model (a pipeline rule, not a generator property). Surviving scenes are generated in
+bf16 at $848\times480$ with UniPC at $50$ steps and guidance $5.0$, conditioned on the control video
+(globally normalized MuJoCo depth, or a silhouette for predeclared flat-scene templates), an
+all-white mask, and the prompt; the conditioning scale is $s=1.0$ deployed, examined separately at
+$\{0.5,0.8,1.0\}$.
 
 \subsubsection{Control fidelity under prompt variation}\label{sec:gen-prompt}
 
-We fix the geometric control---one projectile-depth video---and vary the prompt: three prompts share subject, scene, camera, material and style, differing only in the motion clause: a strong horizontal traverse, a neutral one, or one adversarial to the control (drops nearly straight down, almost no sideways motion). Each runs under three regimes---no control, control over the first $10$ of $50$ steps, control throughout---at three seeds (partial), two (unconditioned), one (full). Horizontal travel (fraction of frame width) is tracked in the finished clip; metric and decision rules were registered before generation.
+We fix the geometric control---one projectile-depth video---and vary only the motion clause across three prompts sharing subject, scene, camera, material and style: a strong horizontal traverse, a neutral one, or one adversarial to the control (drops nearly straight down, almost no sideways motion). Each runs under three regimes---no control, control over the first $10$ of $50$ steps, control throughout---at three seeds (partial), two (unconditioned), one (full). We track horizontal travel (fraction of frame width) in the finished clip; metric and decision rules were registered before generation.
 
 \begin{figure}[t]
   \centering
@@ -74,37 +71,16 @@ We fix the geometric control---one projectile-depth video---and vary the prompt:
   \label{fig:prompttraj}
 \end{figure}
 
-The two inputs cross over (\cref{fig:prompttraj}). Without a control the prompt sets the motion:
-the clause-attributable range is $0.875$ against $0.252$ between seeds. The unconditioned clips
-also differ in framing---a median tracked ball area of $8{,}846$ pixels against $211$ under the
-control---so travel-fraction is not comparable across regimes, and within-regime comparisons carry
-the argument. With the control throughout, the clause-attributable range falls to $0.001$; in
-between, with the control over the first fifth of sampling then withdrawn, the two sources swap, the
-clause range at $0.060$ against a seed range of $0.427$.
+The two inputs cross over (\cref{fig:prompttraj}). Without a control the prompt sets the motion: the clause-attributable range is $0.875$ against $0.252$ between seeds. The unconditioned clips also differ in framing---median tracked ball area $8{,}846$ pixels against $211$ under the control---so travel-fraction is not comparable across regimes, and within-regime comparisons carry the argument. With the control throughout, the clause-attributable range falls to $0.001$; in between, with the control over the first fifth of sampling then withdrawn, the two sources swap: clause range $0.060$ against a seed range of $0.427$.
 
-The trajectories locate where the shortfall arises (\cref{fig:prompttraj}). A clip conditioned over
-the first ten steps tracks the control's arc through the flight and departs only at the landing,
-stopping near $0.77$ of the frame while the control's ball rolls on to $0.99$: the lost travel is
-the post-contact roll, not a different flight---the same phase \cref{sec:gen-release} finds most
-sensitive to early withdrawal. Of the three clauses at this seed, two follow the control from the
-first frames and the neutral one does not, staying a mean $0.243$ of the frame from the control's
-path over the first ten frames. The control-set trajectory thus persists through the text-only steps.
-
+The trajectories locate the shortfall (\cref{fig:prompttraj}). A clip conditioned over the first ten steps tracks the control's arc through the flight and departs only at the landing, stopping near $0.77$ of the frame while the control's ball rolls on to $0.99$: the lost travel is the post-contact roll, not a different flight---the same phase \cref{sec:gen-release} finds most sensitive to early withdrawal. Of the three clauses at this seed, two follow the control from the first frames and the neutral one does not, staying a mean $0.243$ of the frame from the control's path over the first ten frames. The control-set trajectory thus persists through the text-only steps.
 \subsubsection{Trajectory commitment under control withdrawal}\label{sec:gen-release}
 
-Moving the withdrawal point locates the noise level at which the simulated trajectory becomes fixed. The withdrawal operation, its second backbone, the noise-level coordinate $\sigma_{\mathrm{rel}}$, and the two variants that clear or keep the multistep solver's cached derivatives are defined in \cref{sec:gen-withdrawal} (\cref{eq:withdrawal-mask,eq:flow-sigma}); the scenes are a single moving rigid body, chosen for a closed-form trajectory (one of the three yields only five post-contact frames, so its windowed comparisons rest on two), each schedule setting at one seed. Withdrawing partway leaves the remaining steps unconditioned; since noise falls as sampling proceeds, a \emph{high} $\sigma_{\mathrm{rel}}$ is an \emph{early} withdrawal, so a clip that still follows the simulation after an early withdrawal shows the trajectory was fixed before the control was removed---and the earliest withdrawal that preserves agreement marks that point. Three runs each answer a different question: one fixes a withdrawal point and repeats it over $16$ seeds (seed variability), one sweeps six points on one seed (transition shape), and one re-scores a denser sweep with an independent tracker (measurement dependence).
+Moving the withdrawal point locates the noise level at which the simulated trajectory becomes fixed. The withdrawal operation, its second backbone, $\sigma_{\mathrm{rel}}$, and the two variants clearing or keeping the solver's cached derivatives are defined in \cref{sec:gen-withdrawal} (\cref{eq:flow-sigma}). Scenes are one moving rigid body with a closed-form trajectory (one of three yields only five post-contact frames, so its comparisons rest on two), one schedule setting per seed. Since noise falls during sampling, a \emph{high} $\sigma_{\mathrm{rel}}$ withdraws \emph{early}, leaving later steps unconditioned; a clip still following the simulation afterward was fixed before removal, and the earliest such withdrawal marks the commitment point. Three runs probe seed variability ($16$ seeds, one point), transition shape (six points, one seed), and measurement dependence (a denser sweep re-scored with an independent tracker).
 
-\paragraph{Metrics.} Each run is paired against a $\sigma_{\mathrm{rel}}=0$ run sharing its
-simulation, control, prompt, sampler, and seed, and both are tracked frame by frame (by colour,
-except the third run's segmentation tracker). \emph{Retention} is the per-axis Pearson correlation
-between generated and control paths (\cref{sec:app-retention}), scored separately over an
-\emph{airborne} and an \emph{after-contact} window split at the control's ground-contact frame $t_c$
-(\cref{eq:contact-frame}); near $1$ means the object moved as simulated, and the split localises
-disagreements a whole-clip value hides. Two prefixed failure counts accompany it---a
-\emph{whole-clip disagreement} (full-clip horizontal $<0.7$) and a \emph{late-window disagreement}
-(whole-clip horizontal $<0.7$ while airborne horizontal $>0.9$).
+\paragraph{Metrics.} Each run pairs against a $\sigma_{\mathrm{rel}}=0$ run sharing simulation, control, prompt, sampler, and seed, both tracked frame by frame (by colour, except the third run's segmentation tracker). \emph{Retention}, the per-axis Pearson correlation between generated and control paths (\cref{sec:app-retention}), is scored separately over \emph{airborne} and \emph{after-contact} windows split at the ground-contact frame $t_c$; near $1$ means the object moved as simulated, and the split localises disagreements a whole-clip value hides. Two prefixed failure counts accompany it: \emph{whole-clip disagreement} (full-clip horizontal $<0.7$) and \emph{late-window disagreement} (whole-clip horizontal $<0.7$ while airborne horizontal $>0.9$).
 
-\paragraph{Airborne and after-contact agreement under an early release.} The first run fixes the release point at $\sigma = 0.952$ and repeats two scenes over $16$ seeds each, in two variants (clearing or keeping the sampler's cached previous-step derivatives) against the never-released baseline: $96$ clips, $16$ per cell. Releasing at $\sigma = 0.952$ leaves the thrown ball's airborne flight intact, with per-seed horizontal agreement dropping by $0.003$ relative to never releasing ($95\%$ CI $0.001$ to $0.004$, $n=16$ paired seeds). Over the whole clip the same withdrawal reduces horizontal agreement by $0.13$ ($95\%$ CI $-0.02$ to $0.28$) and $0.18$ vertically ($95\%$ CI $0.07$ to $0.29$). The disturbance is thus confined to the motion after ground contact: scoring only post-contact frames, the generated ball's horizontal motion runs \emph{opposite} to the simulation's on $9$ of $16$ seeds at $\sigma = 0.952$ and on $0$ of $16$ when the control is never released. Whole-clip disagreements number $3$ of $16$ against $1$ of $16$, and late-window disagreements $2$ of $16$ against $0$ of $16$.
+\paragraph{Airborne and after-contact agreement under an early release.} The first run fixes release at $\sigma = 0.952$ over two scenes, $16$ seeds each, both variants, against the never-released baseline: $96$ clips, $16$ per cell. Releasing at $\sigma = 0.952$ leaves the thrown ball's airborne flight intact---per-seed horizontal agreement drops $0.003$ versus never releasing ($95\%$ CI $0.001$ to $0.004$, $n=16$ paired seeds)---while whole-clip horizontal falls $0.13$ ($95\%$ CI $-0.02$ to $0.28$) and vertical $0.18$ ($95\%$ CI $0.07$ to $0.29$). The disturbance is confined to post-contact motion, where horizontal runs \emph{opposite} to the simulation on $9$ of $16$ seeds at $\sigma = 0.952$ versus $0$ of $16$ when never released. Whole-clip disagreements number $3$ of $16$ against $1$ of $16$, late-window $2$ of $16$ against $0$ of $16$.
 
 \begin{figure}[t]
   \centering
@@ -123,14 +99,13 @@ disagreements a whole-clip value hides. Two prefixed failure counts accompany it
   \label{fig:injsweep}
 \end{figure}
 
-Sweeping six withdrawal points on one seed across three scenes gives retention against noise level (\cref{fig:injsweep}). For the thrown ball, $\sigma=0.952$ gives after-contact horizontal $-0.63$ (opposite to the simulation) with the airborne window still $1.00$, and $\sigma=0.903$ or later restores after-contact to $0.98{+}$ through the latest release, $\sigma=0.555$. A dropped ball stays above threshold everywhere: after-contact horizontal is $1.00$ throughout, and vertical---the informative axis---is lowest at $0.78$ ($\sigma=0.952$), rising to $0.99{+}$ from $\sigma=0.903$. A ball off a ramp stays at $0.99{+}$ in both axes. A third run---three thrown-ball points at three seeds and two guidance settings, $18$ clips, segmentation tracker---reproduces the direction: airborne horizontal $1.00$ (mean over $6$ clips at $\sigma=0.952$, $95\%$ CI $0.998$--$1.000$) while after-contact horizontal averages $0.69$ over an interval spanning zero ($-0.04$ to $1.43$, $n=6$), recovering to $0.99$ and $1.00$ at $\sigma=0.903$ and $0.833$; at the latest point the tracker finds no object on $3$ of $6$ clips (low-contrast ball on grass), excluded, widening that interval.
+Sweeping six points on one seed across three scenes traces retention against noise level (\cref{fig:injsweep}). For the thrown ball, $\sigma=0.952$ gives after-contact horizontal $-0.63$ (opposite to the simulation) with airborne still $1.00$; $\sigma=0.903$ or later restores after-contact to $0.98{+}$ through the latest release, $\sigma=0.555$. A dropped ball stays above threshold everywhere: after-contact horizontal is $1.00$ throughout, and vertical---the informative axis---is lowest at $0.78$ ($\sigma=0.952$), rising to $0.99{+}$ from $\sigma=0.903$. A ball off a ramp stays at $0.99{+}$ in both axes. A third run (three thrown-ball points, three seeds, two guidance settings, $18$ clips, segmentation tracker) reproduces the direction: airborne horizontal $1.00$ (mean over $6$ clips at $\sigma=0.952$, $95\%$ CI $0.998$--$1.000$) while after-contact horizontal averages $0.69$ over an interval spanning zero ($-0.04$ to $1.43$, $n=6$), recovering to $0.99$ and $1.00$ at $\sigma=0.903$ and $0.833$; at the latest point the tracker finds no object on $3$ of $6$ clips (low-contrast ball on grass), excluded, widening that interval.
 
-Across the runs the trajectory stops responding to control removal in a narrow band, $\sigma \approx 0.94$--$0.96$. Under \cref{eq:flow-sigma} at $S=40$, $\kappa=5.0$ this sits in the high-noise portion of sampling, consistent with the critical-window account~\cite{phasetrans2024,dynregimes2024,critwindows2024} and above the backbone's expert switch at timestep $0.875\,N$~\cite{wan22dual2026}, so motion is fixed before the handoff; we report it in noise level rather than step index because a change in $S$ or $\kappa$ moves the step but not the level~\cite{sdedit2022,p2train2022}. The two components do not fix together: on the thrown ball, $\sigma=0.9522$ drops after-contact agreement below threshold in both coordinates ($-0.632$ horizontal, $+0.016$ vertical), and one point later ($\sigma=0.9025$) the horizontal recovers to $+0.981$ while the vertical is still $+0.260$, not reaching $+0.894$ until $\sigma=0.8331$; the dropped ball shows the same ordering, so a schedule set by the horizontal alone would be too early. (Over the whole clip the ordering reverses---vertical $+0.986$ against horizontal $+0.421$---because the large flight excursion dominates the correlation and hides the rebound.)
+Across runs the trajectory stops responding to control removal in a narrow band, $\sigma \approx 0.94$--$0.96$. Under \cref{eq:flow-sigma} at $S=40$, $\kappa=5.0$ this sits in the high-noise portion of sampling, consistent with the critical-window account~\cite{phasetrans2024,dynregimes2024,critwindows2024} and above the backbone's expert switch at timestep $0.875\,N$~\cite{wan22dual2026}, so motion is fixed before the handoff; we report noise level not step index because changing $S$ or $\kappa$ moves the step but not the level~\cite{sdedit2022,p2train2022}. The two components do not fix together: on the thrown ball, $\sigma=0.9522$ drops after-contact agreement below threshold in both coordinates ($-0.632$ horizontal, $+0.016$ vertical); one point later ($\sigma=0.9025$) horizontal recovers to $+0.981$ while vertical is still $+0.260$, not reaching $+0.894$ until $\sigma=0.8331$; the dropped ball shows the same ordering, so a schedule set by horizontal alone would be too early. (Whole-clip the ordering reverses---vertical $+0.986$ against horizontal $+0.421$---as the large flight excursion dominates the correlation and hides the rebound.)
 
-The failure is specific: the flight is reproduced, the post-contact behaviour is not. Contacts are a documented failure mode of video generators~\cite{videophy2024}, traced to a weak prior over contact; where the prior is weak the control must stay present to override it, so applied throughout it reproduces the contact on every seed and the reversal appears only under early withdrawal. Clearing the sampler's cached derivatives changes the whole-clip result by at most $0.04$ horizontally ($95\%$ CI $-0.04$ to $0.13$, $n=16$), the largest per-seed difference measured on any window or direction.
+The failure is specific: flight is reproduced, post-contact behaviour is not. Contacts are a documented failure mode of video generators~\cite{videophy2024}, traced to a weak contact prior; where the prior is weak the control must stay present to override it, so applied throughout it reproduces the contact on every seed and the reversal appears only under early withdrawal. Clearing the cached derivatives changes the whole-clip result by at most $0.04$ horizontally ($95\%$ CI $-0.04$ to $0.13$, $n=16$), the largest per-seed difference on any window or direction.
 
 \FloatBarrier
-
 \subsubsection{Scene-library breadth and failure boundaries}\label{sec:gen-breadth}
 
 The same authoring, simulation and conditioning path scales beyond the single-body probes, producing $1{,}314$ scenes across $66$ \emph{kinds} (a kind is a template, a scene one parameter setting, simulated and generated once); $591$ of $652$ simulations passed a pre-render inspection of simulator output, not generated clips, judged to show the intended behaviour clearly enough to generate from. \Cref{fig:scenebreadth} shows twelve kinds as generated frames at body counts up to $34$, and \cref{fig:scenepairs} three as depth control and generated clip at matched timestamps.
@@ -177,29 +152,16 @@ Fidelity does not extend uniformly. Assessed by manual inspection with the colou
 \end{figure}
 
 \subsection{The \PhyReAct{} critic}\label{sec:eval}
-The benchmark and metrics are set out in \cref{sec:dataset}; this subsection reports the critic's recall on the evaluation core and breaks it down by clip property and specialist trace. How all the settings in this section should be read together is deferred to \cref{sec:eval-scope}.
+The benchmark and metrics are in \cref{sec:dataset}; this subsection reports the critic's recall on the evaluation core, broken down by clip property and specialist trace. How the settings here read together is deferred to \cref{sec:eval-scope}.
 
 \paragraph{Implementation and cost.}
-The served Qwen3-VL model (\cref{sec:dataset}) runs with tensor parallelism across two GPUs; planner
-and verifier are separate calls, the planner seeing the prompt and claim state but no frames and the
-verifier seeing densely decoded, timestamped frames and one declared predicate. Every reported
-measurement uses the logged dense-input path with the frozen target, BF16 inference, and pinned tool
-revisions. Because a detector, a tracker, and a full vision-language judgement differ in cost, cost
-is reported as model and tool calls per clip rather than wall-clock time, and uncertainty by
-resampling whole clips, since two flaws in one clip are not independent.
+The served Qwen3-VL model (\cref{sec:dataset}) runs with tensor parallelism across two GPUs. Planner and verifier are separate calls: the planner sees the prompt and claim state but no frames, the verifier sees densely decoded, timestamped frames and one declared predicate. Every measurement uses the logged dense-input path with the frozen target, BF16 inference, and pinned tool revisions. Since a detector, a tracker, and a full vision-language judgement differ in cost, cost is reported as model and tool calls per clip rather than wall-clock time, and uncertainty by resampling whole clips, since two flaws in one clip are not independent.
 
 \paragraph{Planner validity.}\label{sec:planner-gaps}
-Inspected before end-to-end evaluation without video or tool access, the prompt-only planner
-produced a valid, compilable plan for all $233$ claims of $22$ annotated clips (one or two calls per
-clip); $27$ claims ($11.6\%$) carried a specialist action that survived validation, against $2.3\%$
-under an earlier tabular format. On diagnostic sets requiring quantitative measurement the routing
-rate was $19/30$ across counting, spatial, and ordering claims and $10/10$ for synthetic counting
-prompts---tests of routing and syntax, not verdict accuracy. The supported vocabulary lacks an ``on
-top of'' predicate and rejects negated measurements; such claims fall back to the generalist
-verifier.
-
+Inspected before end-to-end evaluation without video or tool access, the prompt-only planner produced a valid, compilable plan for all $233$ claims of $22$ annotated clips (one or two calls per clip); $27$ claims ($11.6\%$) carried a specialist action surviving validation, against $2.3\%$ under an earlier tabular format. On diagnostic sets requiring quantitative measurement the routing rate was $19/30$ across counting, spatial, and ordering claims and $10/10$ for synthetic counting prompts---tests of routing and syntax, not verdict accuracy. The supported vocabulary lacks an ``on top of'' predicate and rejects negated measurements; such claims fall back to the generalist verifier.
 \subsubsection{Flaw recall on the evaluation core}
 \label{sec:headline}
+\paragraph{Headline recall.}
 Over the $149$ core clips and their $304$ human-annotated flaws, \PhyReAct{} finds \textbf{228
 ($75.0\%$)} under \cref{sec:matching}---$191$ whole, $37$ partial---and finds every annotated flaw
 on $91$ of the $149$ clips. Two components drive matches: the fallback verifier gpt-5.6-sol overrode
@@ -207,44 +169,28 @@ a dense-verifier pass to contradiction on $83$ of the $228$, and the on-screen-t
 transcribes malformed glyphs literally rather than normalizing them, so string comparison catches
 garbled text.
 
-\subsubsection{Comparison against published evaluators}\label{sec:external}
-We compare \PhyReAct{} against evaluators that localize defects---question-decomposition and scene-graph methods (per-question answers linkable to claims) and free-text evaluators (unstructured flaw lists)---and separately test whether CLIPScore tracks aggregate clip properties. Modular video QA is listed for context but not evaluated here; clip-level agreement with human ratings is deferred to \cref{tab:vs2}.
+\paragraph{Versus published evaluators.}\label{sec:external}
+We compare \PhyReAct{} against defect-localizing evaluators---question-decomposition and scene-graph methods (per-question answers linkable to claims) and free-text evaluators (unstructured flaw lists)---and test whether CLIPScore tracks aggregate clip properties. Modular video QA is context-only, not evaluated; clip-level agreement with human ratings is deferred to \cref{tab:vs2}.
 
 \begin{wrapfigure}{r}{0.46\textwidth}
   \centering
   \vspace{-10pt}
   \includegraphics[width=0.44\textwidth]{fig_external.pdf}
-  \caption{Localized flaw recall against cost for each evaluator, over the same $149$
+  \caption{Localized flaw recall vs.\ cost per evaluator, over the same $149$
   clips and $304$ flaws (\cref{sec:matching}). Horizontal axis: mean model and tool calls
-  per clip; vertical axis: recall. Up and to the left is better. The full comparison is
-  \cref{tab:external} in \cref{sec:app-external}.}
+  per clip; vertical: recall. Up-and-left is better. Full comparison: \cref{tab:external}
+  in \cref{sec:app-external}.}
   \label{fig:external}
   \vspace{-8pt}
 \end{wrapfigure}
 
-The same served model, run in a single pass over the prompt and every frame without planning, tools,
-or per-claim verification, matches $222$ of the $304$ flaws at one call per clip; \cref{fig:external}
-reports it separately because free-text lists are prompt-sensitive and carry no per-verdict
-evidence.
+The same served model---single-pass over the prompt and every frame, no planning, tools, or per-claim verification---matches $222$ of the $304$ flaws at one call per clip; \cref{fig:external} reports it separately, since free-text lists are prompt-sensitive with no per-verdict evidence.
 
-Question decomposition matches \textbf{164 of the $304$ flaws ($53.9\%$)}---$125$ whole, $39$
-partial---against \PhyReAct{}'s $228$, on the same $149$ densely-read clips through the same model
-(identical claim lists on $148$). It asks one closed question per claim and accepts the answer,
-whereas \PhyReAct{} plans measurements and may apply several checks per claim. Its higher recall does
-not reflect a higher per-finding match rate: $29\%$ of its $557$ findings match a human flaw, against
-$26\%$ of \PhyReAct{}'s $871$. Roughly a third of its questions ask only whether an object is present
-(\emph{Is there a vending machine?}), answerable from one frame; twelve clips receive no finding.
-Clip by clip it finds fewer flaws than \PhyReAct{} on $70$, the same on $63$, more on $16$.
+Question decomposition matches \textbf{164 of the $304$ flaws ($53.9\%$)}---$125$ whole, $39$ partial---versus \PhyReAct{}'s $228$, on the same $149$ densely-read clips and model (identical claim lists on $148$). It asks one closed question per claim and accepts the answer, whereas \PhyReAct{} plans measurements and may run several checks per claim. Higher recall is not a higher per-finding match rate: $29\%$ of its $557$ findings match a human flaw versus $26\%$ of \PhyReAct{}'s $871$. About a third of its questions only check object presence (\emph{Is there a vending machine?}), answerable from one frame; twelve clips get no finding. Clip by clip it finds fewer than \PhyReAct{} on $70$, equal on $63$, more on $16$.
 
-As a clip-level diagnostic, CLIPScore correlates across the $149$ clips with severity at $r=+0.035$
-($p=0.67$) and flaw count at $r=-0.024$ ($p=0.77$); with $86$ clips carrying multiple flaws ($241$ of
-$304$), a single scalar cannot localize them.
-
-\subsubsection{Recall by category and clip property}
-\label{sec:bycat}
-
+As a clip-level diagnostic, CLIPScore correlates across the $149$ clips with severity ($r=+0.035$, $p=0.67$) and flaw count ($r=-0.024$, $p=0.77$); with $86$ clips carrying multiple flaws ($241$ of $304$), a single scalar cannot localize them.
+\paragraph{Recall by category and clip property.}\label{sec:bycat}
 \input{tab_headline}
-
 By the annotators' own categories (\cref{tab:headline}), recall runs from $90\%$ to $49\%$. Camera
 and style ($90\%$) and on-screen text ($84\%$) rank highest, both measured directly against an
 explicit target; counting is lowest at $49\%$ because its path reduces a per-frame series to its mode
@@ -258,7 +204,7 @@ defect (\cref{tab:robust} in \cref{sec:app-robust}).
 
 \subsubsection{Specialist measurement traces}
 \label{sec:cases}
-\Cref{fig:criticcases} presents six matched findings from an earlier physics-routing pass over the evaluation core; they are not from the run of \cref{tab:headline} and do not contribute to its recall. Five rest on numeric measurements and the text case on a recognition-head transcript compared as a string. The selection rule was fixed in advance---clips whose every annotated flaw was linked to a finding, and only where the raw per-check record attributed that finding to a specialist measurement and stored the values---excluding ten candidates for mismatched linkage, for a verifier-produced finding, or, once, for an invalid rationale (a ``vertical 9:16'' aspect ratio misread as a $9.0$-versus-$16.0$-second duration).
+\Cref{fig:criticcases} shows six matched findings from an earlier physics-routing pass over the evaluation core; they are not from the run of \cref{tab:headline} and do not contribute to its recall. Five rest on numeric measurements, the text case on a recognition-head transcript compared as a string. The selection rule was fixed in advance---clips whose every annotated flaw was linked to a finding, and only where the raw per-check record attributed that finding to a specialist measurement and stored the values---excluding ten candidates for mismatched linkage, a verifier-produced finding, or, once, an invalid rationale (a ``vertical 9:16'' aspect ratio misread as a $9.0$-versus-$16.0$-second duration).
 
 \begin{figure}[tp]
   \centering
@@ -285,7 +231,7 @@ generative model would silently normalize to the requested phrase.
 disappears, so two specialists evaluated the prompt's requirement that it disappear: the
 vertical-travel check required downward motion but measured $2.07$ radii \emph{upward} ($-317$\,px
 over $37$ frames, negative denoting up), and the persistence check required it to vanish but found it
-on $121$ of $121$ frames with no gap of three or more, so both independently contradict the
+on $121$ of $121$ frames with no gap of three or more; both independently contradict the
 requirement. Each measurement also records its temporal coverage: in the banner case the recognition
 head read $25$ of the clip's $241$ frames at stride ten, and a transcript stable across those $25$
 evidences a persistent banner, whereas a briefly-appearing caption could fall between samples.
@@ -296,15 +242,9 @@ reason. The most common is no candidate grounding passing the semantic guard---s
 the candidate boxes and asked only whether they are the named subject: for seagulls scattering
 behind fighter jets, the ``seagulls'' boxes held the jets and were discarded, yielding \unknownv{}
 and separating a failure to find the subject from a violation by it.
-
 \subsubsection{Agreement with human clip-level ratings}
 \label{sec:vs2}
-Since localized recall and clip-level scalars are not directly comparable, we compare \PhyReAct{}
-against VideoScore2~\cite{videoscore2_2025} on human clip-level semantic-adherence ratings, both on
-the same $1$--$5$ scale and scored with VideoScore2's published script. The sample is a prespecified
-fixed-seed draw of $200$ VideoPhy-2~\cite{videophy2_2025} test clips ($55$ \emph{hard}-flagged) to
-which the scoring function was not fitted, and agreement is measured by the four columns of
-\cref{tab:vs2}, excluding per metric any clip with an unparsed prediction.
+Since localized recall and clip-level scalars are not directly comparable, we compare \PhyReAct{} with VideoScore2~\cite{videoscore2_2025} on human clip-level semantic-adherence ratings, both on the $1$--$5$ scale and scored with VideoScore2's published script. The sample is a prespecified fixed-seed draw of $200$ VideoPhy-2~\cite{videophy2_2025} test clips ($55$ \emph{hard}-flagged) to which the scoring function was not fitted; agreement uses the four \cref{tab:vs2} columns, dropping per metric any unparsed prediction.
 
 \begin{table}[t]
 \centering\small
@@ -327,24 +267,16 @@ that scale.}
 \label{tab:vs2}
 \end{table}
 
-The critic trails on exact and within-one agreement but leads on PLCC and SRCC (\cref{tab:vs2}). In
-a paired bootstrap the SRCC gain is $+0.138$ ($95\%$ CI $[+0.005,+0.277]$) and the PLCC gain $+0.110$
-($[-0.018,+0.242]$); on the $55$ hard clips, $+0.242$ ($[+0.018,+0.511]$) and $+0.309$
-($[+0.050,+0.583]$). This is consistent with per-claim evidence degrading more gracefully on hard
-clips than a single learned scalar, though the hard subset is small and the intervals wide. Two
-caveats: the single $200$-clip draw describes that sample, not the benchmark; and the judges are not
-cost-matched (a decomposition plus tool calls versus one forward pass), so this says nothing about
-efficiency.
-
+The critic trails on exact and within-one agreement but leads on PLCC and SRCC (\cref{tab:vs2}). A paired bootstrap gives SRCC gain $+0.138$ ($95\%$ CI $[+0.005,+0.277]$), PLCC gain $+0.110$ ($[-0.018,+0.242]$); on the $55$ hard clips, $+0.242$ ($[+0.018,+0.511]$) and $+0.309$ ($[+0.050,+0.583]$). This fits per-claim evidence degrading more gracefully than a single learned scalar on hard clips, though that subset is small and intervals wide. Caveats: the single $200$-clip draw describes that sample, not the benchmark; and the judges are not cost-matched (decomposition plus tool calls versus one forward pass), so this says nothing about efficiency.
 \subsubsection{Held-out evaluation on Physion-Eval}\label{sec:physion}
-Physion-Eval (\cref{sec:bench-vs}) provides clips held out from this system's development: $9{,}569$
-generated clips from five generators, each with a human report of its physical glitches ($8{,}745$
+Physion-Eval (\cref{sec:bench-vs}) holds out clips from this system's development: $9{,}569$
+generated clips from five generators, each with a human report of physical glitches ($8{,}745$
 with at least one). Two release limits bound what is measurable: the matched real-world reference
 videos for the benchmark's $J$ statistic are withheld for copyright, and glitch-free clips are not
 verified negatives. The release thus supports neither $J$ nor false-alarm rates for any
 evaluator---only flag rates on release clips and matched-report rates on reported-glitch clips.
 
-\PhyReAct{} is being run over a fixed randomized stream; the figures are interim, covering the first
+\PhyReAct{} runs over a fixed randomized stream; figures are interim, covering the first
 $601$ clips ($543$ with a reported glitch, $58$ without). The in-context lesson state
 (\cref{sec:icl-exp}) was active and updated as the stream progressed, so the run is prequential over
 an evolving configuration, with no component seeing a label before scoring its clip.
@@ -354,7 +286,7 @@ The \emph{matched-report clip rate} is the share of reported-glitch clips with a
 report under \cref{sec:matching}. The \emph{evidence-conditioned flag rate} is the share the served
 model calls physically unrealistic from the check records alone---question, verdict, reason, and
 numerical evidence---without frames or the reported defect. The \emph{anomaly-phrased finding rate}
-is the share with a finding that explicitly alleges a physical anomaly rather than an unmet prompt
+is the share whose finding explicitly alleges a physical anomaly rather than an unmet prompt
 requirement.
 
 \Cref{fig:physionlb} places this work's evidence-conditioned flag rate against the
@@ -377,17 +309,16 @@ juxtaposition is descriptive rather than a common-protocol comparison.
 
 The evidence-conditioned flag rate is nearly twice the anomaly-phrased finding rate,
 indicating that the accumulated evidence supports physical-implausibility
-judgements beyond what the wording of individual findings states.
-
+judgements beyond what individual findings' wording states.
 \subsection{Context-training self-evolution of the critic}
 \label{sec:icl-exp}
-The critic's inward channel distills lessons from recorded misses into its readable state, improving without touching a weight; the formalism---the distillation map \eqref{eq:distill}, the acceptance gate \eqref{eq:elitism}, and the state $S=(\mathcal{O},M,K)$ it edits---is set out in \cref{sec:framework}. Here we measure the effect on flaw recall.
+The inward channel distills lessons from misses into the critic's readable state, improving without touching a weight; the formalism---distillation map \eqref{eq:distill}, acceptance gate \eqref{eq:elitism}, edited state $S=(\mathcal{O},M,K)$---is in \cref{sec:framework}. We measure flaw recall.
 
-Applying \eqref{eq:distill} to episodes where a plan missed a human-annotated flaw, $\operatorname{Distill}$ reads the trace and miss and writes a lesson naming a property of the claim and the action it licenses (e.g.\ \emph{when a prompt specifies a singular entity or exact quantity, create a separate cardinality check and verify that count across beginning, middle and end}); a curation pass groups candidates into $33$ \emph{families} of equivalent advice, one lesson each, appended to the planner's rubric. Only $M$ changes ($S' = (\mathcal{O}, M', K)$); a family's name labels which defect its lesson concerns.
+On a plan's miss of a human-annotated flaw, $\operatorname{Distill}$ \eqref{eq:distill} reads the trace and miss and writes a lesson naming a claim property and the action it licenses (e.g.\ turning a singular-entity or exact-quantity requirement into a \emph{separate cardinality check verified across beginning, middle and end}); curation groups candidates into $33$ \emph{families} of equivalent advice, one lesson each, appended to the planner's rubric. Only $M$ changes ($S' = (\mathcal{O}, M', K)$); a family's name labels the defect its lesson concerns.
 
-The implementation departs from the formalism in two ways. First, all $33$ lessons are supplied on every clip: the selective form (one relevance call per lesson--claim pair) costs $132$ model calls for a four-claim prompt and $495$ for a fifteen-claim one, whereas supplying all costs no calls and adds $9$\,kB to a planner prompt already $17.8$\,kB long. Second, the acceptance gate \eqref{eq:elitism} is dropped: $U_{\mathrm{val}}$ scores only rules already seen in a run, not one from a fresh miss --- as a diagnostic on $80$ earlier candidates over a ten-clip set it admitted none ($39$ failed its minimum-evidence criterion, $41$ never triggered). The evaluated intervention is the curated $33$ lessons, without the gate.
+Implementation departs from the formalism twice. First, all $33$ lessons go on every clip: the selective form (one relevance call per lesson--claim pair) costs $132$ model calls for a four-claim prompt and $495$ for a fifteen-claim one, whereas all-at-once costs no calls and adds $9$\,kB to a planner prompt already $17.8$\,kB long. Second, the acceptance gate \eqref{eq:elitism} is dropped: $U_{\mathrm{val}}$ scores only rules already seen in a run, not one from a fresh miss---diagnostically, on $80$ earlier candidates over a ten-clip set it admitted none ($39$ failed its minimum-evidence criterion, $41$ never triggered). The evaluated intervention is the curated $33$ lessons, without the gate.
 
-\paragraph{Protocol and result.} Lessons are distilled from experience clips and tested on held-out ones: excluding every clip sharing an identifier or restating a prompt with an experience clip leaves an evaluation set of $306$ clips carrying $502$ flaws, so no lesson is evaluated on the prompt it was written from. Every condition scores those same flaws under the matching protocol of \cref{sec:matching} (a flaw is \emph{found} when the critic covers it wholly or in part), the untaught condition loading an empty lesson file through the same path; five nested conditions---no lessons, then $8$, $13$, $19$ and $33$ lessons distilled from $25$, $50$, $75$ and $117$ experience clips, each pool a prefix of the next---turn the comparison into a dose curve. With all $33$ lessons the planner finds $\mathbf{375}$ of $502$ flaws ($\mathbf{74.7\%}$) against $340$ untaught ($67.7\%$): $62$ flaws switch from missed to found and $27$ the other way, a net $+35$ at $p = 3\!\times\!10^{-4}$ under a paired sign test. More experience does not extend the gain (\cref{fig:iclaggregate}): the four taught conditions find $375$, $377$, $374$ and $375$, each $+34$ to $+37$ over untaught at $p < 10^{-3}$ but no two differing by more than $3$ ($p \geq 0.8$ pairwise), and the unfiltered set ($363$ clips, $626$ flaws) shows the same pattern. The later lessons instead reshuffle which flaws are found without changing how many---$36$ move each way between the $8$- and $33$-lesson conditions---so the gain is already present with lessons from $25$ clips.
+\paragraph{Protocol and result.} Lessons distilled from experience clips are tested on held-out ones: excluding every clip sharing an identifier or restating an experience-clip prompt leaves $306$ clips with $502$ flaws, so no lesson is evaluated on the prompt it was written from. Every condition scores those flaws under \cref{sec:matching}'s protocol (a flaw is \emph{found} when the critic covers it wholly or in part), untaught loading an empty lesson file through the same path; five nested conditions---no lessons, then $8$, $13$, $19$ and $33$ lessons from $25$, $50$, $75$ and $117$ clips, each a prefix of the next---form a dose curve. With all $33$ the planner finds $\mathbf{375}$ of $502$ flaws ($\mathbf{74.7\%}$) against $340$ untaught ($67.7\%$): $62$ switch missed-to-found and $27$ back, net $+35$ at $p = 3\!\times\!10^{-4}$ (paired sign test). More experience does not extend it (\cref{fig:iclaggregate}): the four taught conditions find $375$, $377$, $374$ and $375$, each $+34$ to $+37$ over untaught at $p < 10^{-3}$ but no two differing by more than $3$ ($p \geq 0.8$ pairwise), and the unfiltered set ($363$ clips, $626$ flaws) matches. Later lessons reshuffle which flaws are found, not how many---$36$ move each way between the $8$- and $33$-lesson conditions---so the gain is present already with lessons from $25$ clips.
 
 \begin{figure}[t]
   \centering
@@ -406,31 +337,26 @@ The implementation departs from the formalism in two ways. First, all $33$ lesso
   \end{minipage}
 \end{figure}
 
-\paragraph{Effect by flaw category.} Since both conditions score the same flaws, we report the paired change, its interval from flaws that switched status (\cref{tab:iclcategory}). Between the untaught and $33$-lesson conditions, two categories have a $95\%$ interval excluding zero: \emph{action or event occurs}, largest at $211$ flaws, gains $17$ ($8.1$ percentage points, $[+2, +12]$); \emph{on-screen text} gains $8$ of $73$ ($11.0$ points, $[+2, +15]$). All other intervals contain zero, and reading smaller movements as rates overstates them: $+7$ points for camera and style is one flaw of $14$, $+16$ for counting is three of $19$. Flaws rise in both severity grades holding the bulk of the set --- $19$ of $288$ at severity~$3$ ($p = 0.01$) and $13$ of $163$ at severity~$4$ ($p = 0.03$) --- with the remaining $51$ flaws at grades $1$, $2$ and $5$.
+\paragraph{Effect by flaw category.} Both conditions score the same flaws, so we report the paired change and its interval from flaws that switched status (\cref{tab:iclcategory}). Between untaught and $33$-lesson conditions, two categories' $95\%$ interval excludes zero: \emph{action or event occurs}, largest at $211$ flaws, gains $17$ ($8.1$ percentage points, $[+2, +12]$); \emph{on-screen text} gains $8$ of $73$ ($11.0$ points, $[+2, +15]$). All other intervals contain zero, and reading smaller movements as rates overstates them: $+7$ points for camera and style is one flaw of $14$, $+16$ for counting is three of $19$. Flaws rise in both severity grades holding the bulk of the set---$19$ of $288$ at severity~$3$ ($p = 0.01$) and $13$ of $163$ at severity~$4$ ($p = 0.03$)---the remaining $51$ at grades $1$, $2$ and $5$.
 
 \input{tab_icl_category}
 
-\paragraph{Where the lessons point.} The gains are not aligned with the lesson names. All eight families from the first $25$ clips concern actions, none mentioning text, counting or spatial relations, yet at $8$ lessons \emph{on-screen text} posts the largest percentage-point gain of any category ($10$ of $73$) before any lesson mentions text, then loses two after one does; the later $25$ families do not move their nominal targets. This is consistent with the first lessons supplying a general instruction---separate a compound requirement into checkable parts---that applies well outside the categories they were written from, a reading the plan measurements below assess.
+\paragraph{Where the lessons point.} Gains are not aligned with lesson names. All eight families from the first $25$ clips concern actions, none mentioning text, counting or spatial relations, yet at $8$ lessons \emph{on-screen text} posts the largest percentage-point gain of any category ($10$ of $73$) before any lesson mentions text, then loses two after one does; the later $25$ families do not move their nominal targets. This fits the first lessons supplying a general instruction---separate a compound requirement into checkable parts---applying well beyond the categories they were written from, which the plan measurements below assess.
 
-\paragraph{Effect of the lessons on the plan.} Lessons compile the prompt into more claims, not more checks per claim: from untaught to $33$ lessons, checks per claim rise only $1.13\!\to\!1.18$ while typed physical claims rise $2{,}905\!\to\!5{,}106$ over the $306$ clips ($9.5\!\to\!16.7$ per clip)---as the decomposition reading predicts. This locates the flattening: claims per clip keep rising across all five conditions ($9.5$, $15.1$, $16.0$, $16.1$, $16.7$), so later lessons keep changing the plan while flaws found stall. On-screen text shows it at clip level: text \emph{checks} rise $81\!\to\!136$ (already $114$ at $8$ lessons), yet of the $56$ text-flaw clips the number receiving any text check does not ($41$ untaught vs.\ $40$ taught)---lessons add checks without widening the set of clips checked.
-
+\paragraph{Effect of the lessons on the plan.} Lessons compile the prompt into more claims, not more checks per claim: from untaught to $33$ lessons, checks per claim rise only $1.13\!\to\!1.18$ while typed physical claims rise $2{,}905\!\to\!5{,}106$ over $306$ clips ($9.5\!\to\!16.7$ per clip)---as the decomposition reading predicts. This locates the flattening: claims per clip keep rising across all five conditions ($9.5$, $15.1$, $16.0$, $16.1$, $16.7$), so later lessons keep changing the plan while flaws found stall. On-screen text shows this at clip level: text \emph{checks} rise $81\!\to\!136$ (already $114$ at $8$ lessons), yet of $56$ text-flaw clips the number getting any text check does not ($41$ untaught vs.\ $40$ taught)---lessons add checks without widening the set of clips checked.
 \subsection{Writing a verdict back into generation}\label{sec:refine}
-The critic's outward channel is the one claimed but not yet measured: a verdict, with its
-evidence, fed back as a prompt rewrite that regenerates the clip. We close that loop on a held-out
-generator and ask a deliberately narrow question---does it help on the metric that triggered it, and
-does an \emph{independent} rater register the same change?
+The critic's outward channel---a verdict with its evidence, fed back as a prompt rewrite that
+regenerates the clip---is claimed but not yet measured. We close that loop on a held-out generator
+and ask a deliberately narrow question: does it help on the metric that triggered it, and does an
+\emph{independent} rater register the same change?
 
-The loop composes the two maps of \cref{eq:gen-crit-maps} through a rewrite operator. From a base
-clip $\hat{\mathcal{V}}\sim\operatorname{Gen}(p,C)$ the critic returns a verdict with its cited
-failures,
-\begin{equation}
-  Y=\operatorname{Crit}(\hat{\mathcal{V}},p)=\bigl(v,\;\pi,\;\mathcal{F}\bigr),
-  \qquad v\in\{\textsf{plausible},\textsf{implausible},\textsf{abstain}\},
-  \label{eq:refine-verdict}
-\end{equation}
-$\pi=p_{\text{plausible}}$ the plausibility score and $\mathcal{F}=\{(e_j,a_j)\}_j$ the violated
-obligations with their evidence. A text-only rewrite $\rho$ folds those failures back into the
-prompt and the \emph{same} generator resamples under the same control and seed,
+The loop composes the two maps of \cref{eq:gen-crit-maps} through a rewrite operator: from a base
+clip $\hat{\mathcal{V}}\sim\operatorname{Gen}(p,C)$ the critic returns
+$\operatorname{Crit}(\hat{\mathcal{V}},p)=(v,\pi,\mathcal{F})$---a verdict
+$v\in\{\textsf{plausible},\textsf{implausible},\textsf{abstain}\}$, a plausibility score
+$\pi=p_{\text{plausible}}$, and the violated obligations $\mathcal{F}=\{(e_j,a_j)\}_j$ with their
+evidence. A text-only rewrite $\rho$ folds those failures into the prompt and
+the \emph{same} generator resamples under the same control and seed,
 \begin{equation}
   p' = \rho\bigl(p,\mathcal{F}\bigr)\ \ \text{when}\ \ v=\textsf{implausible}\ \ (\text{else}\ p'=p),
   \qquad
@@ -438,20 +364,22 @@ prompt and the \emph{same} generator resamples under the same control and seed,
   \label{eq:refine-loop}
 \end{equation}
 so the channel acts only through the prompt---diffusion weights, control $C$, mask, and seed
-untouched---changing appearance while leaving the motion path fixed. We run one round and read the
-change in $\pi$ and $v$ against an independent rater applied to both.
+untouched---changing appearance while fixing the motion path. We run one round, reading the change
+in $\pi$ and $v$ against an independent rater applied to both.
 
-\paragraph{Protocol.} We run the full \emph{evaluate\,$\to$\,rewrite\,$\to$\,regenerate}
-loop over Cosmos3-Nano, a generator not used anywhere in this system's development, on its
-$600$ VideoPhy-2 test clips ($589$ complete the loop and carry a paired score, so the
-before/after columns rest on $600$ and $589$). Each baseline and its regeneration are
-scored two ways: by \PhyReAct{}'s own metric ($p_{\text{plausible}}$ and the verdict of
-\cref{sec:eval}), the quantity the rewrite optimizes; and by VideoPhy-2's official
-AutoRater~\cite{videophy2_2025}, an \emph{independent} rater returning semantic adherence
-(SA), physical commonsense (PC), and their joint agreement (both $\ge 4$). The AutoRater is
-the control: it is not the loop's objective and shares no component with the critic.
+\paragraph{Protocol.} We run the full \emph{evaluate\,$\to$\,rewrite\,$\to$\,regenerate} loop over
+Cosmos3-Nano, a generator unused anywhere in this system's development, on its $600$ VideoPhy-2 test
+clips ($589$ complete the loop with a paired score, so the before/after columns rest on $600$ and
+$589$). Each baseline and its regeneration are scored two ways: by \PhyReAct{}'s own metric
+($p_{\text{plausible}}$ and the verdict of \cref{sec:eval}), the quantity the rewrite optimizes; and
+by VideoPhy-2's official AutoRater~\cite{videophy2_2025}, an \emph{independent} rater returning
+semantic adherence (SA), physical commonsense (PC), and their joint agreement (both $\ge 4$). The
+AutoRater is the control---not the loop's objective and sharing no component with the critic.
 
-\paragraph{On its own metric the loop is effective.} By \PhyReAct{}'s own measurement (\cref{tab:refine-selfmetric}) the loop is targeted with low collateral: it acts on the $14.8\%$ of clips it judges flawed, raises $p_{\text{plausible}}$ on $72.4\%$ of those and flips $49$ of $65$ implausible verdicts to plausible, while regressing only $1.6\%$ of unflagged clips.
+\paragraph{On its own metric the loop is effective.} By \PhyReAct{}'s own measurement
+(\cref{tab:refine-selfmetric}) the loop is targeted with low collateral: it acts on the $14.8\%$ of
+clips it judges flawed, raises $p_{\text{plausible}}$ on $72.4\%$ of those and flips $49$ of $65$
+implausible verdicts to plausible, regressing only $1.6\%$ of unflagged clips.
 
 \input{tab_refine_selfmetric}
 \input{tab_refine_autorater}
@@ -464,12 +392,12 @@ the control: it is not the loop's objective and shares no component with the cri
   optimizes---the loop is targeted and low-collateral: of the clips it flagged, $63/87$
   improve and $49/65$ flip from implausible to plausible, against $8/502$ unflagged
   clips that regress. \textbf{Right:} the same clips scored by VideoPhy-2's independent
-  AutoRater show no movement---baseline (grey) and rewrite (red) bars coincide at every
-  threshold, on both the full set and the hard subset, in the semantic \emph{and} the
-  physical dimension. Every number is recomputed at draw time from the run's raw files
-  and matches \cref{tab:refine-selfmetric,tab:refine-autorater}. The improvement is thus
-  visible on the critic's own metric and not on the one rater independent of it. The
-  clips behind it are shown in \cref{fig:refinefilm}.}
+  AutoRater show no movement---each dumbbell from baseline (navy) to rewrite (red) collapses
+  to a point at every threshold, on both the full set and the hard subset, in the semantic
+  \emph{and} the physical dimension. Every number is transcribed from
+  \cref{tab:refine-selfmetric,tab:refine-autorater}. The improvement is thus
+  visible on the critic's own metric and not on the one rater independent of it. Clips in
+  \cref{fig:refinefilm}.}
   \label{fig:refinedata}
 \end{figure}
 
@@ -480,13 +408,12 @@ the control: it is not the loop's objective and shares no component with the cri
   \PhyReAct{} judged implausible and resampled through \cref{eq:refine-loop}. Each case
   is two real filmstrips: the \emph{baseline} clip (grey) and the clip regenerated from
   the rewritten prompt (\emph{rewrite}, red), six frames early to late; red boxes mark
-  the cited physical violation and its repair, and the rewriter's full regenerated prompt
-  is printed verbatim beneath. The cases were chosen by an independent frame-by-frame
-  review under an honesty constraint---the before/after must be the \emph{same} scene,
-  not a rewrite that swaps the scene or introduces a new artifact---which most flagged
-  clips fail; these are cases where the fix is visible and the comparison fair. Three
-  further cases are in \cref{fig:refinefilm2,fig:refinefilm3}; the quantitative reading is
-  \cref{fig:refinedata}.}
+  the cited physical violation and its repair, and the full regenerated prompt is printed
+  verbatim beneath. Cases were chosen by an independent frame-by-frame review under an
+  honesty constraint---the before/after must be the \emph{same} scene, not a rewrite that
+  swaps the scene or introduces a new artifact---which most flagged clips fail; these are
+  cases where the fix is visible and the comparison fair. Three further cases are in
+  \cref{fig:refinefilm2,fig:refinefilm3}; the quantitative reading is \cref{fig:refinedata}.}
   \label{fig:refinefilm}
 \end{figure*}
 
@@ -509,10 +436,24 @@ the control: it is not the loop's objective and shares no component with the cri
   \label{fig:refinefilm3}
 \end{figure*}
 
-\paragraph{An independent rater registers no change.} The same $589$ clips scored by VideoPhy-2's AutoRater show no movement in either dimension (\cref{tab:refine-autorater}; \cref{fig:refinedata} places the two readings side by side, clips in \cref{fig:refinefilm}): joint agreement, SA, and---critically---the \emph{physical} PC dimension all stay flat to lower, within rater noise. State both readings together, not collapsed: the gain appears only on the metric the critic itself assigns, while the one rater independent of the loop registers no change on either axis. The design cannot separate two readings---that rewrites improve a physical quality the critic can measure but the AutoRater cannot, or that they raise the critic's own score without improving the clip---because the critic both triggers and judges the effect it reports. (External position only: Cosmos3-Nano's AutoRater joint score is unchanged by the rewrite, $22.8\!\to\!23.1\%$ (all) and $3.9\!\to\!3.4\%$ (hard), near published human-rated leaderboard entries; but human and AutoRater joint scores share no common protocol, so this is descriptive only.) Every reported figure was recomputed independently from the run's per-clip files and reproduces exactly (\cref{tab:refine-verify} in \cref{sec:app-refine-verify}).
+\paragraph{An independent rater registers no change.} The same $589$ clips scored by VideoPhy-2's
+AutoRater show no movement in either dimension (\cref{tab:refine-autorater}; \cref{fig:refinedata}
+places the two readings side by side, clips in \cref{fig:refinefilm}): joint agreement, SA, and---%
+critically---the \emph{physical} PC dimension all stay flat to lower, within rater noise. Stated
+together, not collapsed: the gain appears only on the metric the critic itself assigns, while the
+one rater independent of the loop registers no change on either axis. The design cannot separate two
+readings---that rewrites improve a physical quality the critic can measure but the AutoRater cannot,
+or that they raise the critic's own score without improving the clip---because the critic both
+triggers and judges the effect it reports. (External position only: Cosmos3-Nano's AutoRater joint
+score is unchanged by the rewrite, $22.8\!\to\!23.1\%$ (all) and $3.9\!\to\!3.4\%$ (hard), near
+published human-rated leaderboard entries; but human and AutoRater joint scores share no common
+protocol, so this is descriptive only.) Every reported figure was recomputed independently from the
+run's per-clip files and reproduces exactly (\cref{tab:refine-verify} in \cref{sec:app-refine-verify}).
 
-\paragraph{Scope.} Confirming the rewrites improve physical fidelity as an independent judge would score it needs a rater both independent of the critic and sensitive to the targeted physical property---which the AutoRater's flat PC suggests it is not on these clips. All $589$ per-clip comparisons and both scoring streams ship with the run.
-
+\paragraph{Scope.} Confirming the rewrites improve physical fidelity as an independent judge would
+score it needs a rater both independent of the critic and sensitive to the targeted physical
+property---which the AutoRater's flat PC suggests it is not on these clips. All $589$ per-clip
+comparisons and both scoring streams ship with the run.
 \subsection{Scope and interpretation}\label{sec:eval-scope}
 Each setting must be read on its own terms. The generator analyses (\cref{sec:gen-experiments}) are
 pre-registered probes on small closed-form scenes, characterizing the deployed pipeline rather than

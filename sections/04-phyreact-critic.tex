@@ -17,18 +17,12 @@ Two properties make the critic auditable. First, reasoning sits entirely up fron
 
 We now fix notation for the objects these roles operate on. Recall the clip--prompt
 pair of \cref{sec:gen-prelim}; the critic addresses frames and, when present, an audio
-track on the clip's own container clock,
-\begin{equation}
-\mathcal{V}
-  = \{(I_t,\tau_t)\}_{t\in\mathcal{T}_{\mathcal V}},
-\qquad
-\mathcal{T}_{\mathcal V}=\{0,\ldots,T_{\mathcal V}-1\},
-\qquad
-0\leq\tau_0<\cdots<\tau_{T_{\mathcal V}-1}\leq D_{\mathcal V},
-\label{eq:video-clock}
-\end{equation}
-where $I_t$ is frame $t$, $\tau_t$ its timestamp, and $D_{\mathcal V}$ the clip
-duration; separating index from time permits nonuniform decode timestamps. From the
+track on the clip's own container clock, writing the clip as
+$\mathcal{V}=\{(I_t,\tau_t)\}_{t\in\mathcal{T}_{\mathcal V}}$ over frame indices
+$\mathcal{T}_{\mathcal V}=\{0,\ldots,T_{\mathcal V}-1\}$ with ordered timestamps
+$0\leq\tau_0<\cdots<\tau_{T_{\mathcal V}-1}\leq D_{\mathcal V}$, where $I_t$ is frame $t$,
+$\tau_t$ its timestamp, and $D_{\mathcal V}$ the clip duration; separating index from time
+permits nonuniform decode timestamps. From the
 prompt the planner produces exact prompt-grounded claims and a surface plan,
 \begin{equation}
 \mathcal{C}(p)
@@ -160,19 +154,7 @@ exact common-subexpression reuse~\cite{sellis1988mqo,roy2000mqo}; because the re
 scope is part of the signature, whole-clip and localized requests never merge merely
 because their natural-language queries are similar.
 
-Timing is the one capability needing a guard before its windows are used: a returned window is not evidence the queried event occurred, since a forced localizer may return its best candidate even for an absent event. Visible events are thus confirmed first by the dense-frame semantic verifier, audible events on the audio track, and only supported occurrences let their intervals enter a temporal predicate. Writing the sub-check states over the three-valued codomain $\mathbb{V}=\{\mathsf{S},\mathsf{C},\mathsf{U}\}$ (\supported{}, \contradicted{}, \unknownv{}; \cref{sec:semantics}), a relation $R\in\{\mathrm{before},\mathrm{during}\}$ resolves as
-\begin{equation}
-z_{R(A,B)}
-=
-\begin{cases}
-\mathsf{C}, & \mathsf{C}\in\{o_A,o_B\},\\
-\mathsf{U}, & \mathsf{U}\in\{o_A,o_B\}
-              \text{ or }W_A\text{ or }W_B\text{ is unavailable},\\
-\rho_R(W_A,W_B), & o_A=o_B=\mathsf{S},
-\end{cases}
-\label{eq:temporal-gate}
-\end{equation}
-where $o_A,o_B$ are occurrence states and $W_A,W_B$ measured windows, so timing may compose an order but never establish occurrence. The order predicate $\rho_R$ compares interval endpoints under a boundary slack of one quarter of the shorter window (\cref{eq:temporal-before} in \cref{sec:app-temporal}): an order is supported or contradicted only when one window ends before the other begins by more than the slack, otherwise $\mathsf{U}$; the quarter-window rule prevents both directions from holding. Containment (\emph{during}) uses the same slack. These predicates are a tolerance-scaled subset of Allen's interval algebra~\cite{allen1983intervals}. \Cref{fig:planchain} traces one such ordering through a recorded run, from the plan line written before any frame was read to the two measured windows that settle it.
+Timing is the one capability needing a guard before its windows are used: a returned window is not evidence the queried event occurred, since a forced localizer may return its best candidate even for an absent event. Visible events are thus confirmed first by the dense-frame semantic verifier, audible events on the audio track, and only supported occurrences let their intervals enter a temporal predicate. Writing the sub-check states over the three-valued codomain $\mathbb{V}=\{\mathsf{S},\mathsf{C},\mathsf{U}\}$ (\supported{}, \contradicted{}, \unknownv{}; \cref{sec:semantics}), a relation $R\in\{\mathrm{before},\mathrm{during}\}$ over occurrence states $o_A,o_B$ and measured windows $W_A,W_B$ resolves to \contradicted{} if either operand is \contradicted{}, to \unknownv{} if either is \unknownv{} or a window is unavailable, and to the order predicate $\rho_R(W_A,W_B)$ only when both events are supported---so timing may compose an order but never establish occurrence. That predicate $\rho_R$ compares interval endpoints under a boundary slack of one quarter of the shorter window (\cref{eq:temporal-before} in \cref{sec:app-temporal}): an order is supported or contradicted only when one window ends before the other begins by more than the slack, otherwise $\mathsf{U}$; the quarter-window rule prevents both directions from holding. Containment (\emph{during}) uses the same slack. These predicates are a tolerance-scaled subset of Allen's interval algebra~\cite{allen1983intervals}. \Cref{fig:planchain} traces one such ordering through a recorded run, from the plan line written before any frame was read to the two measured windows that settle it.
 
 \begin{figure}[tp]
   \centering
@@ -257,10 +239,9 @@ Y=
 \end{cases}
 \label{eq:claim-clip-rollup}
 \end{equation}
-One contradiction makes the clip implausible; \textsc{Plausible} requires every planned claim
-supported, and is therefore a statement about the claims the plan executed.
+One contradiction makes the clip implausible, and \textsc{Plausible} asserts only over the claims the plan executed.
 
-Two learned refinements act on the rolled-up states. First, a stronger reviewing model re-examines claims the video-aware verifier passed, and its verdict stands\label{sec:review}: overruling a pass resolves the claim to \contradicted{} rather than \unknownv{}, replacing $y_i$ where the sub-checks would otherwise roll up to $\mathsf{S}$. Both verdicts are recorded, so a row can be re-scored on the first verifier's alone. The direction is asymmetric by design: the reviewer examines only passed claims, never a specialist measurement, which carries evidence a second opinion cannot inspect. Second, a recognition engine reads frames directly to settle text claims: a generative model asked what a sign says repairs what it sees---rendering a malformed \code{Stly your} as the well-formed \code{Style your} the prompt requested, concealing the defect under test---whereas a recognition head returns the malformed string, which a deterministic comparison rejects. It reads every frame rather than a sampled fraction, since a caption present for part of a clip can fall between samples, and each record states the frames read.
+Those two refinements are as follows. First, a stronger reviewing model re-examines claims the video-aware verifier passed, and its verdict stands\label{sec:review}: overruling a pass resolves the claim to \contradicted{} rather than \unknownv{}, replacing $y_i$ where the sub-checks would otherwise roll up to $\mathsf{S}$. Both verdicts are recorded, so a row can be re-scored on the first verifier's alone. The direction is asymmetric by design: the reviewer examines only passed claims, never a specialist measurement, which carries evidence a second opinion cannot inspect. Second, a recognition engine reads frames directly to settle text claims: a generative model asked what a sign says repairs what it sees---rendering a malformed \code{Stly your} as the well-formed \code{Style your} the prompt requested, concealing the defect under test---whereas a recognition head returns the malformed string, which a deterministic comparison rejects. It reads every frame rather than a sampled fraction, since a caption present for part of a clip can fall between samples, and each record states the frames read.
 
 Beyond the clip state $Y$, a run emits a localized contradiction packet\label{sec:loop}
 \begin{equation}

@@ -1,16 +1,16 @@
 \section{Physics-Guided Simulation Pipeline}\label{sec:generation}
 
 Modern generators render physically plausible motion, yet prompt-driven synthesis supplies no known
-physical target for a clip: because physics and appearance are produced jointly, the intended
-trajectory, contact, or counterfactual is neither fixed in advance nor recoverable afterward, and
-every physical property stays confounded with appearance. An evaluation testbed instead needs a
-target factored out of appearance---specified, known by construction, and auditable independently of
-generator capability. We obtain one from a trusted physics solver and render it as a geometric
-control for a control-conditioned generator, so the solver fixes the motion while the prompt supplies
-only appearance (\cref{fig:genpipe}). Two stages develop this: \cref{sec:gen-control} turns the event
-description into a validated physical target rendered as a registered geometric control, and
-\cref{sec:gen-mechanism} conditions the generator on that control and an appearance prompt. Whether
-the generated video in fact realizes the target is the open question of \cref{sec:gen-experiments}.
+physical target: because physics and appearance are produced jointly, the intended trajectory,
+contact, or counterfactual is neither fixed in advance nor recoverable afterward, and every physical
+property stays confounded with appearance. An evaluation testbed instead needs a target factored out
+of appearance---specified, known by construction, and auditable independently of generator
+capability. We obtain one from a trusted physics solver and render it as a geometric control, so the
+solver fixes the motion while the prompt supplies only appearance (\cref{fig:genpipe}). Two stages
+develop this: \cref{sec:gen-control} turns the event description into a validated target rendered as a
+registered control, and \cref{sec:gen-mechanism} conditions the generator on that control and an
+appearance prompt. Whether the generated video realizes the target is the open question of
+\cref{sec:gen-experiments}.
 
 \begin{figure}[t]
   \centering
@@ -26,16 +26,14 @@ the generated video in fact realizes the target is the open question of \cref{se
 \subsection{Preliminaries}
 \label{sec:gen-prelim}
 
-The atomic unit throughout is a \emph{clip--prompt pair}: a clip
+The atomic unit is a \emph{clip--prompt pair}: a clip
 $\mathcal{V}=\{(I_t,\tau_t)\}_{t\in\mathcal{T}_{\mathcal V}}$, a time-ordered sequence of frames $I_t$
-at timestamps $\tau_t$ with duration $D_{\mathcal V}$ (\cref{sec:critic}), with a natural-language
-prompt $p$. Generation \emph{produces} a clip from a prompt and a geometric control $C$---a video
-rendered from the physics solver with per-frame per-pixel depth intensity $C_t(u)$
-(\cref{sec:gen-control})---while evaluation \emph{consumes} a clip--prompt pair and returns a verdict.
-The prompt supplies appearance only to the generator (subject, material, setting), $C$ carrying the
-physical target, and is read in full by the critic; $\hat{\mathcal{V}}$ denotes a generated sample and
-$\mathcal{V}$ any clip fed to the critic. Generation and evaluation are thus two maps over a clip and
-its prompt, built and benchmarked separately,
+at timestamps $\tau_t$ with duration $D_{\mathcal V}$ (\cref{sec:critic}), and a natural-language
+prompt $p$. The prompt supplies appearance only (subject, material, setting), the geometric control
+$C$ carrying the physical target---a solver-rendered video with per-frame per-pixel depth intensity
+$C_t(u)$ (\cref{sec:gen-control}); $\hat{\mathcal{V}}$ denotes a generated sample, $\mathcal{V}$ any
+clip fed to the critic. Generation and evaluation are thus two maps over a clip and its prompt, built
+and benchmarked separately,
 \begin{equation}
   \hat{\mathcal{V}}\sim\operatorname{Gen}(p,C)
   \qquad\qquad
@@ -43,9 +41,8 @@ its prompt, built and benchmarked separately,
   \label{eq:gen-crit-maps}
 \end{equation}
 where $\operatorname{Gen}$ samples a clip conditioned on $p$, $C$, a mask $M$ and a scalar strength
-$s$---a statement asserting no physical fidelity---and $\operatorname{Crit}$ is the auditable critic
-\PhyReAct{} developed in \cref{sec:critic}, returning the clip-level verdict $Y$ defined there
-(\cref{eq:claim-clip-rollup}).
+$s$---asserting no physical fidelity---and $\operatorname{Crit}$ is the auditable critic \PhyReAct{}
+of \cref{sec:critic}, returning the clip-level verdict $Y$ (\cref{eq:claim-clip-rollup}).
 
 \subsection{From specification to registered control}\label{sec:gen-control}
 
@@ -62,7 +59,7 @@ p_{\mathrm{ev}}
 where $\textsc{Author}$ has a language model compile the text into a structured scene specification
 $\mathcal{S}$ (bodies, initial states, colliders, static surfaces, and a camera; \cref{fig:authoring}),
 $\textsc{Sim}$ runs the physics solver to a trajectory $\tau$, and $\textsc{Render}$ converts the
-solver state into the depth control $C$ of \cref{eq:depth-to-control}. The middle map is gated by a
+solver state into the depth control $C$ of \cref{sec:gen-control}. The middle map is gated by a
 validation loop (\cref{eq:scene-validate}) so only a $\tau$ meeting the event's physical predicates is
 rendered; the three maps are developed in turn below.
 
@@ -88,27 +85,22 @@ $\Phi_{\mathrm{ev}}(\tau^{(k)})$ true is the validated trajectory $\tau$ of \cre
 passed to $\textsc{Render}$; exhausting the budget yields an explicitly marked unvalidated fallback
 rather than a validated scene.
 
-The $\textsc{Render}$ map turns the validated trajectory $\tau$ and the scene $\mathcal{S}$ it moves
-into the control $C$. Because $C$ is rendered from solver state, not inferred from a generated video,
-it is registered to the intended motion by construction; all rendered streams share the scene's frame
-clock, with solver, camera, and playback settings deferred to \cref{sec:gen-setup}. For each of the
-clip's $T$ frames, rendering places the geometry of $\mathcal{S}$ at the trajectory's per-frame pose,
-images it with the scene camera, and reads off a depth buffer $D_t(u)$---camera distance at pixel $u$
-in frame $t$---normalized into a near-bright, far-dark intensity. With $d_-,d_+$ the $1$st and $97$th
-percentiles of the non-background depths pooled over the whole clip and $\operatorname{clip}(x,0,1)$
-the clamp to $[0,1]$, the control frame is
-\begin{equation}
-C_t(u) = 1-\operatorname{clip}\!\left(\frac{D_t(u)-d_-}{d_+-d_-},\,0,\,1\right)\ \in[0,1],
-\label{eq:depth-to-control}
-\end{equation}
-and $C=(C_t)_{t=0}^{T-1}$ is the video conditioning the generator in \cref{sec:gen-mechanism}. Near
-surfaces map bright, far ones dark, and background ($D_t(u)$ beyond $d_+$) to $0$; pooling the
-percentiles once fixes the mapping so the same distance is the same intensity throughout, the cut
-asymmetric because the far tail abuts the background and is dominated by depth-edge noise, with a
-small Gaussian blur softening rasterized boundaries. The percentiles satisfy $d_+>d_-$ whenever the
-clip has a usable depth range; when they do not---no non-background pixels, coincident percentiles, or
-a predeclared flat scene---$\textsc{Render}$ falls back to a binary moving-body silhouette, depth
-otherwise preferred for preserving both outline and distance ordering.
+The $\textsc{Render}$ map turns the validated trajectory $\tau$ and its scene $\mathcal{S}$ into the
+control $C$. Rendered from solver state rather than inferred from a generated video, $C$ is registered
+to the intended motion by construction, all streams sharing the scene's frame clock (solver, camera,
+and playback settings deferred to \cref{sec:gen-setup}). For each of the clip's $T$ frames, rendering
+places $\mathcal{S}$'s geometry at the per-frame pose, images it with the scene camera, and reads a
+depth buffer $D_t(u)$---camera distance at pixel $u$ in frame $t$---normalized to a near-bright,
+far-dark intensity $C_t(u)=1-\operatorname{clip}\big((D_t(u)-d_-)/(d_+-d_-),0,1\big)\in[0,1]$, where
+$d_-,d_+$ are the $1$st and $97$th percentiles of the non-background depths pooled over the whole clip
+and $\operatorname{clip}$ clamps to $[0,1]$; the control $C=(C_t)_{t=0}^{T-1}$ then conditions the
+generator in \cref{sec:gen-mechanism}. Background ($D_t(u)$
+beyond $d_+$) maps to $0$; pooling the percentiles once fixes the mapping so the same distance is the
+same intensity throughout, the cut asymmetric because the far tail abuts the background and is
+dominated by depth-edge noise, with a small Gaussian blur softening rasterized boundaries. When
+$d_+>d_-$ fails---no non-background pixels, coincident percentiles, or a predeclared flat
+scene---$\textsc{Render}$ falls back to a binary moving-body silhouette, depth otherwise preferred for
+preserving both outline and distance ordering.
 
 \subsection{Physics-conditioned video generation}\label{sec:gen-mechanism}
 
@@ -146,34 +138,26 @@ $\hat{\mathcal{V}}\sim\operatorname{Gen}(p,C)$ is drawn---a sample, asserting no
 
 \subsection{Control withdrawal as a mechanism probe}\label{sec:gen-withdrawal}
 
-A natural question about the deployed generator is \emph{when} its control can be released: the
-injection of \cref{eq:control-release} runs throughout sampling, but if the trajectory settles by some
-intermediate noise level, the control is redundant after that point. Answering it cleanly requires
-switching the control off partway through denoising, which VACE's additive residual makes awkward in
-isolation. We therefore study the question on a \emph{separate} Wan2.2-derived backbone whose control
-path is easy to interrupt---a mechanism probe, not the deployed generator---and read the commitment
-point back as a property of the Wan~2.2 diffusion prior both share. This second backbone, run at $40$
-UniPC steps with flow shift $5.0$, has no trained control branch: its only conditioning path encodes a
-rendered source video into context tokens concatenated with the text and image tokens, which makes
-withdrawal directly available---the source tokens are removed from the attended sequence at a chosen
-step, distinct from the additive-residual injection of \cref{eq:control-release}. Writing
-$m_i\in\{0,1\}$ for the video tokens' presence at step $i$ of $S$,
-\begin{equation}
-m_i = \mathbb{1}\!\left[\,i < i^{*}\,\right],
-\qquad
-i^{*} = \operatorname{clip}\big(\operatorname{round}(f S),\, 0,\, S-1\big),
-\label{eq:withdrawal-mask}
-\end{equation}
-with $f$ the withdrawal fraction. Steps before $i^{*}$ attend over the source tokens at the scale
+\emph{When} can the control be released? The injection of \cref{eq:control-release} runs throughout
+sampling, but if the trajectory settles by some intermediate noise level the control is redundant
+afterward. Switching it off partway is awkward for VACE's additive residual, so we study the question
+on a \emph{separate} Wan2.2-derived backbone whose control path is easy to interrupt---a mechanism
+probe, not the deployed generator---and read the commitment point back as a property of the Wan~2.2
+diffusion prior both share. Run at $40$ UniPC steps with flow shift $5.0$, this backbone has no
+trained control branch: its only conditioning path encodes a rendered source video into context
+tokens concatenated with the text and image tokens, so withdrawal is directly available---the source
+tokens are removed from the attended sequence at a chosen step, distinct from the additive-residual
+injection of \cref{eq:control-release}: over $S$ steps the source tokens are present at step $i$ iff
+$i<i^{*}$, where $i^{*}=\operatorname{clip}(\operatorname{round}(fS),0,S-1)$ and $f\in[0,1]$ is the
+withdrawal fraction. Steps before $i^{*}$ attend over the source tokens at the scale
 $\omega$ the deployed recipe uses; from $i^{*}$ onward the sequence is identical to that of an
 unconditioned generation.
 
 Because $i^{*}$ is an index, its noise level depends on the schedule, so the withdrawal point is
 reported as $\sigma_{\mathrm{rel}}=\sigma_{i^{*}}$, the level the flow-matching schedule assigns step
-$i^{*}$ (the shift-dependent step-to-noise map is \cref{eq:flow-sigma} in \cref{sec:app-schedule}).
-Two runs withdrawing at the same step index thus hit different noise levels whenever step count $S$ or
-shift $\kappa$ differs, which is why \cref{sec:gen-release} indexes by $\sigma_{\mathrm{rel}}$ rather
-than by step. Finally, the multistep solver forms each update from derivatives cached at previous
-steps, so after a withdrawal those still carry the removed tokens' influence; the measurement compares
-one variant that clears that history at $i^{*}$ against one that leaves it in place, otherwise
-identical.
+$i^{*}$ (the shift-dependent map is \cref{eq:flow-sigma} in \cref{sec:app-schedule}); two runs at the
+same step index thus hit different noise levels whenever $S$ or shift $\kappa$ differs, which is why
+\cref{sec:gen-release} indexes by $\sigma_{\mathrm{rel}}$. Finally, the multistep solver forms each
+update from derivatives cached at previous steps, which after a withdrawal still carry the removed
+tokens' influence; the measurement compares one variant that clears that history at $i^{*}$ against
+one that keeps it, otherwise identical.

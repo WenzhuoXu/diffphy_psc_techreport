@@ -108,7 +108,7 @@ def main() -> int:
     # axis. The teaching gain gets a full step and its own arrow; the four taught
     # doses collapse into a thin band whose height is the whole "dose effect".
     RED = "#D64525"  # a legible ink-red for the headline gain (adobered is too pale at this weight)
-    fig, ax = plt.subplots(figsize=(3.4, 3.15))
+    fig, ax = plt.subplots(figsize=(3.5, 2.0))
     xc = list(range(len(pts)))                     # 0..4, evenly spaced conditions
     ys = [p[2] for p in pts]
     taught = pts[1:]
@@ -134,19 +134,18 @@ def main() -> int:
     ax.annotate("", xy=(xa, plo - 0.8), xytext=(xa, base + 0.8),
                 arrowprops=dict(arrowstyle="-|>", color=RED, lw=1.9,
                                 shrinkA=0, shrinkB=0, mutation_scale=13), zorder=6)
-    ax.text(xa + 0.14, base + 8.5, f"+{gain} flaws\n(+{100 * gain / n:.1f} pts)",
-            color=RED, fontsize=8.6, ha="left", va="center", fontweight="bold", linespacing=1.15)
+    ax.text(xa + 0.14, (base + plo) / 2, f"+{gain} flaws\n(+{100 * gain / n:.1f} pts)",
+            color=RED, fontsize=8.2, ha="left", va="center", fontweight="bold", linespacing=1.1)
 
-    ax.annotate("untaught\n%d  (%.1f%%)" % (base, 100 * base / n), (xc[0], base),
-                textcoords="offset points", xytext=(2, -6), fontsize=8.2, color=INK,
-                ha="left", va="top", linespacing=1.3)
-    ax.text(xc[2] + 0.5, phi + 1.5, "taught: %d–%d flaws (≈%.1f%%)\nflat across dose (p ≥ 0.8)"
-            % (plo, phi, 100 * ys[-1] / n), fontsize=8.2, color=INK, ha="center", va="bottom",
-            linespacing=1.3)
+    ax.annotate("untaught  %d (%.1f%%)" % (base, 100 * base / n), (xc[0], base),
+                textcoords="offset points", xytext=(3, -5), fontsize=8.0, color=INK,
+                ha="left", va="top")
+    ax.text(xc[2] + 0.5, phi + 1.2, "taught: %d–%d flaws (≈%.1f%%), flat across dose ($p \\geq 0.8$)"
+            % (plo, phi, 100 * ys[-1] / n), fontsize=8.0, color=INK, ha="center", va="bottom")
 
     ax.set_xlim(-0.42, 4.42)
-    ax.set_ylim(326, 398)
-    yt = list(range(330, 391, 10))
+    ax.set_ylim(334, 392)
+    yt = list(range(340, 381, 10))
     ax.set_xticks(xc)
     ax.set_xticklabels([str(p[0]) for p in pts])
     ax.set_yticks(yt)
